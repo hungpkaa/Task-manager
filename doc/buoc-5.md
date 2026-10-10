@@ -18,7 +18,7 @@
 
 Trạng thái Project dùng ACTIVE/CLOSED; chưa có mở lại/xóa Project vì nguồn không có Use Case tương ứng. Project mới chưa có PM, Owner cần phân công để quản lý nội dung. Ngày bắt đầu/kết thúc tùy chọn; nếu đủ hai ngày thì kết thúc không trước bắt đầu. Tên 1–100 ký tự, mô tả tối đa 2000 ký tự. PM cũ không bị tự xóa khỏi nhóm. Thông báo Project được bổ sung theo quy trình ghi nhận kết quả/thông báo chung; UC13 nguồn chỉ nói thông báo kết quả, không bắt buộc email.
 
-Khi có Task ở bước 6, phải chặn xóa membership Project/Workspace nếu người dùng còn được giao Task cho đến khi chuyển giao/bỏ phân công. Task và Sprint chưa có, vì vậy đóng Project hiện chưa xử lý những bản ghi này. Khi bổ sung phải xác định điều kiện đóng với Task/Sprint đang hoạt động, không xóa lịch sử. Đây là điểm tích hợp còn lại, không coi là đã kiểm chứng.
+Tại mốc bước 5, Task/Sprint chưa có. Bước 6 đã bổ sung chặn xóa membership Project/Workspace nếu còn Task chưa DONE, chặn đóng Project nếu còn Task chưa DONE; giữ assignee lịch sử DONE và không tự xóa Task. Điều kiện Sprint đang hoạt động còn phải bổ sung và kiểm chứng ở bước 9.
 
 ## Dữ liệu và API
 

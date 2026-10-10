@@ -14,6 +14,7 @@
     "check:auth": "npm run check:auth -w @task-manager/api",
     "check:workspaces": "npm run check:workspaces -w @task-manager/api",
     "check:projects": "npm run check:projects -w @task-manager/api",
+    "check:tasks": "npm run check:tasks -w @task-manager/api",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:local:start": "node scripts/local-database.mjs start",

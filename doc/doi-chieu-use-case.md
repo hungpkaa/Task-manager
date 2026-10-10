@@ -20,34 +20,34 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC06 | Tạo Workspace | Đã triển khai: Workspace và membership Owner cùng transaction | 4 |
 | UC07 | Cập nhật Workspace | Đã triển khai: Owner sửa tên/mô tả | 4 |
 | UC08 | Mời thành viên | Đã triển khai: thêm tài khoản ACTIVE đã tồn tại, thông báo trong ứng dụng cùng transaction | 4 |
-| UC09 | Xóa thành viên khỏi Workspace | Đã triển khai: giữ Owner cuối cùng, chặn nếu còn PM; xóa các membership Project thường; ràng buộc Task bổ sung ở bước 6 | 4, 5, 6 |
+| UC09 | Xóa thành viên khỏi Workspace | Đã triển khai: giữ Owner cuối cùng, chặn nếu còn PM hoặc Task chưa DONE; xóa membership Project thường, giữ assignee lịch sử DONE | 4, 5, 6 |
 | UC10 | Quản lý vai trò thành viên | Đã triển khai: chỉ Owner, vai trò Owner/Member, kiểm tra Owner cuối cùng | 4 |
 | UC11 | Xem danh sách thành viên | Đã triển khai: chỉ thành viên Workspace, không lộ mật khẩu/phiên | 4 |
 | UC12 | Tạo Project | Đã triển khai: Owner, đúng Workspace, tên/mô tả/ngày tháng | 5 |
 | UC13 | Phân công Project Manager | Đã triển khai: Owner chọn thành viên ACTIVE của Workspace, tự thêm ProjectMember, xác nhận PM hiện tại, thông báo | 5 |
 | UC14 | Cập nhật Project | Đã triển khai: PM hiện tại, kiểm tra ngày tháng và trạng thái đóng | 5 |
-| UC15 | Đóng Project | Đã triển khai: PM, giữ dữ liệu CLOSED và thông báo thành viên; chưa có Task/Sprint để xử lý | 5, 6, 9 |
-| UC16 | Quản lý thành viên Project | Đã triển khai: PM thêm/xóa thành viên Workspace, chặn xóa PM; ràng buộc Task bổ sung ở bước 6 | 5, 6 |
+| UC15 | Đóng Project | Đã triển khai: PM, chặn khi còn Task chưa DONE, giữ dữ liệu CLOSED/thông báo; ràng buộc Sprint bổ sung ở bước 9 | 5, 6, 9 |
+| UC16 | Quản lý thành viên Project | Đã triển khai: PM thêm/xóa thành viên Workspace, chặn xóa PM/người còn Task chưa DONE | 5, 6 |
 | UC17 | Xem Project | Đã triển khai: Owner của Workspace hoặc thành viên Project; PM được thêm vào Project | 5 |
-| UC18 | Xem chi tiết Task | Chưa triển khai | 6 |
-| UC19 | Tạo Task | Chưa triển khai; gồm mặc định TODO và thông báo khi phân công | 6, 8 |
-| UC20 | Cập nhật Task | Chưa triển khai | 6 |
-| UC21 | Xóa Task | Chưa triển khai | 6 |
-| UC22 | Gán / thay đổi người phụ trách | Chưa triển khai; người phụ trách thuộc Project, có thông báo | 6, 8 |
-| UC23 | Cập nhật trạng thái Task | Chưa triển khai; phải kiểm tra quyền/dependency, cảnh báo BLOCKED | 6, 10 |
-| UC24 | Đặt Priority và Deadline | Chưa triển khai | 6 |
+| UC18 | Xem chi tiết Task | Đã triển khai: quyền Project, thuộc tính, assignee và cảnh báo dependency | 6 |
+| UC19 | Tạo Task | Cơ bản: PM, TODO, thuộc tính/effort/assignee, thông báo cùng transaction; sprintId null, chọn Sprint bổ sung ở bước 9 | 6, 9 |
+| UC20 | Cập nhật Task | Đã triển khai: PM, tên/mô tả/priority/ngày/effort; kiểm tra dữ liệu cũ+mới | 6 |
+| UC21 | Xóa Task | Đã triển khai: PM, xác nhận UI, chặn Task đang được Task khác phụ thuộc | 6 |
+| UC22 | Gán / thay đổi người phụ trách | Đã triển khai: PM, thành viên Project ACTIVE, cho phép bỏ phân công, thông báo nguyên tử | 6 |
+| UC23 | Cập nhật trạng thái Task | Cơ bản: PM/assignee, chuyển tuần tự, kiểm tra dependency và xác nhận BLOCKED; Dashboard/Progress tích hợp sau | 6, 10 |
+| UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu | 6 |
 | UC25 | Bình luận và @mention | Chưa triển khai | 8 |
 | UC26 | Đính kèm tệp vào Task | Chưa triển khai | 8 |
-| UC27 | Xem My Tasks | Chưa triển khai | 6 |
-| UC28 | Xem Kanban Board | Chưa triển khai | 6 |
-| UC29 | Xem List/Table | Chưa triển khai | 6 |
+| UC27 | Xem My Tasks | Đã triển khai: công việc của chính mình trong các Project còn membership | 6 |
+| UC28 | Xem Kanban Board | Đã triển khai: bốn cột trạng thái, lọc và phân trang; đổi trạng thái trong chi tiết, chưa kéo thả | 6 |
+| UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
 | UC30 | Xem Calendar | Chưa triển khai | 10 |
-| UC31 | Tìm kiếm, lọc và sắp xếp Task | Chưa triển khai | 6 |
-| UC32 | Xem và quản lý thông báo | Cơ bản: 50 thông báo gần nhất của chính mình, đếm chưa đọc, đánh dấu đã đọc; có sự kiện Workspace/Project, chưa Task/mention/Sprint | 4, 5, 8 |
+| UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
+| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task; chưa mention/Sprint | 4, 5, 6, 8 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
-| UC35 | Thiết lập Effort và Capacity | Chưa triển khai | 10 |
-| UC36 | Quản lý Task Dependency | Chưa triển khai | 10 |
+| UC35 | Thiết lập Effort và Capacity | Cơ bản: Task effort 1/2/3/5/8; chưa Capacity và Workload | 6, 10 |
+| UC36 | Quản lý Task Dependency | Chưa có API/UI quản lý; đã có bảng và kiểm tra BLOCKED, FK cùng Project, không tự phụ thuộc; kiểm tra chu trình khi tạo ở bước 10 | 10 |
 | UC37 | Xem Workload thành viên | Chưa triển khai | 10 |
 | UC38 | Xem Project Risk | Chưa triển khai | 10 |
 | UC39 | Xem đề xuất điều phối | Chưa triển khai | 10 |
@@ -76,6 +76,8 @@ Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đ�
 - Module A chưa đầy đủ vì UC04 chưa có. Việc bước 3 của lộ trình đã hoàn thành chỉ nói đến đợt triển khai tài khoản cơ bản.
 
 ## Lựa chọn triển khai ngoài chi tiết đặc tả
+
+Task bước 6 đối chiếu image38/image39/image40/image52. Quyền đổi trạng thái PM hoặc assignee, chỉ chuyển bước kế tiếp, cảnh báo BLOCKED cần xác nhận, phân trang 20, priority mặc định MEDIUM và giữ assignee DONE sau xóa membership là lựa chọn triển khai ghi tại [bước 6](buoc-6.md). UC23 chưa nghiệm thu đầy đủ vì Dashboard/Progress chưa có; UC19 chưa chọn Sprint.
 
 Project bước 5 đối chiếu UC12/UC13 chi tiết (image36/image37), sequence image17, ERD image29 và quy ước image51. UC14–UC17 chỉ có danh mục/quy tắc chung. Trạng thái ACTIVE/CLOSED, ngày tùy chọn, đóng chặn thay đổi nội dung, Owner vẫn chuyển PM sau đóng, PM tự vào Project, PM cũ giữ membership, phạm vi xem Member theo membership Project và giới hạn trường là lựa chọn triển khai ghi tại [bước 5](buoc-5.md).
 

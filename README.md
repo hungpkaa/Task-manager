@@ -4,11 +4,12 @@ Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Spr
 
 ## Trạng thái
 
-Đã hoàn thành bước 5: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và thành viên.
+Đã triển khai bước 6: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task.
 Có đăng ký, đăng nhập, đăng xuất, đọc/sửa hồ sơ và phiên đăng nhập lưu trong PostgreSQL.
 Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member và thông báo khi được thêm vào nhóm.
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.
-Task chưa được triển khai.
+Có tạo/sửa/xóa Task, phân công, priority/ngày/effort, đổi trạng thái, My Tasks, List/Kanban, tìm kiếm/lọc/sắp xếp và thông báo giao việc.
+Sprint, cộng tác mở rộng, Dashboard và phân tích điều phối chưa hoàn thiện; xem bảng Use Case để biết các phần phụ thuộc còn lại.
 
 ## Tài liệu
 
@@ -18,6 +19,7 @@ Task chưa được triển khai.
 - [Bước 3 — Tài khoản và xác thực](doc/buoc-3.md)
 - [Bước 4 — Workspace, thành viên và thông báo](doc/buoc-4.md)
 - [Bước 5 — Project và phân quyền PM](doc/buoc-5.md)
+- [Bước 6 — Task, My Tasks, List và Kanban](doc/buoc-6.md)
 - [Đối chiếu tiến độ với 52 Use Case](doc/doi-chieu-use-case.md)
 
 ## Công nghệ đã chọn
@@ -59,3 +61,9 @@ Chi tiết API, lựa chọn nghiệp vụ và kiểm thử xem tài liệu bư�
 ## Thử Project
 
 Mở Workspace → **Project**. Owner tạo dự án, chọn PM từ thành viên Workspace và xác nhận. PM đăng nhập để sửa dự án, thêm thành viên hoặc đóng dự án. Owner chỉ có quyền quản lý nội dung Project khi được phân công PM. Owner có thể chuyển PM cả sau khi đóng Project để chuyển giao trách nhiệm trước khi xóa thành viên khỏi Workspace.
+
+## Thử Task
+
+PM mở Project → **Task → Tạo Task**, nhập tiêu đề và chọn thành viên Project. Người được giao mở **My Tasks** hoặc **Thông báo** để xem công việc, chuyển lần lượt Cần làm → Đang làm → Chờ duyệt → Hoàn thành. Trong Project có cách xem Danh sách/Kanban, bộ lọc và phân trang. Owner chưa được phân công PM không có quyền quản lý Task.
+
+Project còn Task chưa DONE không thể đóng. Thành viên còn Task chưa DONE phải được chuyển giao/bỏ phân công trước khi xóa khỏi Project/Workspace.

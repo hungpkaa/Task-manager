@@ -134,3 +134,27 @@ export const projectApi = {
   add: (id: string, userId: string) => request<{ member: ProjectMember }>(`/projects/${id}/members`, json('POST', { userId })),
   remove: (id: string, userId: string) => request<void>(`/projects/${id}/members/${userId}`, json('DELETE', {})),
 };
+
+export const taskStatuses = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as const;
+export const taskPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+export type TaskStatus = typeof taskStatuses[number];
+export type TaskPriority = typeof taskPriorities[number];
+export interface Task {
+  id: string; projectId: string; title: string; description: string; status: TaskStatus; priority: TaskPriority;
+  assigneeId: string | null; assignee: { id: string; displayName: string; email: string } | null;
+  sprintId: string | null; startDate: string | null; dueDate: string | null; effort: number | null;
+  updatedAt: string; project: { id: string; name: string; workspaceId: string; managerUserId: string | null; status: 'ACTIVE' | 'CLOSED' };
+  canEdit: boolean; canChangeStatus: boolean; blocked: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[];
+}
+export interface TaskInput { title: string; description: string; priority: TaskPriority; startDate: string | null; dueDate: string | null; effort: number | null; }
+export interface TaskPage { tasks: Task[]; total: number; page: number; pageSize: number; }
+export const taskApi = {
+  list: (projectId: string, query: URLSearchParams) => request<TaskPage>(`/projects/${projectId}/tasks?${query}`),
+  mine: (query: URLSearchParams) => request<TaskPage>(`/tasks/mine?${query}`),
+  detail: (id: string) => request<{ task: Task }>(`/tasks/${id}`),
+  create: (projectId: string, data: TaskInput & { assigneeId: string | null }) => request<{ task: Task }>(`/projects/${projectId}/tasks`, json('POST', data)),
+  update: (id: string, data: TaskInput) => request<{ task: Task }>(`/tasks/${id}`, json('PATCH', data)),
+  assign: (id: string, assigneeId: string | null) => request<{ task: Task }>(`/tasks/${id}/assignee`, json('PATCH', { assigneeId })),
+  status: (id: string, status: TaskStatus, expectedStatus: TaskStatus, acknowledgeBlocked = false) => request<{ task: Task; warning: string | null }>(`/tasks/${id}/status`, json('PATCH', { status, expectedStatus, acknowledgeBlocked })),
+  remove: (id: string) => request<void>(`/tasks/${id}`, json('DELETE', {})),
+};

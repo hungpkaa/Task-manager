@@ -4,6 +4,7 @@ import { createAccountRepository } from './accounts.js';
 import { createWorkspaceRepository } from './workspaces.js';
 import { createNotificationRepository } from './notifications.js';
 import { createProjectRepository } from './projects.js';
+import { createTaskRepository } from './tasks.js';
 
 export function createDatabase(connectionString: string) {
   const adapter = new PrismaPg({
@@ -18,6 +19,7 @@ export function createDatabase(connectionString: string) {
     workspaces: createWorkspaceRepository(client),
     notifications: createNotificationRepository(client),
     projects: createProjectRepository(client),
+    tasks: createTaskRepository(client),
     async checkConnection() {
       await client.$queryRaw`SELECT 1`;
     },

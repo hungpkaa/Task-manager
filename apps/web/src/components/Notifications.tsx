@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, notificationApi, projectApi, type Notification } from '../api';
 
-export function Notifications({ onExpired, onWorkspace, onProject }: { onExpired: () => void; onWorkspace: (id: string) => void; onProject: (workspaceId: string, projectId: string) => void }) {
+export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { onExpired: () => void; onWorkspace: (id: string) => void; onProject: (workspaceId: string, projectId: string) => void; onTask: (id: string) => void }) {
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -36,6 +36,7 @@ export function Notifications({ onExpired, onWorkspace, onProject }: { onExpired
       <div className="member-actions">{!item.readAt && <button className="refresh-button" disabled={Boolean(busy)} onClick={() => void read(item)}>{busy === item.id ? 'Đang lưu…' : 'Đánh dấu đã đọc'}</button>}
       {item.relatedEntityType === 'WORKSPACE' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onWorkspace(item.relatedEntityId)}>Mở Workspace</button>}
       {item.relatedEntityType === 'PROJECT' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => void openProject(item.relatedEntityId)}>Mở Project</button>}</div>
+      {item.relatedEntityType === 'TASK' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onTask(item.relatedEntityId)}>Mở công việc</button>}
     </li>)}</ul>}{!loading && !error && !items.length && <p>Bạn chưa có thông báo.</p>}
   </section>;
 }

@@ -4,6 +4,7 @@ import { createDatabase } from './repositories/database.js';
 import { createAuthService } from './services/auth.js';
 import { createWorkspaceService, createNotificationService } from './services/workspaces.js';
 import { createProjectService } from './services/projects.js';
+import { createTaskService } from './services/tasks.js';
 
 const config = readConfig();
 const database = createDatabase(config.databaseUrl);
@@ -19,6 +20,10 @@ const server = createApp(database, {
   secureCookies: config.secureCookies,
 }, {
   service: createProjectService(database.projects, auth),
+  appOrigin: config.appOrigin,
+  secureCookies: config.secureCookies,
+}, {
+  service: createTaskService(database.tasks, auth),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
 }).listen(config.port, config.host, () => {

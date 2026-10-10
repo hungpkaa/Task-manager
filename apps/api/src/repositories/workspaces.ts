@@ -79,6 +79,7 @@ export function createWorkspaceRepository(client: PrismaClient) {
     removeMember: (workspaceId: string, actorId: string, userId: string) => asOwner(workspaceId, actorId, async (transaction) => {
       await keepOwner(transaction, workspaceId, userId);
       if (await transaction.project.count({ where: { workspaceId, managerUserId: userId } })) throw new HttpError(409, 'Thành viên đang giữ vai trò PM. Hãy chuyển giao PM trước khi xóa khỏi Workspace.');
+      if (await transaction.task.count({ where: { project: { workspaceId }, assigneeId: userId, status: { not: 'DONE' } } })) throw new HttpError(409, 'Thành viên còn Task chưa DONE. Chuyển giao hoặc bỏ phân công trước khi xóa khỏi Workspace.');
       await transaction.projectMember.deleteMany({ where: { workspaceId, userId } });
       await transaction.workspaceMember.delete({ where: { workspaceId_userId: { workspaceId, userId } } });
     }),

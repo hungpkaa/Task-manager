@@ -91,6 +91,7 @@ export function createProjectRepository(client: PrismaClient) {
     }),
     close: (projectId: string, actorId: string) => mutate(projectId, actorId, 'MANAGER', async (tx, project) => {
       if (project.status !== 'CLOSED') {
+        if (await tx.task.count({ where: { projectId, status: { not: 'DONE' } } })) throw new HttpError(409, 'Còn Task chưa DONE. Hoàn thành công việc trước khi đóng Project.');
         await tx.project.update({ where: { id: projectId }, data: { status: 'CLOSED', closedAt: new Date() } });
         const members = await tx.projectMember.findMany({ where: { projectId } });
         for (const member of members) await notify(tx, member.userId, projectId, project.name, 'PROJECT_CLOSED', 'Project đã đóng');
@@ -113,6 +114,7 @@ export function createProjectRepository(client: PrismaClient) {
       active(project.status);
       if (project.managerUserId === userId) throw new HttpError(409, 'Hãy chuyển giao PM trước khi xóa thành viên này.');
       if (!await tx.projectMember.findUnique({ where: { projectId_userId: { projectId, userId } } })) throw new HttpError(404, 'Thành viên không thuộc Project.');
+      if (await tx.task.count({ where: { projectId, assigneeId: userId, status: { not: 'DONE' } } })) throw new HttpError(409, 'Thành viên còn Task chưa DONE. Chuyển giao hoặc bỏ phân công trước khi xóa.');
       await tx.projectMember.delete({ where: { projectId_userId: { projectId, userId } } });
       await notify(tx, userId, projectId, project.name, 'PROJECT_MEMBER_REMOVED', 'Bạn đã được xóa khỏi Project');
     }),

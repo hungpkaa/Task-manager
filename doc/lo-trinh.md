@@ -56,4 +56,4 @@ Các Use Case phụ thuộc thông báo, dependency hoặc phân tích cần đ�
 
 Cơ chế phiên đăng nhập đã chốt ở bước 3: token ngẫu nhiên trong cookie HttpOnly, hash token lưu PostgreSQL, thời hạn cố định 7 ngày. Chính sách xóa thành viên đang giữ vai trò PM hoặc có Task được chốt ở bước 4–5 trước khi triển khai thao tác xóa. Nhà cung cấp email, nơi lưu tệp và ngưỡng đánh giá Risk/Recommendation được chốt khi bắt đầu bước tương ứng.
 
-Trạng thái hiện tại: các bước 1–5 hoàn thành trong phạm vi ghi nhận; các bước 6–10 chưa triển khai. Xem [kết quả bước 5](buoc-5.md) và bảng đối chiếu để biết giới hạn kiểm chứng. Bước tiếp theo là Task, danh sách và Kanban; các quy tắc dependency sẽ được tích hợp ở bước 10.
+Trạng thái hiện tại: các bước 1–6 đã triển khai trong phạm vi ghi nhận; các bước 7–10 chưa hoàn thành. Xem [kết quả bước 6](buoc-6.md) và bảng đối chiếu để biết phần còn phụ thuộc Sprint/Dashboard/quản lý dependency. Bước tiếp theo là nghiệm thu phiên bản đầu: kiểm thử trình duyệt, responsive và luồng nhóm hoàn chỉnh.
