@@ -1,0 +1,28 @@
+{
+  "name": "task-manager",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/web", "apps/api"],
+  "engines": { "node": ">=22.12.0", "npm": ">=10" },
+  "scripts": {
+    "dev": "concurrently --kill-others --names api,web \"npm run dev -w @task-manager/api\" \"npm run dev -w @task-manager/web\"",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test -w @task-manager/api",
+    "test:db": "npm run test:db -w @task-manager/api",
+    "check:running": "node scripts/check-running.mjs",
+    "check:auth": "npm run check:auth -w @task-manager/api",
+    "check:workspaces": "npm run check:workspaces -w @task-manager/api",
+    "check:projects": "npm run check:projects -w @task-manager/api",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:local:start": "node scripts/local-database.mjs start",
+    "db:local:stop": "node scripts/local-database.mjs stop",
+    "db:generate": "npm run db:generate -w @task-manager/api",
+    "db:validate": "npm run db:validate -w @task-manager/api",
+    "db:migrate": "npm run db:migrate -w @task-manager/api --",
+    "db:deploy": "npm run db:deploy -w @task-manager/api",
+    "db:status": "npm run db:status -w @task-manager/api"
+  },
+  "devDependencies": { "concurrently": "^9.2.1" }
+}

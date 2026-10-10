@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SystemRole {
+  MEMBER
+  SYSTEM_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  LOCKED
+}
+
+enum WorkspaceRole {
+  OWNER
+  MEMBER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  CLOSED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  displayName  String   @map("display_name")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  systemRole   SystemRole @default(MEMBER) @map("system_role")
+  status       AccountStatus @default(ACTIVE)
+  sessions     Session[]
+  createdWorkspaces Workspace[] @relation("WorkspaceCreator")
+  workspaceMemberships WorkspaceMember[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Workspace {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String   @default("")
+  createdBy   String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  creator     User     @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  members     WorkspaceMember[]
+  projects    Project[]
+
+  @@index([createdBy])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @map("joined_at") @db.Timestamptz(3)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managedProjects Project[] @relation("ProjectManagerMembership")
+  projectMemberships ProjectMember[]
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id            String @id @default(uuid()) @db.Uuid
+  workspaceId   String @map("workspace_id") @db.Uuid
+  managerUserId String? @map("manager_user_id") @db.Uuid
+  name          String
+  description   String @default("")
+  startDate     DateTime? @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  status        ProjectStatus @default(ACTIVE)
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  manager       WorkspaceMember? @relation("ProjectManagerMembership", fields: [workspaceId, managerUserId], references: [workspaceId, userId], onDelete: Restrict)
+  members       ProjectMember[]
+
+  @@unique([id, workspaceId])
+  @@index([workspaceId, managerUserId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId   String @map("project_id") @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  userId      String @map("user_id") @db.Uuid
+  joinedAt    DateTime @default(now()) @map("joined_at") @db.Timestamptz(3)
+  project     Project @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  workspaceMember WorkspaceMember @relation(fields: [workspaceId, userId], references: [workspaceId, userId], onDelete: Restrict)
+
+  @@id([projectId, userId])
+  @@index([workspaceId, userId])
+  @@map("project_members")
+}
+
+model Notification {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  type              String
+  title             String
+  message           String
+  relatedEntityType String    @map("related_entity_type")
+  relatedEntityId   String    @map("related_entity_id") @db.Uuid
+  readAt            DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@task-manager/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "prisma generate && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.test.json",
+    "test": "tsx --test test/*.test.ts",
+    "test:db": "prisma generate && tsx --test test/*.integration.ts",
+    "check:auth": "node scripts/check-auth-running.mjs",
+    "check:workspaces": "node scripts/check-workspaces-running.mjs",
+    "check:projects": "node scripts/check-projects-running.mjs",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "cookie": "1.0.2",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "8.7.1",
+    "helmet": "^8.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "prisma": "^7.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
