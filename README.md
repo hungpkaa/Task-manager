@@ -2,6 +2,8 @@
 
 Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Sprint.
 
+Bước 9 đang triển khai: đã có Product Backlog, tạo Sprint PLANNED và kế hoạch Sprint cơ bản với cảnh báo/xác nhận. Vòng đời Sprint và Capacity/Workload chưa hoàn thiện; xem [tiến độ bước 9](doc/buoc-9.md).
+
 ## Trạng thái
 
 Đã hoàn thành bước 7 trong phạm vi phiên bản đầu: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task, kèm nghiệm thu trình duyệt và responsive.
@@ -10,7 +12,7 @@ Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member v
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.
 Có tạo/sửa/xóa Task, phân công, priority/ngày/effort, đổi trạng thái, My Tasks, List/Kanban, tìm kiếm/lọc/sắp xếp và thông báo giao việc.
 Sprint, cộng tác mở rộng, Dashboard và phân tích điều phối chưa hoàn thiện; xem bảng Use Case để biết các phần phụ thuộc còn lại.
-Đã bổ sung phần 1–2 của bước 8: bình luận Task, mention/thông báo và upload/download/xóa tệp có kiểm tra quyền. Bước 8 vẫn còn tài khoản/email mở rộng.
+Đã hoàn thành bước 8 trong môi trường cục bộ: bình luận/mention, tệp đính kèm, quên/đặt lại mật khẩu, email mời và gửi lại. Email dùng hộp thư thử theo lựa chọn của nhóm; chưa gửi email thật.
 
 ## Tài liệu
 
@@ -86,3 +88,7 @@ npm.cmd run test:e2e
 ```
 
 Browser QA mặc định dùng Edge đã cài trên Windows, tự chạy API/web ở cổng 4011/5174. Không chạy generate/build cùng lúc với E2E vì API watch sẽ khởi động lại. `check:fresh-db` cần quyền tạo/xóa database và chỉ xóa database tạm do chính lệnh tạo. Chi tiết môi trường, báo cáo và giới hạn xem bước 7.
+
+## Thử email và đặt lại mật khẩu
+
+API phát triển mặc định dùng `MAIL_MODE=file`: email ghi ở `.local/mail`, không gửi thật. Chọn **Quên mật khẩu?** ở màn hình đăng nhập rồi chạy `npm.cmd run mail:preview -- ban@example.com` để xem email thử và mở liên kết. Liên kết dùng một lần, hết hạn 30 phút; đổi mật khẩu thu hồi mọi phiên đăng nhập cũ. Email mời được tạo sau khi thêm thành viên; Owner có thể **Gửi lại email mời** từ danh sách thành viên. Chi tiết cấu hình và giới hạn xem bước 8.

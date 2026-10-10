@@ -33,4 +33,10 @@ Trong chi tiết Task, thành viên Project có thể nhập **Nội dung bình 
 
 Trong chi tiết Task → **Tệp đính kèm**, chọn tệp rồi **Đính kèm tệp**. Mỗi tệp có nội dung và tối đa 10 MB; hỗ trợ PDF, PNG/JPG, TXT, CSV, MD, ZIP, DOCX/XLSX/PPTX. Bấm **Tải xuống** để lưu về máy. Người tải lên hoặc PM có thể **Xóa tệp** với xác nhận; bấm Hủy giữ lại tệp. Tải lại trang vẫn xem và tải xuống được tệp đã lưu. Project đóng chỉ cho tải xuống, không tải lên/xóa; người ngoài Project không tự có quyền từ đường dẫn tệp.
 
-Đặt lại mật khẩu, email, Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md) để biết phạm vi hiện tại và [bước 8](buoc-8.md) để kiểm tra phần cộng tác.
+Nếu quên mật khẩu, ở màn hình đăng nhập chọn **Quên mật khẩu?**, nhập email tài khoản và gửi yêu cầu. Hiện email đi vào hộp thư thử cục bộ: người chạy dự án dùng `npm.cmd run mail:preview -- email-cua-ban@example.com` để xem rồi mở liên kết. Nhập và xác nhận mật khẩu mới 15–128 ký tự; đổi xong đăng nhập lại. Mọi phiên cũ bị thu hồi. Liên kết dùng một lần/30 phút; khi cần yêu cầu lại, chờ ít nhất 60 giây và dùng email mới nhất. Nếu tải lại form reset, mở lại liên kết từ email.
+
+Thêm thành viên Workspace cũng tạo email mời trong hộp thư thử. Owner có thể **Gửi lại email mời**; gửi lại không thêm thành viên lần nữa. Nếu tạo email lỗi, thông báo và thành viên đã thêm vẫn còn. Chế độ thử chưa gửi đến hộp thư Internet.
+
+Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và ngày để **Tạo Sprint PLANNED**; chọn Task từ **Product Backlog** → **Kiểm tra kế hoạch** → đọc cảnh báo → **Xác nhận đưa vào Sprint**. Chuyển **Sprint Backlog** để xem hoặc đưa Task về Product Backlog trước khi Sprint bắt đầu; thao tác đưa về cần xác nhận. Thành viên và Owner xem được nhưng chỉ PM lập kế hoạch. Task/Sprint phân trang 20; lựa chọn Task chỉ giữ trên trang hiện tại. Khi sửa Task ở khu vực Task, bấm **Tải lại Sprint & Backlog** để lấy dữ liệu mới.
+
+Phần kế hoạch hiện chưa tính Capacity/Workload; cảnh báo ghi rõ để PM tự kiểm tra năng lực nhóm. Chưa có bắt đầu/kết thúc Sprint, Daily, Review, Retro. Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 8](buoc-8.md) và [bước 9](buoc-9.md) để biết phạm vi hiện tại.

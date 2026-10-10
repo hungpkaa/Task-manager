@@ -6,8 +6,9 @@ import { authRouter, type AuthOptions } from './controllers/auth.js';
 import { workspaceRouter, notificationRouter, type WorkspaceOptions } from './controllers/workspaces.js';
 import { projectRouter, type ProjectOptions } from './controllers/projects.js';
 import { taskRouter, type TaskOptions } from './controllers/tasks.js';
+import { sprintRouter, type SprintOptions } from './controllers/sprints.js';
 
-export function createApp(database: DatabaseHealth, auth?: AuthOptions, workspaces?: WorkspaceOptions, projects?: ProjectOptions, tasks?: TaskOptions) {
+export function createApp(database: DatabaseHealth, auth?: AuthOptions, workspaces?: WorkspaceOptions, projects?: ProjectOptions, tasks?: TaskOptions, sprints?: SprintOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(helmet());
@@ -24,6 +25,7 @@ export function createApp(database: DatabaseHealth, auth?: AuthOptions, workspac
 
   if (auth) app.use('/api/auth', authRouter(auth));
   if (tasks) app.use('/api', taskRouter(tasks));
+  if (sprints) app.use('/api', sprintRouter(sprints));
   if (projects) app.use('/api', projectRouter(projects));
   if (workspaces) {
     app.use('/api/workspaces', workspaceRouter(workspaces));

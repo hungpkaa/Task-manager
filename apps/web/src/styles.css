@@ -135,3 +135,12 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .attachments-panel input[type=file] { width: 100%; min-width: 0; }
 .workspace-form fieldset { padding: 0; border: 0; margin: 0; min-width: 0; }
 .comments-panel select { width: 100%; }
+.recovery-back { margin-top: 18px; }
+.sprints-panel { margin-block: 1.5rem; min-width: 0; }
+.sprints-panel section { border: 1px solid var(--border, #d8e0ea); padding: 1rem; border-radius: 12px; margin-top: 1rem; min-width: 0; }
+.sprints-panel select { width: 100%; min-width: 0; }
+.backlog-list { list-style: none; padding: 0; }
+.backlog-list li { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; border-bottom: 1px solid #d8e0ea; padding-block: .75rem; }
+.backlog-list li > div { min-width: 0; overflow-wrap: anywhere; }
+.backlog-list label, .backlog-list strong { display: block; }
+.backlog-list input[type=checkbox] { width: auto; min-height: 20px; }

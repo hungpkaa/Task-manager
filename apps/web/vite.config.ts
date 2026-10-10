@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   const proxy = { '/api': { target: env.API_PROXY_TARGET || 'http://127.0.0.1:4000' } };
   return {
     plugins: [react()],
-    server: { port: 5173, strictPort: true, proxy },
+    server: { port: 5173, strictPort: true, proxy, fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.local/**'] } },
     preview: { port: 4173, strictPort: true, proxy },
   };
 });

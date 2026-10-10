@@ -3,12 +3,14 @@ import { parse } from 'cookie';
 import { rateLimit } from 'express-rate-limit';
 import { HttpError } from '../domain/errors.js';
 import { sessionLifetimeMs, type AuthService } from '../services/auth.js';
+import type { PasswordResetService } from '../services/password-resets.js';
 
 export interface AuthOptions {
   service: AuthService;
   appOrigin: string;
   secureCookies: boolean;
   rateLimit?: number;
+  passwordResets?: PasswordResetService;
 }
 
 export function authRouter(options: AuthOptions) {
@@ -45,6 +47,11 @@ export function authRouter(options: AuthOptions) {
   router.post('/login', limit, async (request, response) => {
     sessionResponse(response, await options.service.login(request.body, readToken(request.headers.cookie)));
   });
+  if (options.passwordResets) {
+    const resetLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: options.rateLimit ?? 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { message: 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.' } });
+    router.post('/password/forgot', resetLimit, async (request, response) => { response.status(202).json(await options.passwordResets!.forgot(request.body)); });
+    router.post('/password/reset', resetLimit, async (request, response) => { const result = await options.passwordResets!.reset(request.body); response.clearCookie(cookieName, cookieOptions).json(result); });
+  }
   router.post('/logout', async (request, response) => {
     await options.service.logout(readToken(request.headers.cookie));
     response.clearCookie(cookieName, cookieOptions).status(204).end();

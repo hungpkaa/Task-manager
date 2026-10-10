@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { resolve } from 'node:path';
 
 const baseURL = process.env.WEB_URL || 'http://127.0.0.1:5174';
 
@@ -12,7 +13,7 @@ export default defineConfig({
   outputDir: '.local/e2e-results',
   reporter: [['list'], ['html', { outputFolder: '.local/e2e-report', open: 'never' }]],
   webServer: process.env.WEB_URL ? undefined : [
-    { command: 'npm.cmd run dev -w @task-manager/api', url: 'http://127.0.0.1:4011/api/health/ready', env: { PORT: '4011', APP_ORIGIN: baseURL }, reuseExistingServer: false, timeout: 60_000 },
+    { command: 'npm.cmd run dev -w @task-manager/api', url: 'http://127.0.0.1:4011/api/health/ready', env: { PORT: '4011', APP_ORIGIN: baseURL, MAIL_MODE: 'file', MAIL_DIRECTORY: resolve('.local/e2e-mail') }, reuseExistingServer: false, timeout: 60_000 },
     { command: 'npm.cmd run dev -w @task-manager/web -- --port 5174', url: baseURL, env: { API_PROXY_TARGET: 'http://127.0.0.1:4011' }, reuseExistingServer: false, timeout: 60_000 },
   ],
   use: {

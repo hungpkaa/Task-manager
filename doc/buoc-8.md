@@ -1,6 +1,6 @@
 # Bước 8 — Cộng tác và tài khoản mở rộng
 
-Trạng thái: đã hoàn thành phần 1 (bình luận/@mention, UC25) và phần 2 (đính kèm tệp, UC26), mở rộng UC32. Bước 8 chưa hoàn thành toàn bộ: email và UC04 đặt lại mật khẩu còn lại. Phạm vi tiếp tục dựa trên [đặc tả](sơ%20đồ.md), SEQ-F (image20) và ERD (image29).
+Trạng thái: đã hoàn thành các phần của bước 8 trong môi trường cục bộ: bình luận/@mention (UC25), đính kèm tệp (UC26), quên/đặt lại mật khẩu (UC04), email mời Workspace và mở rộng UC32. Theo lựa chọn của nhóm, email dùng hộp thư thử; chưa gửi email thật. Phạm vi tiếp tục dựa trên [đặc tả](sơ%20đồ.md), SEQ-F (image20) và ERD (image29).
 
 ## Phần 1: bình luận và mention
 
@@ -78,6 +78,48 @@ Build/TypeScript đạt. 14/14 kiểm thử backend độc lập database và 27
 
 Chạy lại theo các lệnh phía trên. Không cần cài thêm dependency hoặc cấu hình nơi lưu tệp; `db:deploy` cập nhật bảng mới. Ảnh `comments.png` cuối luồng hiện bao gồm phần đính kèm của Task đã đóng.
 
-## Phần còn lại
+## Phần 3: quên/đặt lại mật khẩu và email
 
-Tiếp theo là tài khoản mở rộng/UC04 và email. Email cần cấu hình nhà cung cấp khi tích hợp; không coi thông báo trong ứng dụng là đã gửi email. Sprint vẫn thuộc bước 9.
+Chọn **Quên mật khẩu?** ở màn hình đăng nhập, nhập email và gửi liên kết. Mở liên kết trong email, nhập mật khẩu mới và xác nhận. Đổi thành công trở về đăng nhập; tất cả phiên cũ bị thu hồi. Token nằm trong URL fragment `#reset=...`, không gửi qua query string; React đọc vào bộ nhớ rồi xóa fragment khỏi thanh địa chỉ. Nếu tải lại khi đang điền mật khẩu mới, mở lại liên kết từ email.
+
+| API | Nội dung |
+| --- | --- |
+| `POST /api/auth/password/forgot` | Nhận `{email}`, phản hồi 202 chung cho email ACTIVE, không tồn tại, bị khóa hoặc đang trong thời gian chờ |
+| `POST /api/auth/password/reset` | Nhận `{token,password}`, đổi mật khẩu và thu hồi toàn bộ session/token của tài khoản trong cùng transaction |
+| `POST /api/workspaces/:id/members/:userId/email` | Owner gửi lại email mời cho thành viên ACTIVE đã tồn tại; không thêm membership/notification trùng |
+
+Migration `20261010180000_password_reset_tokens` thêm bảng theo ERD, chứa FK User, hash SHA-256 của token ngẫu nhiên 32 byte, thời hạn và thời điểm tạo. Không lưu token nguyên bản trong database hay phản hồi API. Email thử chứa liên kết thật của môi trường phát triển nên cần giữ ngoài Git và thư mục public.
+
+Các quyết định bổ sung khi nguồn chưa nêu chi tiết:
+
+- Liên kết dùng một lần, hết hạn 30 phút. Yêu cầu mới hợp lệ thay thế liên kết trước; chờ tối thiểu 60 giây giữa các email của một tài khoản. Hai endpoint recovery dùng chung hạn mức riêng 20 yêu cầu/IP/15 phút, giữ Origin/JSON checks.
+- Mật khẩu mới theo chính sách đăng ký: 15–128 ký tự, scrypt có salt. Không tự đăng nhập sau reset. Tài khoản LOCKED không phát/tiêu thụ token.
+- Khóa hàng User khi phát/tiêu thụ token và tạo session. Hai reset đồng thời chỉ một thành công; login đã kiểm tra mật khẩu cũ không thể tạo phiên mới sau khi reset hoàn tất.
+- Email không tồn tại/bị khóa có cùng nội dung phản hồi, không trả token/trạng thái tìm tài khoản. Khi email lỗi, thu hồi token chưa gửi và ghi log chung không chứa email/token; không thay đổi mật khẩu. Chế độ email disabled báo 503 chung trước khi tìm tài khoản. Đây không phải kiểm chứng chống mọi dạng phân tích timing.
+- Email mời áp dụng cơ chế UC08 hiện tại: thêm tài khoản ACTIVE đã đăng ký, rồi gửi email; không tạo tài khoản mới hay yêu cầu chấp nhận lời mời. Membership và thông báo trong ứng dụng đã commit vẫn được giữ nếu email lỗi; UI báo rõ và có **Gửi lại email mời**. Gửi lại giới hạn 20 yêu cầu/IP/15 phút, chỉ Owner; chưa có hàng đợi tự retry/background worker.
+
+### Hộp thư thử cục bộ
+
+API `.env` hiện đã đặt `MAIL_MODE=file` theo lựa chọn của nhóm. Email ghi vào `.local/mail/*.json`, không gửi qua Internet. Không expose endpoint đọc hộp thư; Vite từ chối phục vụ `.local` qua HTTP. Hộp thư không nằm trong Git hoặc build frontend.
+
+Sau khi gửi yêu cầu từ giao diện, xem tối đa 10 email mới nhất:
+
+```powershell
+npm.cmd run mail:preview
+# Hoặc chỉ xem email của tài khoản đang thử:
+npm.cmd run mail:preview -- ban@example.com
+```
+
+Sao chép liên kết trong email đặt lại và mở trên trình duyệt. Email mời Workspace chứa địa chỉ ứng dụng; người nhận đăng nhập rồi vào Workspace. Khi dùng `MAIL_DIRECTORY` riêng, đặt cùng biến môi trường cho API và lệnh preview; nên giữ thư mục ngoài nơi được web phục vụ. Lệnh preview hiển thị liên kết nhạy cảm để người vận hành thử, không dùng output làm log công khai. JSON hộp thư tồn tại đến khi người vận hành dọn; E2E chỉ dọn email của tài khoản thử của chính lượt chạy.
+
+Chế độ `file` bị từ chối trong production. Adapter Resend đã chuẩn bị và kiểm thử bằng mock theo [API chính thức](https://resend.com/docs/api-reference/emails/send-email), chưa gửi thật hoặc kiểm chứng mailbox bên ngoài. Khi triển khai thật cần cấu hình `MAIL_MODE=resend`, `MAIL_FROM`, `RESEND_API_KEY` và `APP_ORIGIN` HTTPS; mặc định production là email disabled. Thay file mode bằng provider không có nghĩa đã chứng minh email được nhận vào inbox.
+
+### Kiểm chứng cuối bước 8
+
+Build/TypeScript đạt. 17/17 kiểm thử backend độc lập database và 31/31 kiểm thử PostgreSQL đạt. Các trường hợp mới gồm token hash/dùng một lần/hết hạn/thay thế, khóa tài khoản, input/Origin/rate limit, session revocation, reset đồng thời, login sau reset, lỗi email và quyền gửi lại lời mời.
+
+Browser QA có 5 kịch bản × 2 viewport Edge: luồng nhóm cũ với email mời/gửi lại, recovery qua hộp thư file, xác nhận mật khẩu sai, đăng nhập cũ bị từ chối/new password thành công, phiên khác bị thu hồi và liên kết đã dùng bị từ chối. Kiểm tra Vite không phục vụ email thử qua `/@fs/`. Database mới áp dụng đủ 8 migration và chạy recovery thành công.
+
+## Phần tiếp theo
+
+Bước 9 là Agile/Scrum theo UC44–UC52. Kết quả bước 8 là nghiệm thu môi trường cục bộ, không thay thế kiểm chứng email thật hoặc nghiệm thu toàn bộ 52 Use Case. UC32 vẫn còn các sự kiện Sprint tích hợp ở bước sau.

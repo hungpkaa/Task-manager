@@ -1,6 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { randomUUID, randomBytes, createHash } from 'node:crypto';
+import { readFile, readdir, unlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../apps/api/dist/generated/prisma/client.js';
 import { readConfig } from '../../apps/api/dist/config.js';
@@ -12,6 +13,15 @@ let emails: string[];
 let contexts: BrowserContext[];
 let client: PrismaClient;
 let pageErrors: string[];
+const mailbox = resolve(process.env.E2E_MAIL_DIRECTORY ?? '.local/e2e-mail');
+async function invitationCount(recipient: string) {
+  let count = 0;
+  for (const file of (await readdir(mailbox)).filter((name) => /^[0-9a-f-]{36}\.json$/.test(name))) {
+    const message = JSON.parse(await readFile(resolve(mailbox, file), 'utf8')) as { to: string; subject: string };
+    if (message.to === recipient && message.subject.includes('Bạn được mời vào Workspace')) count++;
+  }
+  return count;
+}
 test.beforeEach(async () => {
   emails = []; contexts = []; pageErrors = [];
   client = new PrismaClient({ adapter: new PrismaPg({ connectionString: config.databaseUrl }) });
@@ -23,6 +33,12 @@ test.afterEach(async () => {
     await client.workspace.deleteMany({ where: { creator: { email: { in: emails } } } });
     await client.user.deleteMany({ where: { email: { in: emails } } });
   } finally { await client.$disconnect(); }
+  try {
+    for (const file of (await readdir(mailbox)).filter((name) => /^[0-9a-f-]{36}\.json$/.test(name))) {
+      const message = JSON.parse(await readFile(resolve(mailbox, file), 'utf8')) as { to: string };
+      if (emails.includes(message.to)) await unlink(resolve(mailbox, file));
+    }
+  } catch (error) { if ((error as { code?: string }).code !== 'ENOENT') throw error; }
   expect(pageErrors, 'No uncaught React/browser runtime exceptions').toEqual([]);
 });
 async function observe(page: Page) {
@@ -49,6 +65,63 @@ async function noOverflow(page: Page) {
   }).toBeLessThanOrEqual(1);
 }
 
+test('PM creates a planned Sprint, reviews warnings, plans multiple Tasks and returns a Task before start', async ({ page, context }, testInfo) => {
+  const email = `e2e-sprint-${randomUUID()}@example.invalid`; emails.push(email);
+  const token = randomBytes(32).toString('base64url');
+  const user = await client.user.create({ data: { email, displayName: 'PM Sprint QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
+  const workspace = await client.workspace.create({ data: { name: 'Workspace Sprint QA', createdBy: user.id, members: { create: { userId: user.id, role: 'OWNER' } } } });
+  const project = await client.project.create({ data: { workspaceId: workspace.id, managerUserId: user.id, name: 'Project Sprint QA' } });
+  await client.projectMember.create({ data: { projectId: project.id, workspaceId: workspace.id, userId: user.id } });
+  await client.task.createMany({ data: [{ projectId: project.id, title: 'Task cần ước lượng' }, { projectId: project.id, title: 'Task đã ước lượng', effort: 5, assigneeId: user.id }] });
+  await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
+  await observe(page); await page.goto(baseURL);
+  async function open() {
+    await nav(page, 'Workspace');
+    await page.getByRole('button').filter({ hasText: 'Workspace Sprint QA' }).click();
+    await page.getByRole('button').filter({ hasText: 'Project Sprint QA' }).click();
+    await page.getByRole('button', { name: 'Mở Sprint & Backlog', exact: true }).click();
+  }
+  await open();
+  const panel = page.getByRole('region', { name: 'Lập kế hoạch Sprint' });
+  await panel.getByLabel('Tên Sprint', { exact: true }).fill('Sprint nghiệm thu');
+  await panel.getByLabel('Sprint Goal', { exact: true }).fill('Hoàn thành luồng kế hoạch Sprint');
+  await panel.getByLabel('Ngày bắt đầu Sprint', { exact: true }).fill('2026-10-11');
+  await panel.getByLabel('Ngày kết thúc Sprint', { exact: true }).fill('2026-10-25');
+  await panel.getByRole('button', { name: 'Tạo Sprint PLANNED', exact: true }).click();
+  await expect(panel.getByRole('status').filter({ hasText: 'Đã tạo Sprint PLANNED' })).toBeVisible();
+  await panel.getByRole('checkbox', { name: 'Chọn Task cần ước lượng', exact: true }).check();
+  await panel.getByRole('checkbox', { name: 'Chọn Task đã ước lượng', exact: true }).check();
+  await panel.getByRole('button', { name: 'Kiểm tra kế hoạch (2 Task)', exact: true }).click();
+  const confirm = panel.getByRole('group', { name: 'Xác nhận kế hoạch Sprint' });
+  await expect(confirm).toContainText('Capacity/Workload');
+  await expect(confirm).toContainText('Tổng Effort đã biết: 5');
+  expect(await client.task.count({ where: { projectId: project.id, sprintId: { not: null } } })).toBe(0);
+  await noOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('sprint-planning-warnings.png'), fullPage: true });
+  await confirm.getByRole('button', { name: 'Hủy kế hoạch', exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await panel.getByRole('button', { name: 'Kiểm tra kế hoạch (2 Task)', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Xác nhận đưa vào Sprint', exact: true }).click();
+  await expect(panel.getByRole('heading', { name: 'Sprint Backlog (2)', exact: true })).toBeVisible();
+  expect(await client.task.count({ where: { projectId: project.id, sprintId: { not: null } } })).toBe(2);
+  await page.reload(); await open();
+  await panel.getByLabel('Sprint đang xem / nhận Task').selectOption({ label: 'Sprint nghiệm thu · PLANNED' });
+  await panel.getByRole('button', { name: 'Sprint Backlog', exact: true }).click();
+  await expect(panel.getByRole('heading', { name: 'Sprint Backlog (2)', exact: true })).toBeVisible();
+  const row = panel.locator('.backlog-list li').filter({ hasText: 'Task cần ước lượng' });
+  await row.getByRole('button', { name: 'Đưa về Product Backlog', exact: true }).click();
+  const returnConfirm = panel.getByRole('group', { name: 'Xác nhận đưa Task về Backlog' });
+  await returnConfirm.getByRole('button', { name: 'Hủy', exact: true }).click();
+  expect(await client.task.count({ where: { projectId: project.id, sprintId: { not: null } } })).toBe(2);
+  await row.getByRole('button', { name: 'Đưa về Product Backlog', exact: true }).click();
+  await returnConfirm.getByRole('button', { name: 'Xác nhận đưa về Backlog', exact: true }).click();
+  await expect(panel.getByRole('heading', { name: 'Sprint Backlog (1)', exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Product Backlog', exact: true }).click();
+  await expect(panel.getByRole('heading', { name: 'Product Backlog (1)', exact: true })).toBeVisible();
+  await expect(panel.locator('.backlog-list')).toContainText('Task cần ước lượng');
+  await noOverflow(page);
+});
+
 test('three users complete Workspace → Project → Task → My Tasks → DONE → closed Project', async ({ browser }, testInfo) => {
   const pages: Page[] = [];
   for (let index = 0; index < 3; index++) {
@@ -71,6 +144,10 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
     await owner.getByRole('button', { name: 'Thêm thành viên', exact: true }).click();
     await expect(owner.locator('.member-list').first()).toContainText(email);
   }
+  await expect.poll(() => invitationCount(pmEmail)).toBe(1);
+  await owner.locator('.member-list').first().getByRole('listitem').filter({ hasText: pmEmail }).getByRole('button', { name: 'Gửi lại email mời', exact: true }).click();
+  await expect(owner.getByRole('status').filter({ hasText: 'Email mời đã được tạo trong hộp thư thử.' })).toBeVisible();
+  await expect.poll(() => invitationCount(pmEmail)).toBe(2);
   await owner.getByLabel('Tên Project', { exact: true }).fill(projectName);
   await owner.getByRole('button', { name: 'Tạo Project', exact: true }).click();
   const ownerProject = owner.locator('.projects-panel');
@@ -179,6 +256,50 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   expect(await readFile((await closedDownload.path())!)).toEqual(reportBytes);
   await noOverflow(pm);
   await pm.screenshot({ path: testInfo.outputPath('comments.png'), fullPage: true });
+});
+
+test('forgot password, local email link, new password and revoked sessions work through the UI', async ({ page, browser }) => {
+  const email = await register(page, 'Password reset QA');
+  const otherContext = await browser.newContext({ viewport: page.viewportSize()! }); contexts.push(otherContext);
+  const other = await otherContext.newPage(); await observe(other); await other.goto(baseURL);
+  await other.getByLabel('Email', { exact: true }).fill(email);
+  await other.getByLabel('Mật khẩu', { exact: true }).fill(password);
+  await other.getByRole('button', { name: 'Đăng nhập →', exact: true }).click(); await expect(other.locator('.sidebar')).toBeVisible();
+  await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
+  await page.getByRole('button', { name: 'Quên mật khẩu?', exact: true }).click();
+  await page.getByLabel('Email tài khoản', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'Gửi liên kết đặt lại', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Nếu email thuộc tài khoản' })).toBeVisible();
+  let link = '';
+  let emailPath = '';
+  await expect.poll(async () => {
+    for (const file of await readdir(mailbox)) {
+      if (!/^[0-9a-f-]{36}\.json$/.test(file)) continue;
+      const message = JSON.parse(await readFile(resolve(mailbox, file), 'utf8')) as { to: string; text: string };
+      if (message.to === email) { link = message.text.match(/https?:\/\/\S+/)![0]; emailPath = resolve(mailbox, file); return true; }
+    }
+    return false;
+  }).toBe(true);
+  const exposedMail = await page.request.get(`${baseURL}/@fs/${emailPath.replaceAll('\\', '/')}`);
+  expect(exposedMail.status()).toBe(403);
+  await page.goto(link); await expect(page.getByRole('heading', { name: 'Đặt mật khẩu mới.', exact: true })).toBeVisible();
+  expect(new URL(page.url()).hash).toBe('');
+  const newPassword = 'browser reset replacement passphrase';
+  await page.getByLabel('Mật khẩu mới', { exact: true }).fill(newPassword);
+  await page.getByLabel('Nhập lại mật khẩu mới', { exact: true }).fill('incorrect confirmation phrase');
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('chưa khớp');
+  await page.getByLabel('Nhập lại mật khẩu mới', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click(); await expect(page.getByRole('status')).toContainText('Đã đổi mật khẩu');
+  await nav(other, 'My Tasks'); await expect(other.getByText('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '← Về đăng nhập', exact: true }).click();
+  await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Đăng nhập →', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Email hoặc mật khẩu không đúng.');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Đăng nhập →', exact: true }).click(); await expect(page.locator('.sidebar')).toBeVisible();
+  await page.goto(link); await expect(page.getByLabel('Mật khẩu mới', { exact: true })).toBeVisible();
+  await page.getByLabel('Mật khẩu mới', { exact: true }).fill(newPassword); await page.getByLabel('Nhập lại mật khẩu mới', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Liên kết không hợp lệ hoặc đã hết hạn');
+  await noOverflow(page);
 });
 
 test('registration errors, profile persistence, logout and network recovery are visible in the UI', async ({ page }) => {

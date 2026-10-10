@@ -47,6 +47,18 @@ export class ApiError extends Error {
   }
 }
 
+export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
+export interface BacklogTask { id: string; title: string; status: string; priority: string; effort: number | null; updatedAt: string; assignee: { displayName: string } | null; }
+export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; }
+export interface SprintInput { name: string; goal: string; startDate: string; endDate: string; }
+export const sprintApi = {
+  list: (projectId: string, page: number) => request<{ items: Sprint[]; total: number; pageSize: number }>(`/projects/${projectId}/sprints?page=${page}`),
+  backlog: (projectId: string, page: number, sprintId = '') => request<{ items: BacklogTask[]; total: number; pageSize: number }>(`/projects/${projectId}/backlog?page=${page}${sprintId ? `&sprintId=${sprintId}` : ''}`),
+  create: (projectId: string, input: SprintInput) => request<{ sprint: Sprint }>(`/projects/${projectId}/sprints`, { method: 'POST', body: JSON.stringify(input) }),
+  plan: (projectId: string, sprintId: string, tasks: { id: string; updatedAt: string }[], confirmed: boolean) => request<PlanningAssessment>(`/projects/${projectId}/sprints/${sprintId}/plan`, { method: 'POST', body: JSON.stringify({ tasks, confirmed }) }),
+  returnTask: (projectId: string, sprintId: string, task: BacklogTask) => request<void>(`/projects/${projectId}/sprints/${sprintId}/tasks/${task.id}/return`, { method: 'POST', body: JSON.stringify({ updatedAt: task.updatedAt }) }),
+};
+
 async function request<T>(path: string, options: RequestInit = {}, binary = false): Promise<T> {
   let response: Response;
   try {
@@ -78,6 +90,8 @@ async function request<T>(path: string, options: RequestInit = {}, binary = fals
 }
 
 export const accountApi = {
+  forgotPassword: (email: string) => request<{ message: string }>('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }), signal: AbortSignal.timeout(15_000) }),
+  resetPassword: (token: string, password: string) => request<{ message: string }>('/auth/password/reset', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (signal?: AbortSignal) => request<{ user: Account }>('/auth/me', { signal }),
   register: (data: { email: string; password: string; displayName: string }) =>
     request<{ user: Account }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
@@ -93,6 +107,7 @@ export interface Workspace {
   myRole: 'OWNER' | 'MEMBER'; memberCount: number; createdAt: string; updatedAt: string;
 }
 export interface WorkspaceMember {
+  emailDelivery?: 'LOCAL' | 'SENT' | 'FAILED' | 'DISABLED';
   workspaceId: string; userId: string; role: 'OWNER' | 'MEMBER'; joinedAt: string;
   user: { id: string; email: string; displayName: string; status: 'ACTIVE' | 'LOCKED' };
 }
@@ -102,6 +117,7 @@ export interface Notification {
 }
 const json = (method: string, data: unknown) => ({ method, body: JSON.stringify(data) });
 export const workspaceApi = {
+  resendInvitation: (id: string, userId: string) => request<{ delivery: NonNullable<WorkspaceMember['emailDelivery']> }>(`/workspaces/${id}/members/${userId}/email`, json('POST', {})),
   list: () => request<{ workspaces: Workspace[] }>('/workspaces'),
   detail: (id: string) => request<{ workspace: Workspace }>(`/workspaces/${id}`),
   create: (data: { name: string; description: string }) => request<{ workspace: Workspace }>('/workspaces', json('POST', data)),

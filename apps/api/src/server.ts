@@ -5,16 +5,21 @@ import { createAuthService } from './services/auth.js';
 import { createWorkspaceService, createNotificationService } from './services/workspaces.js';
 import { createProjectService } from './services/projects.js';
 import { createTaskService } from './services/tasks.js';
+import { createPasswordResetService } from './services/password-resets.js';
+import { createEmailSender } from './services/email.js';
+import { createSprintService } from './services/sprints.js';
 
 const config = readConfig();
 const database = createDatabase(config.databaseUrl);
 const auth = createAuthService(database.accounts);
+const email = createEmailSender();
 const server = createApp(database, {
   service: auth,
+  passwordResets: createPasswordResetService(database.passwordResets, email, config.appOrigin),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
 }, {
-  service: createWorkspaceService(database.workspaces, auth),
+  service: createWorkspaceService(database.workspaces, auth, { sender: email, appOrigin: config.appOrigin }),
   notifications: createNotificationService(database.notifications, auth),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
@@ -24,6 +29,10 @@ const server = createApp(database, {
   secureCookies: config.secureCookies,
 }, {
   service: createTaskService(database.tasks, auth),
+  appOrigin: config.appOrigin,
+  secureCookies: config.secureCookies,
+}, {
+  service: createSprintService(database.sprints, auth),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
 }).listen(config.port, config.host, () => {

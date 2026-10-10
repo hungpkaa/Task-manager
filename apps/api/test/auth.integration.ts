@@ -8,21 +8,26 @@ import { readConfig } from '../src/config.js';
 import { createDatabase } from '../src/repositories/database.js';
 import { createAccountRepository } from '../src/repositories/accounts.js';
 import { createAuthService, tokenHash } from '../src/services/auth.js';
+import { createPasswordResetService, forgotMessage } from '../src/services/password-resets.js';
+import type { Email } from '../src/services/email.js';
 import { withHttp } from './helpers/http.js';
 
 const origin = 'http://127.0.0.1:5173';
 const password = 'a safe integration passphrase';
 
-async function fixture(run: (context: { base: string; client: PrismaClient; email: () => string; freshApp: () => ReturnType<typeof createApp> }) => Promise<void>) {
+async function fixture(run: (context: { base: string; client: PrismaClient; email: () => string; messages: Email[]; freshApp: () => ReturnType<typeof createApp> }) => Promise<void>) {
   const url = readConfig().databaseUrl;
   const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, connectionTimeoutMillis: 3000, max: 2 }) });
   const database = createDatabase(url);
   const service = createAuthService(database.accounts);
-  const app = createApp(database, { service, appOrigin: origin, secureCookies: false });
+  const messages: Email[] = [];
+  const passwordResets = createPasswordResetService(database.passwordResets, { enabled: true, async send(message) { messages.push(message); } }, origin);
+  const app = createApp(database, { service, passwordResets, appOrigin: origin, secureCookies: false });
   const emails: string[] = [];
   const email = () => { const value = `auth-${randomUUID()}@example.invalid`; emails.push(value); return value; };
   try {
-    await withHttp(app, (base) => run({ base, client, email, freshApp: () => createApp(database, {
+    await withHttp(app, (base) => run({ base, client, email, messages, freshApp: () => createApp(database, {
+      passwordResets,
       service: createAuthService(createAccountRepository(client)), appOrigin: origin, secureCookies: false,
     }) }));
   } finally {
@@ -43,6 +48,60 @@ function sessionCookie(response: Response) {
   assert.ok(cookie, 'a successful login must issue a cookie');
   return cookie.split(';')[0]!;
 }
+
+function resetToken(message: Email) { return new URL(message.text.match(/https?:\/\/\S+/)![0]).hash.slice('#reset='.length); }
+
+test('UC04: single-use hashed reset links change the password, revoke all sessions and reject stale login creation', async () => fixture(async ({ base, client, email, messages }) => {
+  const address = email(); const newPassword = 'new secure integration passphrase';
+  const registered = await request(base, '/register', 'POST', { email: address, password, displayName: 'Reset account' });
+  const oldCookie = sessionCookie(registered);
+  const user = await client.user.findUniqueOrThrow({ where: { email: address } });
+  const second = await request(base, '/login', 'POST', { email: address, password }); assert.equal(second.status, 200);
+  const forgotten = await request(base, '/password/forgot', 'POST', { email: ` ${address.toUpperCase()} ` });
+  assert.equal(forgotten.status, 202); assert.deepEqual(await forgotten.json(), { message: forgotMessage }); assert.equal(messages.length, 1);
+  const token = resetToken(messages[0]!); const stored = await client.passwordResetToken.findUniqueOrThrow({ where: { tokenHash: tokenHash(token)! } });
+  assert.equal(stored.userId, user.id); assert.notEqual(stored.tokenHash, token); assert.ok(stored.expiresAt.getTime() > Date.now());
+  assert.equal((await request(base, '/password/forgot', 'POST', { email: address })).status, 202); assert.equal(messages.length, 1);
+  const reset = await request(base, '/password/reset', 'POST', { token, password: newPassword }, oldCookie);
+  assert.equal(reset.status, 200); assert.match(reset.headers.get('set-cookie')!, /Expires=Thu, 01 Jan 1970/);
+  assert.equal(await client.session.count({ where: { userId: user.id } }), 0); assert.equal(await client.passwordResetToken.count({ where: { userId: user.id } }), 0);
+  assert.equal((await request(base, '/me', 'GET', undefined, oldCookie)).status, 401);
+  assert.equal((await request(base, '/me', 'GET', undefined, sessionCookie(second))).status, 401);
+  assert.equal((await request(base, '/login', 'POST', { email: address, password })).status, 401);
+  assert.equal((await request(base, '/login', 'POST', { email: address, password: newPassword })).status, 200);
+  assert.equal((await request(base, '/password/reset', 'POST', { token, password: 'another valid passphrase' })).status, 400);
+  await assert.rejects(createAccountRepository(client).createSession(user.id, tokenHash('a'.repeat(43))!, new Date(Date.now() + 60_000), undefined, user.passwordHash));
+  assert.equal(await client.session.count({ where: { userId: user.id } }), 1);
+}));
+
+test('reset rejects expired/replaced links, invalid input and locked accounts without exposing email existence', async () => fixture(async ({ base, client, email, messages }) => {
+  const address = email(); await request(base, '/register', 'POST', { email: address, password, displayName: 'Reset validation' });
+  const absent = await request(base, '/password/forgot', 'POST', { email: email() }); assert.equal(absent.status, 202); assert.deepEqual(await absent.json(), { message: forgotMessage }); assert.equal(messages.length, 0);
+  await request(base, '/password/forgot', 'POST', { email: address }); const first = resetToken(messages[0]!);
+  await client.passwordResetToken.updateMany({ where: { tokenHash: tokenHash(first)! }, data: { createdAt: new Date(Date.now() - 61_000) } });
+  await request(base, '/password/forgot', 'POST', { email: address }); assert.equal(messages.length, 2); const latest = resetToken(messages[1]!);
+  assert.equal((await request(base, '/password/reset', 'POST', { token: first, password })).status, 400);
+  for (const input of [{ token: latest, password: 'short' }, { token: latest, password, userId: 'injected' }, { token: 'invalid', password }]) assert.equal((await request(base, '/password/reset', 'POST', input)).status, 400);
+  const foreign = await fetch(`${base}/api/auth/password/reset`, { method: 'POST', headers: { Origin: 'https://foreign.invalid', 'Content-Type': 'application/json' }, body: JSON.stringify({ token: latest, password }) }); assert.equal(foreign.status, 403);
+  await client.user.update({ where: { email: address }, data: { status: 'LOCKED' } });
+  const locked = await request(base, '/password/forgot', 'POST', { email: address }); assert.deepEqual(await locked.json(), { message: forgotMessage }); assert.equal(messages.length, 2);
+  assert.equal((await request(base, '/password/reset', 'POST', { token: latest, password })).status, 400);
+  await client.user.update({ where: { email: address }, data: { status: 'ACTIVE' } });
+  await client.passwordResetToken.updateMany({ where: { tokenHash: tokenHash(latest)! }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  assert.equal((await request(base, '/password/reset', 'POST', { token: latest, password })).status, 400);
+  assert.equal((await request(base, '/login', 'POST', { email: address, password })).status, 200);
+}));
+
+test('concurrent resets consume only once and email failure revokes the unsent token', async () => fixture(async ({ base, client, email, messages }) => {
+  const address = email(); await request(base, '/register', 'POST', { email: address, password, displayName: 'Concurrent reset' });
+  await request(base, '/password/forgot', 'POST', { email: address }); const token = resetToken(messages[0]!);
+  const results = await Promise.all(['new password variant one', 'new password variant two'].map((value) => request(base, '/password/reset', 'POST', { token, password: value })));
+  assert.deepEqual(results.map((result) => result.status).sort(), [200, 400]);
+  const failing = createPasswordResetService((await import('../src/repositories/password-resets.js')).createPasswordResetRepository(client), { enabled: true, async send() { throw new Error('Injected mail failure'); } }, origin);
+  assert.deepEqual(await failing.forgot({ email: address }), { message: forgotMessage });
+  const user = await client.user.findUniqueOrThrow({ where: { email: address } });
+  assert.equal(await client.passwordResetToken.count({ where: { userId: user.id } }), 0);
+}));
 
 test('registration, persisted session, profile, rotation and logout work against real PostgreSQL', async () => {
   await fixture(async ({ base, client, email, freshApp }) => {

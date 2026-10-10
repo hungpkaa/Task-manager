@@ -68,7 +68,13 @@ export function createWorkspaceRepository(client: PrismaClient) {
         userId: user.id, type: 'WORKSPACE_INVITATION', title: 'Bạn được mời vào Workspace',
         message: `Bạn đã được thêm vào Workspace “${workspace.name}”.`, relatedEntityType: 'WORKSPACE', relatedEntityId: workspaceId,
       } });
-      return member;
+      return { ...member, workspaceName: workspace.name };
+    }),
+    invitationEmail: (workspaceId: string, actorId: string, userId: string) => asOwner(workspaceId, actorId, async (transaction, workspace) => {
+      const member = await transaction.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } }, include: { user: { select: memberUser } } });
+      if (!member) throw new HttpError(404, 'Thành viên không tồn tại trong Workspace này.');
+      if (member.user.status !== 'ACTIVE') throw new HttpError(409, 'Tài khoản được mời đang bị khóa.');
+      return { workspaceName: workspace.name, email: member.user.email };
     }),
     changeRole: (workspaceId: string, actorId: string, userId: string, role: WorkspaceRole) => asOwner(workspaceId, actorId, async (transaction) => {
       if (role === 'MEMBER') await keepOwner(transaction, workspaceId, userId);

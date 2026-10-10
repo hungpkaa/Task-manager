@@ -5,6 +5,8 @@ import { createWorkspaceRepository } from './workspaces.js';
 import { createNotificationRepository } from './notifications.js';
 import { createProjectRepository } from './projects.js';
 import { createTaskRepository } from './tasks.js';
+import { createPasswordResetRepository } from './password-resets.js';
+import { createSprintRepository } from './sprints.js';
 
 export function createDatabase(connectionString: string) {
   const adapter = new PrismaPg({
@@ -16,10 +18,12 @@ export function createDatabase(connectionString: string) {
   const client = new PrismaClient({ adapter });
   return {
     accounts: createAccountRepository(client),
+    passwordResets: createPasswordResetRepository(client),
     workspaces: createWorkspaceRepository(client),
     notifications: createNotificationRepository(client),
     projects: createProjectRepository(client),
     tasks: createTaskRepository(client),
+    sprints: createSprintRepository(client),
     async checkConnection() {
       await client.$queryRaw`SELECT 1`;
     },

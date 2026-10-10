@@ -9,17 +9,19 @@ import { createDatabase } from '../src/repositories/database.js';
 import { createWorkspaceRepository } from '../src/repositories/workspaces.js';
 import { createAuthService, tokenHash } from '../src/services/auth.js';
 import { createWorkspaceService, createNotificationService } from '../src/services/workspaces.js';
+import type { Email } from '../src/services/email.js';
 import { withHttp } from './helpers/http.js';
 
 const origin = 'http://127.0.0.1:5173';
-async function fixture(run: (context: { base: string; client: PrismaClient; users: { id: string; email: string; cookie: string }[] }) => Promise<void>) {
+async function fixture(run: (context: { base: string; client: PrismaClient; messages: Email[]; users: { id: string; email: string; cookie: string }[] }) => Promise<void>) {
   const url = readConfig().databaseUrl;
   const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 4 }) });
   const database = createDatabase(url);
   const auth = createAuthService(database.accounts);
   const options = { appOrigin: origin, secureCookies: false };
+  const messages: Email[] = [];
   const app = createApp(database, { ...options, service: auth }, { ...options,
-    service: createWorkspaceService(database.workspaces, auth), notifications: createNotificationService(database.notifications, auth),
+    service: createWorkspaceService(database.workspaces, auth, { sender: { enabled: true, local: true, async send(message) { messages.push(message); } }, appOrigin: origin }), notifications: createNotificationService(database.notifications, auth),
   });
   const users: { id: string; email: string; cookie: string }[] = [];
   try {
@@ -28,7 +30,7 @@ async function fixture(run: (context: { base: string; client: PrismaClient; user
       const user = await client.user.create({ data: { email: `workspace-${randomUUID()}@example.invalid`, displayName: `Test ${index}`, passwordHash: 'fixture-only', systemRole: index === 3 ? 'SYSTEM_ADMIN' : 'MEMBER', sessions: { create: { tokenHash: tokenHash(token)!, expiresAt: new Date(Date.now() + 60_000) } } } });
       users.push({ id: user.id, email: user.email, cookie: `task_manager_session=${token}` });
     }
-    await withHttp(app, (base) => run({ base, client, users }));
+    await withHttp(app, (base) => run({ base, client, users, messages }));
   } finally {
     try {
       await client.workspace.deleteMany({ where: { createdBy: { in: users.map((user) => user.id) } } });
@@ -39,6 +41,27 @@ async function fixture(run: (context: { base: string; client: PrismaClient; user
 function request(base: string, path: string, cookie?: string, method = 'GET', body?: unknown) {
   return fetch(`${base}/api${path}`, { method, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15_000) });
 }
+test('Workspace invitation emails can be resent only by Owner and email failure preserves membership', async () => fixture(async ({ base, client, users, messages }) => {
+  const [owner, member, outsider] = users; assert.ok(owner && member && outsider);
+  const repo = createWorkspaceRepository(client); const workspace = await repo.create(owner.id, { name: 'Email invitation', description: '' });
+  const path = `/workspaces/${workspace.id}/members`;
+  const added = await request(base, path, owner.cookie, 'POST', { email: member.email }); assert.equal(added.status, 201);
+  assert.equal((await added.json() as { member: { emailDelivery: string } }).member.emailDelivery, 'LOCAL');
+  assert.equal(messages.length, 1); assert.equal(messages[0]!.to, member.email); assert.match(messages[0]!.text, /Email invitation/);
+  assert.equal((await request(base, `${path}/${member.id}/email`, member.cookie, 'POST', {})).status, 403);
+  assert.equal((await request(base, `${path}/${outsider.id}/email`, owner.cookie, 'POST', {})).status, 404);
+  const resend = await request(base, `${path}/${member.id}/email`, owner.cookie, 'POST', {}); assert.deepEqual(await resend.json(), { delivery: 'LOCAL' }); assert.equal(messages.length, 2);
+  assert.equal(await client.workspaceMember.count({ where: { workspaceId: workspace.id, userId: member.id } }), 1);
+  assert.equal(await client.notification.count({ where: { userId: member.id, relatedEntityId: workspace.id } }), 1);
+  const auth = createAuthService((await import('../src/repositories/accounts.js')).createAccountRepository(client));
+  const failing = createWorkspaceService(repo, auth, { sender: { enabled: true, async send() { throw new Error('Injected email failure'); } }, appOrigin: origin });
+  const result = await failing.invite(owner.cookie.split('=')[1], workspace.id, { email: outsider.email }); assert.equal(result.emailDelivery, 'FAILED');
+  assert.equal(await client.workspaceMember.count({ where: { workspaceId: workspace.id, userId: outsider.id } }), 1);
+  assert.equal(await client.notification.count({ where: { userId: outsider.id, relatedEntityId: workspace.id } }), 1);
+  await client.user.update({ where: { id: member.id }, data: { status: 'LOCKED' } });
+  assert.equal((await request(base, `${path}/${member.id}/email`, owner.cookie, 'POST', {})).status, 409);
+}));
+
 async function create(base: string, cookie: string) {
   const response = await request(base, '/workspaces', cookie, 'POST', { name: ' Nhóm kiểm thử ', description: ' Mô tả ' });
   assert.equal(response.status, 201);

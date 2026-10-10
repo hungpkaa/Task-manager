@@ -53,7 +53,7 @@ export function createAuthService(repository: AccountRepository) {
       if (user.status !== 'ACTIVE') throw new HttpError(403, 'Tài khoản đang bị khóa.');
       const token = randomBytes(32).toString('base64url');
       const expiresAt = new Date(Date.now() + sessionLifetimeMs);
-      await repository.createSession(user.id, tokenHash(token)!, expiresAt, tokenHash(previousToken));
+      await repository.createSession(user.id, tokenHash(token)!, expiresAt, tokenHash(previousToken), user.passwordHash);
       return { user: publicAccount(user), token, expiresAt };
     },
     async me(token: string | undefined) { return publicAccount(await authenticate(token)); },

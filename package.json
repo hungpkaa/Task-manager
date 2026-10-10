@@ -18,6 +18,7 @@
     "test:db": "npm run test:db -w @task-manager/api",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report .local/e2e-report",
+    "mail:preview": "node scripts/preview-mail.mjs",
     "check:running": "node scripts/check-running.mjs",
     "check:auth": "npm run check:auth -w @task-manager/api",
     "check:workspaces": "npm run check:workspaces -w @task-manager/api",

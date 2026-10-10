@@ -12,6 +12,15 @@ const stateLabels: Record<ConnectionState, string> = {
 };
 
 export function App() {
+  const [resetToken, setResetToken] = useState<string | undefined>(() => new URLSearchParams(window.location.hash.slice(1)).get('reset') ?? undefined);
+  useEffect(() => {
+    function captureResetLink() {
+      const token = new URLSearchParams(window.location.hash.slice(1)).get('reset');
+      if (token !== null) { setResetToken(token); window.history.replaceState(null, '', window.location.pathname + window.location.search); }
+    }
+    captureResetLink(); window.addEventListener('hashchange', captureResetLink);
+    return () => window.removeEventListener('hashchange', captureResetLink);
+  }, []);
   const [user, setUser] = useState<Account | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState('');
@@ -74,6 +83,7 @@ export function App() {
     return () => { active = false; clearTimeout(timeout); controller.abort(); };
   }, [attempt]);
 
+  if (resetToken !== undefined) return <AuthScreen key={`password-reset-${resetToken}`} resetToken={resetToken} notice="" onAuthenticated={setUser} onResetFinished={() => { setResetToken(undefined); setUser(null); setNotice(''); setSessionAttempt((value) => value + 1); }} />;
   if (sessionLoading || sessionError) return <div className="session-screen"><Brand /><div className="session-card" role="status"><h1>{sessionLoading ? 'Đang mở không gian của bạn…' : 'Chưa kết nối được máy chủ.'}</h1>{sessionError && <><p>{sessionError}</p><button className="primary-button" onClick={() => setSessionAttempt((value) => value + 1)}>Thử lại</button></>}</div></div>;
   if (!user) return <AuthScreen notice={notice} onAuthenticated={(account) => { setUser(account); setNotice(''); setLogoutError(''); }} />;
 

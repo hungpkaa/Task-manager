@@ -105,6 +105,16 @@ test('production sessions use host-only Secure HttpOnly cookies and never return
   });
 });
 
+test('password recovery routes retain Origin checks and enforce a separate rate limit', async () => {
+  const app = createApp({ checkConnection: async () => {} }, { service: stubService(), appOrigin: origin, secureCookies: false, rateLimit: 1, passwordResets: { forgot: async () => ({ message: 'Generic response' }), reset: async () => ({ message: 'Changed' }) } });
+  await withHttp(app, async (base) => {
+    const foreign = await fetch(`${base}/api/auth/password/forgot`, { method: 'POST', headers: { Origin: 'https://foreign.invalid', 'Content-Type': 'application/json' }, body: '{}' }); assert.equal(foreign.status, 403);
+    const headers = { Origin: origin, 'Content-Type': 'application/json' };
+    const first = await fetch(`${base}/api/auth/password/forgot`, { method: 'POST', headers, body: '{}' }); assert.equal(first.status, 202);
+    const blocked = await fetch(`${base}/api/auth/password/reset`, { method: 'POST', headers, body: '{}' }); assert.equal(blocked.status, 429); assert.ok(blocked.headers.get('retry-after'));
+  });
+});
+
 test('production configuration requires HTTPS and rejects origins containing paths or credentials', () => {
   const config = { DATABASE_URL: 'postgresql://localhost/test' };
   assert.throws(() => readConfig({ ...config, NODE_ENV: 'production' }), /HTTPS/);

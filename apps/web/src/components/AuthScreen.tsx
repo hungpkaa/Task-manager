@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { accountApi, ApiError, type Account } from '../api';
 import { Brand } from './Brand';
+import { PasswordRecovery } from './PasswordRecovery';
 
-export function AuthScreen({ onAuthenticated, notice }: { onAuthenticated: (account: Account) => void; notice: string }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+export function AuthScreen({ onAuthenticated, notice, resetToken, onResetFinished }: { onAuthenticated: (account: Account) => void; notice: string; resetToken?: string; onResetFinished?: () => void }) {
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>(resetToken !== undefined ? 'reset' : 'login');
   const [busy, setBusy] = useState(false);
   return <div className="auth-shell">
     <aside className="auth-story"><Brand /><div className="auth-story-content"><div className="eyebrow">MỘT NHÓM. MỘT KHÔNG GIAN CHUNG.</div><h1>Cùng nhau,<br />đưa công việc<br />đến đích.</h1><p>Bắt đầu từ một tài khoản.<br />Kết nối với nhóm và tạo nên những điều tốt hơn.</p><div className="auth-illustration" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div><span className="auth-story-footer">Task Manager · Quản lý công việc nhóm</span></aside>
-    <main className="auth-main"><div className="auth-card"><div className="auth-tabs" aria-label="Chọn chức năng tài khoản"><button type="button" disabled={busy} className={mode === 'login' ? 'selected' : ''} aria-pressed={mode === 'login'} onClick={() => setMode('login')}>Đăng nhập</button><button type="button" disabled={busy} className={mode === 'register' ? 'selected' : ''} aria-pressed={mode === 'register'} onClick={() => setMode('register')}>Đăng ký</button></div>{notice && <p className="form-notice" role="status">{notice}</p>}<AuthForm key={mode} mode={mode} onAuthenticated={onAuthenticated} busy={busy} setBusy={setBusy} /><p className="auth-footnote">Không gian dành cho công việc và những người cùng bạn thực hiện.</p></div></main>
+    <main className="auth-main"><div className="auth-card">{mode !== 'reset' && <div className="auth-tabs" aria-label="Chọn chức năng tài khoản"><button type="button" disabled={busy} className={mode === 'login' ? 'selected' : ''} aria-pressed={mode === 'login'} onClick={() => setMode('login')}>Đăng nhập</button><button type="button" disabled={busy} className={mode === 'register' ? 'selected' : ''} aria-pressed={mode === 'register'} onClick={() => setMode('register')}>Đăng ký</button></div>}{notice && <p className="form-notice" role="status">{notice}</p>}{mode === 'forgot' || mode === 'reset' ? <PasswordRecovery key={mode} token={mode === 'reset' ? resetToken : undefined} busy={busy} setBusy={setBusy} onBack={() => { if (mode === 'reset') onResetFinished?.(); setMode('login'); }} /> : <><AuthForm key={mode} mode={mode} onAuthenticated={onAuthenticated} busy={busy} setBusy={setBusy} />{mode === 'login' && <button className="refresh-button recovery-back" disabled={busy} onClick={() => setMode('forgot')}>Quên mật khẩu?</button>}</>}<p className="auth-footnote">Không gian dành cho công việc và những người cùng bạn thực hiện.</p></div></main>
   </div>;
 }
 

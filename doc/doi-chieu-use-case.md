@@ -15,11 +15,11 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC01 | Đăng ký tài khoản | Cơ bản: tên/email/mật khẩu, email duy nhất, mặc định Member | 3 |
 | UC02 | Đăng nhập | Đã triển khai: validate, hash, trạng thái khóa, session và trang sau đăng nhập | 3 |
 | UC03 | Đăng xuất | Đã triển khai: thu hồi phiên hiện tại, xóa cookie | 3 |
-| UC04 | Quên / đặt lại mật khẩu | Chưa triển khai | 8 |
+| UC04 | Quên / đặt lại mật khẩu | Đã triển khai: token hash, dùng một lần/30 phút, thu hồi mọi phiên; email hộp thư thử theo lựa chọn nhóm, chưa gửi thật | 8 |
 | UC05 | Cập nhật hồ sơ cá nhân | Cơ bản: đọc hồ sơ, sửa tên của chính mình; chưa sửa email | 3 |
 | UC06 | Tạo Workspace | Đã triển khai: Workspace và membership Owner cùng transaction | 4 |
 | UC07 | Cập nhật Workspace | Đã triển khai: Owner sửa tên/mô tả | 4 |
-| UC08 | Mời thành viên | Đã triển khai: thêm tài khoản ACTIVE đã tồn tại, thông báo trong ứng dụng cùng transaction | 4 |
+| UC08 | Mời thành viên | Đã triển khai: thêm tài khoản ACTIVE đã tồn tại, thông báo transaction; email mời và Owner gửi lại qua hộp thư thử | 4, 8 |
 | UC09 | Xóa thành viên khỏi Workspace | Đã triển khai: giữ Owner cuối cùng, chặn nếu còn PM hoặc Task chưa DONE; xóa membership Project thường, giữ assignee lịch sử DONE | 4, 5, 6 |
 | UC10 | Quản lý vai trò thành viên | Đã triển khai: chỉ Owner, vai trò Owner/Member, kiểm tra Owner cuối cùng | 4 |
 | UC11 | Xem danh sách thành viên | Đã triển khai: chỉ thành viên Workspace, không lộ mật khẩu/phiên | 4 |
@@ -55,9 +55,9 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC41 | Khóa / mở khóa tài khoản | Chưa triển khai API/giao diện quản trị; auth đã từ chối tài khoản LOCKED | 10 |
 | UC42 | Xem danh sách Workspace | Chưa triển khai | 10 |
 | UC43 | Xem thống kê hệ thống | Chưa triển khai | 10 |
-| UC44 | Xem Product Backlog | Chưa triển khai | 9 |
-| UC45 | Tạo Sprint | Chưa triển khai | 9 |
-| UC46 | Lập Sprint Backlog | Chưa triển khai; cần kiểm tra Effort, Capacity, Dependency | 9, 10 |
+| UC44 | Xem Product Backlog | Đã triển khai: Task cùng Project có sprintId null, phân quyền và phân trang | 9 |
+| UC45 | Tạo Sprint | Đã triển khai: PM, PLANNED, tên/Goal/ngày bắt buộc, kiểm tra khoảng ngày | 9 |
+| UC46 | Lập Sprint Backlog | Cơ bản: chọn nhiều Task, preview Effort/dependency/cảnh báo, xác nhận, cùng Project, return khi PLANNED; chưa Capacity/Workload/Risk | 9, 10 |
 | UC47 | Bắt đầu Sprint | Chưa triển khai; cần goal, ít nhất một Task, không có Sprint ACTIVE khác | 9, 10 |
 | UC48 | Theo dõi Sprint | Chưa triển khai; cần tiến độ, BLOCKED/overdue và cảnh báo liên quan | 9, 10 |
 | UC49 | Cập nhật Daily Update | Chưa triển khai | 9 |
