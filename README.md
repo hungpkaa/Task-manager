@@ -10,7 +10,7 @@ Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member v
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.
 Có tạo/sửa/xóa Task, phân công, priority/ngày/effort, đổi trạng thái, My Tasks, List/Kanban, tìm kiếm/lọc/sắp xếp và thông báo giao việc.
 Sprint, cộng tác mở rộng, Dashboard và phân tích điều phối chưa hoàn thiện; xem bảng Use Case để biết các phần phụ thuộc còn lại.
-Đã bổ sung phần 1 của bước 8: bình luận Task, mention thành viên Project và thông báo riêng tư. Bước 8 vẫn còn tệp đính kèm và tài khoản/email mở rộng.
+Đã bổ sung phần 1–2 của bước 8: bình luận Task, mention/thông báo và upload/download/xóa tệp có kiểm tra quyền. Bước 8 vẫn còn tài khoản/email mở rộng.
 
 ## Tài liệu
 

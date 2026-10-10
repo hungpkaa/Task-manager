@@ -1,6 +1,6 @@
 # Bước 8 — Cộng tác và tài khoản mở rộng
 
-Trạng thái: đã hoàn thành phần 1, bình luận và @mention (UC25, mở rộng UC32). Bước 8 chưa hoàn thành toàn bộ: UC26 đính kèm tệp, email và UC04 đặt lại mật khẩu còn lại. Phạm vi tiếp tục dựa trên [đặc tả](sơ%20đồ.md), SEQ-F (image20) và ERD (image29).
+Trạng thái: đã hoàn thành phần 1 (bình luận/@mention, UC25) và phần 2 (đính kèm tệp, UC26), mở rộng UC32. Bước 8 chưa hoàn thành toàn bộ: email và UC04 đặt lại mật khẩu còn lại. Phạm vi tiếp tục dựa trên [đặc tả](sơ%20đồ.md), SEQ-F (image20) và ERD (image29).
 
 ## Phần 1: bình luận và mention
 
@@ -47,6 +47,37 @@ npm.cmd run test:e2e
 
 Điều kiện chạy E2E, fixture và giới hạn trình duyệt giữ như [bước 7](buoc-7.md). Ảnh mới `comments.png` nằm trong thư mục kết quả mỗi viewport dưới `.local/e2e-results`.
 
+## Phần 2: tệp đính kèm (UC26)
+
+Trong chi tiết Task có phần Tệp đính kèm: chọn tệp, tải lên, xem tên/dung lượng/người tải lên, tải xuống và xóa với xác nhận. Danh sách phân trang 20 tệp, mới nhất trước. Tải xuống đi qua API có session và kiểm tra quyền; không cung cấp URL tệp công khai.
+
+| API | Nội dung |
+| --- | --- |
+| `GET /api/tasks/:id/attachments?page=1` | Danh sách metadata, tổng số, `canUpload`/`canDelete`; không trả nội dung tệp |
+| `POST /api/tasks/:id/attachments` | Nội dung binary `application/octet-stream`, header `X-Filename` là tên tệp mã hóa `encodeURIComponent` |
+| `GET /api/tasks/:id/attachments/:attachmentId/download` | Kiểm tra Task và attachment khớp nhau, tải nội dung |
+| `DELETE /api/tasks/:id/attachments/:attachmentId` | Người tải lên hoặc PM xóa tệp trong Project còn hoạt động |
+
+Migration `20261010170000_task_attachments` tạo bảng theo ERD: ID, FK Task, `uploaded_by` tham chiếu User, tên/dung lượng/thời điểm và nội dung `BYTEA`. Nội dung và metadata lưu/xóa cùng transaction PostgreSQL, không có tệp ngoài database cần dọn. Xóa Task cascade cả nội dung; xóa membership giữ lịch sử người tải lên. Backup database bao gồm nội dung tệp.
+
+Lựa chọn triển khai vì nguồn chưa quy định nơi lưu, giới hạn và quyền xóa:
+
+- Lưu PostgreSQL phù hợp phiên bản phát triển hiện tại, không cần tài khoản dịch vụ ngoài. Khi số lượng/dung lượng tăng, cần đánh giá chuyển nội dung sang object storage; database/backup sẽ tăng theo tệp.
+- Tệp có nội dung, tối đa 10 MiB (10.485.760 byte), mỗi lần một tệp. Chấp nhận phần mở rộng PDF, PNG/JPG/JPEG, TXT, CSV, MD, ZIP, DOCX/XLSX/PPTX. Đây là kiểm tra phần mở rộng, chưa kiểm tra magic bytes/virus hoặc giải nén/preview.
+- Backend kiểm tra session, Origin và quyền trước khi đọc binary; giới hạn request 10 MiB, không nhận Content-Encoding. Kiểm tra lại membership/Project trong transaction sau khi nhận tệp để xử lý quyền thay đổi trong lúc tải lên.
+- Thành viên Project tải lên; người có quyền xem Task được xem/tải xuống, gồm Owner theo quyền đọc hiện tại. Owner chưa thuộc Project không tải lên/xóa. Người tải lên hoặc PM, đang thuộc Project, được xóa. Project đóng chỉ cho xem/tải xuống, kể cả PM không sửa/xóa.
+- Tên tệp tối đa 255 ký tự, chuẩn hóa Unicode; từ chối đường dẫn, ký tự điều khiển, tên ẩn và đuôi không hỗ trợ. Không dùng tên người dùng cung cấp làm đường dẫn filesystem.
+- Download luôn `Content-Disposition: attachment`, `application/octet-stream`, `nosniff` và `no-store`; trình duyệt tải tệp, không preview nội dung trong ứng dụng. Tệp chưa được quét virus, người dùng vẫn cần kiểm tra trước khi mở.
+- DB CHECK dung lượng dương/không quá giới hạn và khớp `octet_length(data)`, cùng FK/cascade. Không thêm sự kiện thông báo cho mọi lần upload vì nguồn chưa quy định người nhận.
+
+### Kiểm chứng phần 2
+
+Build/TypeScript đạt. 14/14 kiểm thử backend độc lập database và 27/27 kiểm thử PostgreSQL đạt. Ba kịch bản tích hợp mới xác nhận bytes và tên Unicode, metadata không chứa bytes, quyền đọc/xóa và ID Task không khớp, Origin/MIME/encoding/tên/dung lượng sai, CHECK dữ liệu, thao tác đồng thời với xóa membership, lịch sử Project đóng và cascade Task.
+
+8/8 kiểm thử browser QA đạt, bổ sung upload → hủy/xác nhận xóa → upload tệp giữ lại → download và đối chiếu từng byte → tải lại → Project đóng vẫn download, không có upload/xóa. Đợt này phát hiện và sửa min-width mặc định của fieldset trong form bình luận gây tràn ngang trên điện thoại. Kết quả và artifact dùng cùng bộ E2E bước 7; kiểm tra Edge với viewport máy tính/điện thoại, không thay thế thiết bị thật. Database mới đã áp dụng đủ 7 migration, đọc/ghi attachment và CHECK đạt.
+
+Chạy lại theo các lệnh phía trên. Không cần cài thêm dependency hoặc cấu hình nơi lưu tệp; `db:deploy` cập nhật bảng mới. Ảnh `comments.png` cuối luồng hiện bao gồm phần đính kèm của Task đã đóng.
+
 ## Phần còn lại
 
-Tiếp theo triển khai UC26 upload/download tệp với kiểm tra quyền theo Task và giới hạn tệp, sau đó tài khoản mở rộng/email. Email cần cấu hình nhà cung cấp khi tích hợp; không coi thông báo trong ứng dụng là đã gửi email. Sprint vẫn thuộc bước 9.
+Tiếp theo là tài khoản mở rộng/UC04 và email. Email cần cấu hình nhà cung cấp khi tích hợp; không coi thông báo trong ứng dụng là đã gửi email. Sprint vẫn thuộc bước 9.

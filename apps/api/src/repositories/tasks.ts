@@ -5,6 +5,7 @@ import { taskStatuses, type CreateTaskInput, type UpdateTaskInput, type TaskQuer
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, displayName: true, email: true } as const;
+const attachmentSelect = { id: true, taskId: true, uploadedBy: true, filename: true, sizeBytes: true, createdAt: true, uploader: { select: userSelect } } as const;
 const include = { assignee: { select: userSelect }, project: { select: { id: true, name: true, workspaceId: true, managerUserId: true, status: true } }, dependencies: { include: { dependsOnTask: { select: { id: true, title: true, status: true } } } } } as const;
 async function access(client: Client, projectId: string, actorId: string) {
   const project = await client.project.findUnique({ where: { id: projectId } });
@@ -76,6 +77,38 @@ export function createTaskRepository(client: PrismaClient) {
     return { tasks: items.map((task) => view(task, actorId)), total, page: query.page, pageSize: query.pageSize };
   }
   return {
+    async attachmentAccess(id: string, actorId: string) {
+      const { project, projectMember } = await access(client, await taskProject(id), actorId);
+      if (!projectMember) throw new HttpError(403, 'Chỉ thành viên Project được tải lên tệp.');
+      if (project.status !== 'ACTIVE') throw new HttpError(409, 'Project đã đóng; không thể tải lên tệp.');
+    },
+    async attachments(id: string, actorId: string, page: number) {
+      const { project, projectMember } = await access(client, await taskProject(id), actorId);
+      return client.$transaction(async (tx) => {
+        const items = await tx.attachment.findMany({ where: { taskId: id }, select: attachmentSelect, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * 20, take: 20 });
+        const total = await tx.attachment.count({ where: { taskId: id } });
+        return { items: items.map((item) => ({ ...item, canDelete: project.status === 'ACTIVE' && Boolean(projectMember) && (item.uploadedBy === actorId || project.managerUserId === actorId) })), total, page, pageSize: 20, canUpload: project.status === 'ACTIVE' && Boolean(projectMember) };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
+    addAttachment: (id: string, actorId: string, filename: string, data: Buffer) => taskMutation(id, actorId, false, async (tx) => {
+      const task = await tx.task.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      if (!await tx.projectMember.findUnique({ where: { projectId_userId: { projectId: task.projectId, userId: actorId } } })) throw new HttpError(403, 'Chỉ thành viên Project được tải lên tệp.');
+      return tx.attachment.create({ data: { taskId: id, uploadedBy: actorId, filename, sizeBytes: data.length, data: new Uint8Array(data) }, select: attachmentSelect });
+    }),
+    async downloadAttachment(id: string, attachmentId: string, actorId: string) {
+      await access(client, await taskProject(id), actorId);
+      const attachment = await client.attachment.findFirst({ where: { id: attachmentId, taskId: id } });
+      if (!attachment) throw new HttpError(404, 'Tệp không tồn tại trong Task này.');
+      return attachment;
+    },
+    removeAttachment: (id: string, attachmentId: string, actorId: string) => taskMutation(id, actorId, false, async (tx, task, project) => {
+      const member = await tx.projectMember.findUnique({ where: { projectId_userId: { projectId: task.projectId, userId: actorId } } });
+      if (!member) throw new HttpError(403, 'Chỉ thành viên Project được quản lý tệp.');
+      const attachment = await tx.attachment.findFirst({ where: { id: attachmentId, taskId: id }, select: attachmentSelect });
+      if (!attachment) throw new HttpError(404, 'Tệp không tồn tại trong Task này.');
+      if (attachment.uploadedBy !== actorId && project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ người tải lên hoặc PM được xóa tệp.');
+      await tx.attachment.delete({ where: { id: attachmentId } });
+    }),
     async comments(id: string, actorId: string, page: number) {
       const { project, projectMember } = await access(client, await taskProject(id), actorId);
       return client.$transaction(async (tx) => {

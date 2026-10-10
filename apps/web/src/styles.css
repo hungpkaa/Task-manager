@@ -129,3 +129,9 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .comment-card { border: 1px solid #dae1d3; border-radius: 12px; padding: 18px; background: white; min-width: 0; overflow-wrap: anywhere; }
 .comment-card time { display: block; font-size: 12px; margin-top: 6px; }
 .comment-card p { white-space: pre-wrap; }
+.attachments-panel { margin-top: 32px; padding-top: 24px; border-top: 1px solid #dae1d3; }
+.attachment-list { display: grid; gap: 12px; margin-bottom: 16px; }
+.attachment-card { padding: 18px; background: white; border: 1px solid #dae1d3; border-radius: 12px; min-width: 0; overflow-wrap: anywhere; }
+.attachments-panel input[type=file] { width: 100%; min-width: 0; }
+.workspace-form fieldset { padding: 0; border: 0; margin: 0; min-width: 0; }
+.comments-panel select { width: 100%; }

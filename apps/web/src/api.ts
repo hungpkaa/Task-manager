@@ -47,7 +47,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, binary = false): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
@@ -61,6 +61,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(0, 'Không kết nối được máy chủ. Vui lòng thử lại.');
   }
   if (response.status === 204) return undefined as T;
+  if (response.ok && binary) return await response.blob() as T;
   let body: unknown;
   try { body = await response.json(); } catch {
     throw new ApiError(response.status, 'Máy chủ chưa sẵn sàng. Vui lòng thử lại.');
@@ -149,6 +150,10 @@ export interface Task {
 export interface TaskInput { title: string; description: string; priority: TaskPriority; startDate: string | null; dueDate: string | null; effort: number | null; }
 export interface TaskPage { tasks: Task[]; total: number; page: number; pageSize: number; }
 export const taskApi = {
+  attachments: (id: string, page = 1) => request<AttachmentPage>(`/tasks/${id}/attachments?page=${page}`),
+  upload: (id: string, file: File) => request<{ attachment: Omit<TaskAttachment, 'canDelete'> }>(`/tasks/${id}/attachments`, { method: 'POST', body: file, headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(file.name) }, signal: AbortSignal.timeout(30_000) }),
+  download: (id: string, attachmentId: string) => request<Blob>(`/tasks/${id}/attachments/${attachmentId}/download`, { signal: AbortSignal.timeout(30_000) }, true),
+  removeAttachment: (id: string, attachmentId: string) => request<void>(`/tasks/${id}/attachments/${attachmentId}`, json('DELETE', {})),
   comments: (id: string, page = 1) => request<CommentPage>(`/tasks/${id}/comments?page=${page}`),
   addComment: (id: string, body: string) => request<{ comment: TaskComment }>(`/tasks/${id}/comments`, json('POST', { body })),
   list: (projectId: string, query: URLSearchParams) => request<TaskPage>(`/projects/${projectId}/tasks?${query}`),
@@ -166,3 +171,8 @@ export interface TaskComment {
   mentions: { user: { id: string; displayName: string; email: string } }[];
 }
 export interface CommentPage { items: TaskComment[]; total: number; page: number; pageSize: number; canPost: boolean; }
+export interface TaskAttachment {
+  id: string; taskId: string; filename: string; sizeBytes: number; createdAt: string; canDelete: boolean;
+  uploader: { id: string; displayName: string; email: string };
+}
+export interface AttachmentPage { items: TaskAttachment[]; total: number; page: number; pageSize: number; canUpload: boolean; }

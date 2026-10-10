@@ -57,6 +57,7 @@ model User {
   assignedTasks Task[] @relation("TaskAssignee")
   comments Comment[]
   commentMentions CommentMention[]
+  attachments Attachment[]
 
   @@map("users")
 }
@@ -145,6 +146,7 @@ model Task {
   dependencies TaskDependency[] @relation("TaskDependencies")
   dependents   TaskDependency[] @relation("TaskDependents")
   comments Comment[]
+  attachments Attachment[]
 
   @@unique([id, projectId])
   @@index([projectId, status])
@@ -200,6 +202,21 @@ model CommentMention {
   @@id([commentId, userId])
   @@index([userId])
   @@map("comment_mentions")
+}
+
+model Attachment {
+  id         String @id @default(uuid()) @db.Uuid
+  taskId     String @map("task_id") @db.Uuid
+  uploadedBy String @map("uploaded_by") @db.Uuid
+  filename   String
+  sizeBytes  Int @map("size_bytes")
+  data       Bytes
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader   User @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("task_attachments")
 }
 
 model Notification {

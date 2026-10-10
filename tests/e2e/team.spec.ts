@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../apps/api/dist/generated/prisma/client.js';
 import { readConfig } from '../../apps/api/dist/config.js';
@@ -43,8 +44,9 @@ async function register(page: Page, name: string) {
 }
 async function nav(page: Page, name: string) { await page.locator('.sidebar').getByRole('button', { name, exact: true }).click(); }
 async function noOverflow(page: Page) {
-  const size = await page.evaluate(() => ({ width: window.innerWidth, document: document.documentElement.scrollWidth }));
-  expect(size.document, 'Only Kanban should scroll internally; the page must fit the viewport').toBeLessThanOrEqual(size.width + 1);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), {
+    message: 'Only Kanban should scroll internally; the page must fit the viewport after rendering',
+  }).toBeLessThanOrEqual(1);
 }
 
 test('three users complete Workspace → Project → Task → My Tasks → DONE → closed Project', async ({ browser }, testInfo) => {
@@ -107,10 +109,31 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await comments.getByRole('combobox', { name: 'Nhắc thành viên (@mention)', exact: true }).selectOption({ label: `PM QA · ${pmEmail}` });
   await comments.getByRole('button', { name: 'Gửi bình luận', exact: true }).click();
   await expect(comments.locator('.comment-card')).toContainText('Nhờ PM kiểm tra <script>alert(1)</script>');
+  const attachments = member.getByRole('region', { name: 'Tệp đính kèm Task', exact: true });
+  await attachments.getByLabel('Chọn tệp đính kèm', { exact: true }).setInputFiles({ name: 'temporary.txt', mimeType: 'text/plain', buffer: Buffer.from('Delete after confirmation') });
+  await attachments.getByRole('button', { name: 'Đính kèm tệp', exact: true }).click();
+  await expect(attachments.locator('.attachment-card')).toContainText('temporary.txt');
+  await attachments.getByRole('button', { name: 'Xóa tệp', exact: true }).click();
+  const deletion = attachments.getByRole('group', { name: 'Xác nhận xóa tệp', exact: true });
+  await deletion.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await expect(attachments.locator('.attachment-card')).toHaveCount(1);
+  await attachments.getByRole('button', { name: 'Xóa tệp', exact: true }).click();
+  await deletion.getByRole('button', { name: 'Xác nhận xóa', exact: true }).click();
+  await expect(attachments.locator('.attachment-card')).toHaveCount(0);
+  const reportBytes = Buffer.from('Báo cáo nghiệm thu\nTask attachment persisted\n');
+  await attachments.getByLabel('Chọn tệp đính kèm', { exact: true }).setInputFiles({ name: 'báo cáo.txt', mimeType: 'text/plain', buffer: reportBytes });
+  await attachments.getByRole('button', { name: 'Đính kèm tệp', exact: true }).click();
+  await expect(attachments.locator('.attachment-card')).toContainText('báo cáo.txt');
+  await noOverflow(member);
+  const [download] = await Promise.all([member.waitForEvent('download'), attachments.getByRole('button', { name: 'Tải xuống', exact: true }).click()]);
+  expect(download.suggestedFilename()).toBe('báo cáo.txt');
+  const downloadPath = await download.path(); expect(downloadPath).not.toBeNull();
+  expect(await readFile(downloadPath!)).toEqual(reportBytes);
   await member.reload();
   await nav(member, 'My Tasks');
   await member.locator('.task-card').filter({ hasText: taskName }).click();
   await expect(comments.locator('.comment-card')).toContainText('Đã nhắc: @PM QA');
+  await expect(attachments.locator('.attachment-card')).toContainText('báo cáo.txt');
   for (const label of ['Đang làm', 'Chờ duyệt', 'Hoàn thành']) {
     await member.getByRole('button', { name: `Chuyển sang ${label}`, exact: true }).click();
     await expect(member.locator('.task-detail dd').filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible();
@@ -148,6 +171,12 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   const closedComments = pm.getByRole('region', { name: 'Bình luận Task', exact: true });
   await expect(closedComments.locator('.comment-card')).toContainText('Nhờ PM kiểm tra');
   await expect(closedComments.getByRole('button', { name: 'Gửi bình luận', exact: true })).toHaveCount(0);
+  const closedAttachments = pm.getByRole('region', { name: 'Tệp đính kèm Task', exact: true });
+  await expect(closedAttachments.locator('.attachment-card')).toContainText('báo cáo.txt');
+  await expect(closedAttachments.getByLabel('Chọn tệp đính kèm', { exact: true })).toHaveCount(0);
+  await expect(closedAttachments.getByRole('button', { name: 'Xóa tệp', exact: true })).toHaveCount(0);
+  const [closedDownload] = await Promise.all([pm.waitForEvent('download'), closedAttachments.getByRole('button', { name: 'Tải xuống', exact: true }).click()]);
+  expect(await readFile((await closedDownload.path())!)).toEqual(reportBytes);
   await noOverflow(pm);
   await pm.screenshot({ path: testInfo.outputPath('comments.png'), fullPage: true });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Comments } from './Comments';
+import { Attachments } from './Attachments';
 import { ApiError, projectApi, taskApi, taskStatuses, taskPriorities, type Task, type TaskInput, type TaskPage, type TaskPriority, type TaskStatus, type ProjectMember } from '../api';
 
 export const statusLabels: Record<TaskStatus, string> = { TODO: 'Cần làm', IN_PROGRESS: 'Đang làm', REVIEW: 'Chờ duyệt', DONE: 'Hoàn thành' };
@@ -94,6 +95,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired }: { 
     {task?.canEdit && <><form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void mutate(async () => { await taskApi.assign(task.id, assigneeId || null); setNotice('Đã cập nhật người phụ trách.'); }); }}><h3>Phân công công việc</h3><div className="form-field"><label htmlFor="task-assignee">Thành viên Project</label><select id="task-assignee" disabled={busy} value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Chưa phân công</option>{task.assignee && !members.some((member) => member.userId === task.assigneeId) && <option value={task.assigneeId!} disabled>{task.assignee.displayName} · Không còn trong Project</option>}{members.filter((member) => member.user.status === 'ACTIVE' || member.userId === task.assigneeId).map((member) => <option key={member.userId} value={member.userId} disabled={member.user.status !== 'ACTIVE'}>{member.user.displayName} · {member.user.email}</option>)}</select></div><button className="primary-button" disabled={busy}>Lưu phân công</button></form><button className="danger-button" disabled={busy} onClick={() => setPending('delete')}>Xóa Task</button></>}
     {pending && task && <div className="confirm-panel" role="group" aria-label="Xác nhận thay đổi công việc"><p>{pending === 'delete' ? `Xóa công việc “${task.title}”? Thao tác này xóa dữ liệu công việc.` : 'Còn dependency chưa DONE. Bạn đã xem cảnh báo và vẫn muốn chuyển trạng thái?'}</p><button className="primary-button" disabled={busy} onClick={() => pending === 'blocked' ? advance(true) : void mutate(async () => { await taskApi.remove(task.id); setSelected(''); setPage(1); setNotice('Đã xóa công việc.'); })}>Xác nhận</button> <button className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button></div>}
     {task && <Comments key={task.id} taskId={task.id} projectId={task.projectId} onExpired={onExpired} />}
+    {task && <Attachments key={task.id} taskId={task.id} onExpired={onExpired} />}
     </>}
   </section>;
 }

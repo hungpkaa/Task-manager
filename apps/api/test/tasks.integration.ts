@@ -53,6 +53,72 @@ async function create(base: string, projectId: string, pm: UserFixture, data: Re
   assert.equal(response.status, 201);
   return (await response.json() as { task: { id: string; status: string; priority: string; assigneeId: string | null; sprintId: string | null; canEdit: boolean } }).task;
 }
+function upload(base: string, taskId: string, user: UserFixture | undefined, bytes: Buffer, filename = 'report.txt', extraHeaders: Record<string, string> = {}) {
+  return fetch(`${base}/api/tasks/${taskId}/attachments`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename), ...(user ? { Cookie: user.cookie } : {}), ...extraHeaders }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(15_000) });
+}
+
+test('UC26: attachment bytes persist, metadata excludes data, downloads and deletion enforce Task scope', async () => fixture(async ({ base, client, projectId, otherProjectId, users }) => {
+  const [owner, pm, member, peer, outsider, admin] = users; assert.ok(owner && pm && member && peer && outsider && admin);
+  const task = await create(base, projectId, pm); const path = `/tasks/${task.id}/attachments`;
+  const bytes = Buffer.from('Báo cáo nhóm\nNội dung thử nghiệm\n');
+  const response = await upload(base, task.id, member, bytes, 'báo cáo.txt'); assert.equal(response.status, 201);
+  const saved = await response.json() as { attachment: { id: string; uploadedBy: string; filename: string; sizeBytes: number; data?: unknown } };
+  assert.equal(saved.attachment.uploadedBy, member.id); assert.equal(saved.attachment.filename, 'báo cáo.txt'); assert.equal(saved.attachment.sizeBytes, bytes.length); assert.equal(saved.attachment.data, undefined);
+  const listed = await (await request(base, path, peer)).json() as { items: { id: string; data?: unknown; canDelete: boolean }[]; canUpload: boolean };
+  assert.equal(listed.items.length, 1); assert.equal(listed.items[0]!.data, undefined); assert.equal(listed.items[0]!.canDelete, false); assert.equal(listed.canUpload, true);
+  const downloadPath = `${path}/${saved.attachment.id}/download`;
+  const download = await request(base, downloadPath, peer); assert.equal(download.status, 200);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), bytes);
+  assert.equal(download.headers.get('content-type'), 'application/octet-stream'); assert.match(download.headers.get('content-disposition')!, /^attachment;/); assert.equal(download.headers.get('x-content-type-options'), 'nosniff'); assert.equal(download.headers.get('cache-control'), 'no-store');
+  for (const user of [outsider, admin]) { assert.equal((await request(base, path, user)).status, 403); assert.equal((await request(base, downloadPath, user)).status, 403); }
+  assert.equal((await request(base, downloadPath)).status, 401);
+  assert.equal((await request(base, downloadPath, owner)).status, 200);
+  const differentTask = await client.task.create({ data: { projectId: otherProjectId, title: 'Other private task' } });
+  assert.equal((await request(base, `/tasks/${differentTask.id}/attachments/${saved.attachment.id}/download`, owner)).status, 404);
+  for (const user of [owner, peer]) assert.equal((await request(base, `${path}/${saved.attachment.id}`, user, 'DELETE', {})).status, 403);
+  assert.equal((await request(base, `${path}/${saved.attachment.id}`, pm, 'DELETE', {})).status, 204);
+  assert.equal((await request(base, downloadPath, peer)).status, 404);
+  const own = await upload(base, task.id, member, bytes); assert.equal(own.status, 201);
+  const ownId = (await own.json() as { attachment: { id: string } }).attachment.id;
+  assert.equal((await request(base, `${path}/${ownId}`, member, 'DELETE', {})).status, 204);
+  assert.equal(await client.attachment.count({ where: { taskId: task.id } }), 0);
+}));
+
+test('attachment upload rejects invalid filenames, sizes, origins, encodings and nonmembers without storing bytes', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [owner, pm, member, , outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const task = await create(base, projectId, pm); const bytes = Buffer.from('fixture');
+  for (const user of [owner, outsider, admin]) assert.equal((await upload(base, task.id, user, bytes)).status, 403);
+  assert.equal((await upload(base, task.id, undefined, bytes)).status, 401);
+  assert.equal((await upload(base, task.id, member, bytes, 'ok.txt', { Origin: 'https://foreign.invalid' })).status, 403);
+  assert.equal((await upload(base, task.id, member, bytes, 'ok.txt', { 'Content-Type': 'text/plain' })).status, 415);
+  assert.equal((await upload(base, task.id, member, bytes, 'ok.txt', { 'Content-Encoding': 'gzip' })).status, 415);
+  for (const filename of ['../report.txt', 'folder\\report.txt', 'bad\n.txt', '.hidden.txt', 'run.exe', 'page.html', 'x'.repeat(256) + '.txt']) assert.equal((await upload(base, task.id, member, bytes, filename)).status, 400);
+  assert.equal((await upload(base, task.id, member, bytes, 'ok.txt', { 'X-Filename': '%broken' })).status, 400);
+  assert.equal((await upload(base, task.id, member, Buffer.alloc(0))).status, 400);
+  assert.equal((await upload(base, task.id, member, Buffer.alloc(10 * 1024 * 1024 + 1))).status, 413);
+  assert.equal(await client.attachment.count({ where: { taskId: task.id } }), 0);
+  await assert.rejects(client.attachment.create({ data: { taskId: task.id, uploadedBy: member.id, filename: 'empty.txt', sizeBytes: 0, data: new Uint8Array() } }));
+  await assert.rejects(client.attachment.create({ data: { taskId: task.id, uploadedBy: member.id, filename: 'mismatch.txt', sizeBytes: 2, data: new Uint8Array([1]) } }));
+}));
+
+test('attachments are serialized with member removal, retained on closed Projects and cascade with Task deletion', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [, pm, member, peer] = users; assert.ok(pm && member && peer);
+  const task = await create(base, projectId, pm);
+  const [uploaded, removed] = await Promise.all([upload(base, task.id, member, Buffer.from('Race')), request(base, `/projects/${projectId}/members/${member.id}`, pm, 'DELETE', {})]);
+  assert.equal(removed.status, 204); assert.ok([201, 403].includes(uploaded.status));
+  assert.equal(await client.attachment.count({ where: { taskId: task.id } }), uploaded.status === 201 ? 1 : 0);
+  assert.equal((await request(base, `/tasks/${task.id}/attachments`, member)).status, 403);
+  const saved = await upload(base, task.id, peer, Buffer.from('Retained')); assert.equal(saved.status, 201);
+  const attachmentId = (await saved.json() as { attachment: { id: string } }).attachment.id;
+  await client.task.update({ where: { id: task.id }, data: { status: 'DONE' } });
+  assert.equal((await request(base, `/projects/${projectId}/close`, pm, 'POST', {})).status, 200);
+  assert.equal((await upload(base, task.id, peer, Buffer.from('Closed'))).status, 409);
+  assert.equal((await request(base, `/tasks/${task.id}/attachments/${attachmentId}`, peer, 'DELETE', {})).status, 409);
+  assert.equal((await request(base, `/tasks/${task.id}/attachments/${attachmentId}/download`, peer)).status, 200);
+  await client.task.delete({ where: { id: task.id } });
+  assert.equal(await client.attachment.count({ where: { taskId: task.id } }), 0);
+}));
+
 test('UC25: comments and unique mention notifications persist; permissions and closed Project are enforced', async () => fixture(async ({ base, client, projectId, users }) => {
   const [owner, pm, member, target, outsider, admin] = users; assert.ok(owner && pm && member && target && outsider && admin);
   const task = await create(base, projectId, pm); const path = `/tasks/${task.id}/comments`;

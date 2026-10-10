@@ -31,4 +31,6 @@ Nếu lỗi mạng, kiểm tra API/PostgreSQL rồi bấm **Thử lại** nơi c
 
 Trong chi tiết Task, thành viên Project có thể nhập **Nội dung bình luận**, chọn **Nhắc thành viên (@mention)** rồi **Gửi bình luận**. Người được nhắc nhận thông báo và mở Task từ đó. Chọn thành viên sẽ chèn `@{email}` vào nội dung; giữ ký hiệu này để gửi mention. Có thể gửi bình luận không mention; lịch sử mới nhất trước, 20 bình luận mỗi trang. Project đã đóng chỉ cho xem lịch sử.
 
-Tệp đính kèm, đặt lại mật khẩu, Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md) để biết phạm vi hiện tại và [bước 8](buoc-8.md) để kiểm tra phần cộng tác.
+Trong chi tiết Task → **Tệp đính kèm**, chọn tệp rồi **Đính kèm tệp**. Mỗi tệp có nội dung và tối đa 10 MB; hỗ trợ PDF, PNG/JPG, TXT, CSV, MD, ZIP, DOCX/XLSX/PPTX. Bấm **Tải xuống** để lưu về máy. Người tải lên hoặc PM có thể **Xóa tệp** với xác nhận; bấm Hủy giữ lại tệp. Tải lại trang vẫn xem và tải xuống được tệp đã lưu. Project đóng chỉ cho tải xuống, không tải lên/xóa; người ngoài Project không tự có quyền từ đường dẫn tệp.
+
+Đặt lại mật khẩu, email, Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md) để biết phạm vi hiện tại và [bước 8](buoc-8.md) để kiểm tra phần cộng tác.

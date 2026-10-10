@@ -36,8 +36,13 @@ try {
   assert.equal(comment.mentions.length, 1);
   assert.equal(await fresh.commentMention.count({ where: { commentId: comment.id } }), 1);
   await assert.rejects(fresh.comment.create({ data: { taskId: task.id, authorId: user.id, body: '' } }));
+  const bytes = Buffer.from('Fresh attachment');
+  const attachment = await database.tasks.addAttachment(task.id, user.id, 'fresh.txt', bytes);
+  const downloaded = await database.tasks.downloadAttachment(task.id, attachment.id, user.id);
+  assert.deepEqual(Buffer.from(downloaded.data), bytes);
+  await assert.rejects(fresh.attachment.create({ data: { taskId: task.id, uploadedBy: user.id, filename: 'bad.txt', sizeBytes: 1, data: new Uint8Array() } }));
   await assert.rejects(fresh.task.update({ where: { id: task.id }, data: { dueDate: new Date('2026-10-01') } }));
-  console.log('PASS: all migrations on a fresh PostgreSQL database; Workspace/Project/Task, comments/mentions, notifications and CHECK constraints.');
+  console.log('PASS: all migrations on a fresh PostgreSQL database; Workspace/Project/Task, comments/mentions, attachment bytes, notifications and CHECK constraints.');
 } finally {
   try {
     await Promise.all([database?.disconnect(), fresh?.$disconnect()]);

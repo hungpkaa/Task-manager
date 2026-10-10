@@ -37,7 +37,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC23 | Cập nhật trạng thái Task | Cơ bản: PM/assignee, chuyển tuần tự, kiểm tra dependency và xác nhận BLOCKED; Dashboard/Progress tích hợp sau | 6, 10 |
 | UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu | 6 |
 | UC25 | Bình luận và @mention | Đã triển khai: bình luận có phân trang, mention thành viên ACTIVE trong Project, thông báo transaction; lựa chọn chi tiết xem bước 8 | 8 |
-| UC26 | Đính kèm tệp vào Task | Chưa triển khai | 8 |
+| UC26 | Đính kèm tệp vào Task | Đã triển khai: upload/download có quyền theo Task, PostgreSQL BYTEA, giới hạn 10 MiB, xóa bởi người tải lên/PM; lựa chọn chi tiết xem bước 8 | 8 |
 | UC27 | Xem My Tasks | Đã triển khai: công việc của chính mình trong các Project còn membership | 6 |
 | UC28 | Xem Kanban Board | Đã triển khai: bốn cột trạng thái, lọc và phân trang; đổi trạng thái trong chi tiết, chưa kéo thả | 6 |
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
