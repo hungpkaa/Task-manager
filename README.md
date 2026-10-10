@@ -4,7 +4,7 @@ Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Spr
 
 ## Trạng thái
 
-Đã triển khai bước 6: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task.
+Đã hoàn thành bước 7 trong phạm vi phiên bản đầu: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task, kèm nghiệm thu trình duyệt và responsive.
 Có đăng ký, đăng nhập, đăng xuất, đọc/sửa hồ sơ và phiên đăng nhập lưu trong PostgreSQL.
 Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member và thông báo khi được thêm vào nhóm.
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.
@@ -20,6 +20,8 @@ Sprint, cộng tác mở rộng, Dashboard và phân tích điều phối chưa 
 - [Bước 4 — Workspace, thành viên và thông báo](doc/buoc-4.md)
 - [Bước 5 — Project và phân quyền PM](doc/buoc-5.md)
 - [Bước 6 — Task, My Tasks, List và Kanban](doc/buoc-6.md)
+- [Bước 7 — Nghiệm thu phiên bản đầu](doc/buoc-7.md)
+- [Hướng dẫn sử dụng cho nhóm](doc/huong-dan-su-dung.md)
 - [Đối chiếu tiến độ với 52 Use Case](doc/doi-chieu-use-case.md)
 
 ## Công nghệ đã chọn
@@ -67,3 +69,18 @@ Mở Workspace → **Project**. Owner tạo dự án, chọn PM từ thành viê
 PM mở Project → **Task → Tạo Task**, nhập tiêu đề và chọn thành viên Project. Người được giao mở **My Tasks** hoặc **Thông báo** để xem công việc, chuyển lần lượt Cần làm → Đang làm → Chờ duyệt → Hoàn thành. Trong Project có cách xem Danh sách/Kanban, bộ lọc và phân trang. Owner chưa được phân công PM không có quyền quản lý Task.
 
 Project còn Task chưa DONE không thể đóng. Thành viên còn Task chưa DONE phải được chuyển giao/bỏ phân công trước khi xóa khỏi Project/Workspace.
+
+## Kiểm tra phiên bản đầu
+
+Sau khi PostgreSQL chạy và migration đã được áp dụng, chạy lần lượt:
+
+```powershell
+npm.cmd run build
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run test:db
+npm.cmd run check:fresh-db
+npm.cmd run test:e2e
+```
+
+Browser QA mặc định dùng Edge đã cài trên Windows, tự chạy API/web ở cổng 4011/5174. Không chạy generate/build cùng lúc với E2E vì API watch sẽ khởi động lại. `check:fresh-db` cần quyền tạo/xóa database và chỉ xóa database tạm do chính lệnh tạo. Chi tiết môi trường, báo cáo và giới hạn xem bước 7.

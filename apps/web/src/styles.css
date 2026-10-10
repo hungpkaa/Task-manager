@@ -65,6 +65,9 @@ h3 { margin: 0; font-size: 12px; font-weight: 600; }
 @media (max-width: 380px) { .topbar { flex-wrap: wrap; }.content { padding-inline: 16px; }.panel-heading { gap: 10px; }h2 { font-size: 16px; }.refresh-button { padding: 8px; font-size: 9px; }.feature-grid { grid-template-columns: 1fr; gap: 0; } }
 
 .account-nav { display: grid; gap: 8px; }
+.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; align-self: flex-start; }
+.panel-heading > div { min-width: 0; }.panel-heading { flex-wrap: wrap; }.next-panel { flex-wrap: wrap; }.next-panel > div { min-width: 0; }
+.account-nav { margin-bottom: 24px; }.sidebar-note { padding-top: 24px; }.sidebar-account { margin-bottom: 18px; }
 .account-nav button { text-align: left; color: #c1d1c7; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 13px 14px; display: flex; align-items: center; gap: 12px; font-size: 12px; }
 .account-nav button.nav-active { background: #2d4439; border-color: #415747; color: #edf3e9; }
 .account-nav button:hover { background: #2d4439; }
@@ -120,3 +123,4 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .session-screen { min-height: 100vh; background: #172f29; color: #edf3e9; padding: 40px; }.session-card { margin: 18vh auto 0; max-width: 650px; text-align: center; }.session-card h1 { font-size: 28px; }.session-card p { font-size: 13px; line-height: 1.8; color: #b8cdbd; }.session-card .primary-button { margin-top: 20px; background: #d7e8ad; color: #172f29; }
 @media (max-width: 900px) { .auth-story { padding: 35px; }.auth-story h1 { font-size: 42px; }.auth-main { padding: 32px; } }
 @media (max-width: 760px) { .auth-shell { grid-template-columns: 1fr; }.auth-story { padding: 22px 24px; }.auth-story-content, .auth-story-footer { display: none; }.auth-main { padding: 35px 24px; align-items: start; }.auth-title { font-size: 26px; }.auth-tabs { margin-bottom: 30px; }.account-nav { display: flex; margin-top: 18px; }.account-nav button { padding: 9px 13px; font-size: 11px; }.sidebar .account-nav .nav-active { display: flex; }.account-actions { gap: 8px; }.profile-link { max-width: 100px; font-size: 10px; }.topbar { flex-wrap: wrap; }.profile-panel { padding: 22px; }.session-screen { padding: 24px; }.session-card h1 { font-size: 23px; } }
+@media (max-width: 760px) { .sidebar { position: static; height: auto; overflow: visible; }.account-nav { flex-wrap: wrap; margin-bottom: 0; gap: 4px; }.account-nav button { min-height: 44px; }.primary-button, .refresh-button, .danger-button { min-height: 44px; }.next-panel { gap: 14px; }.tasks-panel .panel-heading > div { width: 100%; }.project-dates { grid-template-columns: minmax(0, 1fr); }.workspace-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -6,7 +6,7 @@
 
 Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ngoại lệ, sơ đồ liên quan và ràng buộc ERD; sau đó triển khai frontend, API và dữ liệu, kiểm thử theo yêu cầu rồi cập nhật bảng dưới đây. Nếu nguồn có điểm chưa rõ hoặc không nhất quán, ghi rõ điểm đó và cách xử lý; không âm thầm đổi quy tắc.
 
-`Đã triển khai` nghĩa là có mã và kiểm chứng API/dữ liệu, chưa thay thế nghiệm thu tương tác giao diện. Hiện chưa có browser QA. Khi nguồn chưa quy định đủ chi tiết, ghi `Cơ bản` và nêu phạm vi thực tế, không tự coi phần suy diễn là yêu cầu gốc.
+`Đã triển khai` nghĩa là có mã và kiểm chứng API/dữ liệu. Bước 7 bổ sung browser QA cho luồng phiên bản đầu trên Edge với viewport máy tính và điện thoại; đây chưa phải nghiệm thu toàn bộ 52 Use Case hoặc mọi trình duyệt. Xem [phạm vi kiểm thử](buoc-7.md). Khi nguồn chưa quy định đủ chi tiết, ghi `Cơ bản` và nêu phạm vi thực tế, không tự coi phần suy diễn là yêu cầu gốc.
 
 ## Trạng thái 52 Use Case
 

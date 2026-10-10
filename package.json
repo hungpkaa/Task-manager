@@ -2,19 +2,28 @@
   "name": "task-manager",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/web", "apps/api"],
-  "engines": { "node": ">=22.12.0", "npm": ">=10" },
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "concurrently --kill-others --names api,web \"npm run dev -w @task-manager/api\" \"npm run dev -w @task-manager/web\"",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test -w @task-manager/api",
     "test:db": "npm run test:db -w @task-manager/api",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report .local/e2e-report",
     "check:running": "node scripts/check-running.mjs",
     "check:auth": "npm run check:auth -w @task-manager/api",
     "check:workspaces": "npm run check:workspaces -w @task-manager/api",
     "check:projects": "npm run check:projects -w @task-manager/api",
     "check:tasks": "npm run check:tasks -w @task-manager/api",
+    "check:fresh-db": "npm run check:fresh-db -w @task-manager/api",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:local:start": "node scripts/local-database.mjs start",
@@ -25,5 +34,8 @@
     "db:deploy": "npm run db:deploy -w @task-manager/api",
     "db:status": "npm run db:status -w @task-manager/api"
   },
-  "devDependencies": { "concurrently": "^9.2.1" }
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "concurrently": "^9.2.1"
+  }
 }

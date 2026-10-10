@@ -14,6 +14,7 @@
     "check:workspaces": "node scripts/check-workspaces-running.mjs",
     "check:projects": "node scripts/check-projects-running.mjs",
     "check:tasks": "node scripts/check-tasks-running.mjs",
+    "check:fresh-db": "node scripts/check-fresh-database.mjs",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",

@@ -21,6 +21,14 @@ export function App() {
   const [taskId, setTaskId] = useState<string>();
   const [workspaceId, setWorkspaceId] = useState<string>();
   const [projectId, setProjectId] = useState<string>();
+  const [sectionRevision, setSectionRevision] = useState(0);
+  function navigate(target: typeof screen) {
+    if (target === 'workspaces' || target === 'tasks') {
+      setWorkspaceId(undefined); setProjectId(undefined); setTaskId(undefined);
+      setSectionRevision((value) => value + 1);
+    }
+    setScreen(target);
+  }
   const screenLabels = { overview: 'Tổng quan', profile: 'Hồ sơ cá nhân', workspaces: 'Workspace', notifications: 'Thông báo', tasks: 'My Tasks' };
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -74,10 +82,8 @@ export function App() {
       <aside className="sidebar" aria-label="Thông tin ứng dụng">
         <Brand />
         <div className="workspace-label">KHÔNG GIAN LÀM VIỆC</div>
-        <nav className="account-nav" aria-label="Điều hướng"><button className={screen === 'overview' ? 'nav-active' : ''} aria-current={screen === 'overview' ? 'page' : undefined} onClick={() => setScreen('overview')}><span aria-hidden="true">▦</span> Tổng quan</button><button className={screen === 'profile' ? 'nav-active' : ''} aria-current={screen === 'profile' ? 'page' : undefined} onClick={() => setScreen('profile')}><span aria-hidden="true">○</span> Hồ sơ cá nhân</button></nav>
+        <nav className="account-nav" aria-label="Điều hướng">{(['overview', 'workspaces', 'tasks', 'notifications', 'profile'] as const).map((target) => <button key={target} className={screen === target ? 'nav-active' : ''} aria-current={screen === target ? 'page' : undefined} onClick={() => navigate(target)}>{screenLabels[target]}</button>)}</nav>
         <div className="sidebar-note"><span className="note-dot" />Đã đăng nhập<p className="sidebar-account">{user.displayName}<br /><span>{user.email}</span></p></div>
-        <nav className="account-nav" aria-label="Nhóm và thông báo"><button className={screen === 'workspaces' ? 'nav-active' : ''} aria-current={screen === 'workspaces' ? 'page' : undefined} onClick={() => { setWorkspaceId(undefined); setScreen('workspaces'); }}>Workspace</button><button className={screen === 'notifications' ? 'nav-active' : ''} aria-current={screen === 'notifications' ? 'page' : undefined} onClick={() => setScreen('notifications')}>Thông báo</button></nav>
-        <nav className="account-nav" aria-label="Công việc cá nhân"><button className={screen === 'tasks' ? 'nav-active' : ''} aria-current={screen === 'tasks' ? 'page' : undefined} onClick={() => { setTaskId(undefined); setScreen('tasks'); }}>My Tasks</button></nav>
         <div className="sidebar-footer">TASK MANAGER <span>0.1</span></div>
       </aside>
 
@@ -85,7 +91,7 @@ export function App() {
         <header className="topbar"><span>Không gian làm việc <span className="slash">/</span> <strong>{screenLabels[screen]}</strong></span><div className="account-actions"><button className="profile-link" onClick={() => setScreen('profile')}>{user.displayName}</button><button className="refresh-button" onClick={logout} disabled={loggingOut}>{loggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></div></header>
         <div className="content">
           {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
-          {screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={taskId ?? 'mine'} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
+          {screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
           <div className="eyebrow">CÔNG VIỆC RÕ RÀNG. NHÓM VỮNG VÀNG.</div>
           <div className="heading-row"><div><h1>Chào {user.displayName},<br />cùng bắt đầu nhé.</h1><p className="intro">Nơi nhóm của bạn lên kế hoạch, phân công và cùng nhau<br className="desktop-break" /> đưa công việc đến đích.</p></div><div className="decor" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div>
 
@@ -99,9 +105,9 @@ export function App() {
             {!checking && (connection.api !== 'connected' || connection.database !== 'connected') && <p className="connection-warning" role="status">{connection.api !== 'connected' ? 'Chưa kết nối được máy chủ. Kiểm tra API đang chạy rồi thử lại.' : 'Máy chủ đang chạy, nhưng chưa kết nối được dữ liệu. Kiểm tra PostgreSQL và cấu hình kết nối rồi thử lại.'}</p>}
           </section>
 
-          <section className="next-panel" aria-labelledby="next-title"><div className="next-icon" aria-hidden="true">↗</div><div><span className="eyebrow">KHÔNG GIAN CỦA NHÓM</span><h2 id="next-title">Kết nối nhóm của bạn.</h2><p>Tạo Workspace, thêm thành viên và phân quyền cho nhóm.</p></div><button className="primary-button" onClick={() => { setWorkspaceId(undefined); setScreen('workspaces'); }}>Mở Workspace</button></section>
+          <section className="next-panel" aria-labelledby="next-title"><div className="next-icon" aria-hidden="true">↗</div><div><span className="eyebrow">KHÔNG GIAN CỦA NHÓM</span><h2 id="next-title">Kết nối nhóm của bạn.</h2><p>Tạo Workspace, thêm thành viên và phân quyền cho nhóm.</p></div><button className="primary-button" onClick={() => navigate('workspaces')}>Mở Workspace</button></section>
 
-          <section className="next-panel"><div><h2>Công việc được giao cho bạn</h2><p>Mở My Tasks để theo dõi deadline và cập nhật tiến độ.</p></div><button className="primary-button" onClick={() => { setTaskId(undefined); setScreen('tasks'); }}>Mở My Tasks</button></section>
+          <section className="next-panel"><div><h2>Công việc được giao cho bạn</h2><p>Mở My Tasks để theo dõi deadline và cập nhật tiến độ.</p></div><button className="primary-button" onClick={() => navigate('tasks')}>Mở My Tasks</button></section>
           </>}
           <footer className="page-footer"><span>Task Manager · Quản lý công việc nhóm</span><span>Nền tảng đang được hoàn thiện</span></footer>
         </div>
