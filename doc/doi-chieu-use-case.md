@@ -36,14 +36,14 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC22 | Gán / thay đổi người phụ trách | Đã triển khai: PM, thành viên Project ACTIVE, cho phép bỏ phân công, thông báo nguyên tử | 6 |
 | UC23 | Cập nhật trạng thái Task | Cơ bản: PM/assignee, chuyển tuần tự, kiểm tra dependency và xác nhận BLOCKED; Dashboard/Progress tích hợp sau | 6, 10 |
 | UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu | 6 |
-| UC25 | Bình luận và @mention | Chưa triển khai | 8 |
+| UC25 | Bình luận và @mention | Đã triển khai: bình luận có phân trang, mention thành viên ACTIVE trong Project, thông báo transaction; lựa chọn chi tiết xem bước 8 | 8 |
 | UC26 | Đính kèm tệp vào Task | Chưa triển khai | 8 |
 | UC27 | Xem My Tasks | Đã triển khai: công việc của chính mình trong các Project còn membership | 6 |
 | UC28 | Xem Kanban Board | Đã triển khai: bốn cột trạng thái, lọc và phân trang; đổi trạng thái trong chi tiết, chưa kéo thả | 6 |
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
 | UC30 | Xem Calendar | Chưa triển khai | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
-| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task; chưa mention/Sprint | 4, 5, 6, 8 |
+| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention; chưa Sprint | 4, 5, 6, 8 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
 | UC35 | Thiết lập Effort và Capacity | Cơ bản: Task effort 1/2/3/5/8; chưa Capacity và Workload | 6, 10 |

@@ -4,6 +4,8 @@ export interface TaskOptions extends SessionOptions { service: TaskService; }
 export function taskRouter(options: TaskOptions) {
   const router = sessionRouter(options);
   const token = (cookie?: string) => readSessionToken(cookie, options.secureCookies);
+  router.get('/tasks/:id/comments', async (req, res) => { res.json(await options.service.comments(token(req.headers.cookie), req.params.id, req.query)); });
+  router.post('/tasks/:id/comments', async (req, res) => { res.status(201).json({ comment: await options.service.addComment(token(req.headers.cookie), req.params.id, req.body) }); });
   router.get('/projects/:projectId/tasks', async (req, res) => { res.json(await options.service.list(token(req.headers.cookie), req.params.projectId, req.query)); });
   router.post('/projects/:projectId/tasks', async (req, res) => { res.status(201).json({ task: await options.service.create(token(req.headers.cookie), req.params.projectId, req.body) }); });
   router.get('/tasks/mine', async (req, res) => { res.json(await options.service.myTasks(token(req.headers.cookie), req.query)); });

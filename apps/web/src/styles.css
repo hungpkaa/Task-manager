@@ -124,3 +124,8 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 @media (max-width: 900px) { .auth-story { padding: 35px; }.auth-story h1 { font-size: 42px; }.auth-main { padding: 32px; } }
 @media (max-width: 760px) { .auth-shell { grid-template-columns: 1fr; }.auth-story { padding: 22px 24px; }.auth-story-content, .auth-story-footer { display: none; }.auth-main { padding: 35px 24px; align-items: start; }.auth-title { font-size: 26px; }.auth-tabs { margin-bottom: 30px; }.account-nav { display: flex; margin-top: 18px; }.account-nav button { padding: 9px 13px; font-size: 11px; }.sidebar .account-nav .nav-active { display: flex; }.account-actions { gap: 8px; }.profile-link { max-width: 100px; font-size: 10px; }.topbar { flex-wrap: wrap; }.profile-panel { padding: 22px; }.session-screen { padding: 24px; }.session-card h1 { font-size: 23px; } }
 @media (max-width: 760px) { .sidebar { position: static; height: auto; overflow: visible; }.account-nav { flex-wrap: wrap; margin-bottom: 0; gap: 4px; }.account-nav button { min-height: 44px; }.primary-button, .refresh-button, .danger-button { min-height: 44px; }.next-panel { gap: 14px; }.tasks-panel .panel-heading > div { width: 100%; }.project-dates { grid-template-columns: minmax(0, 1fr); }.workspace-grid { grid-template-columns: minmax(0, 1fr); } }
+.comments-panel { margin-top: 32px; border-top: 1px solid #dae1d3; padding-top: 24px; }
+.comment-list { display: grid; gap: 12px; margin-bottom: 16px; }
+.comment-card { border: 1px solid #dae1d3; border-radius: 12px; padding: 18px; background: white; min-width: 0; overflow-wrap: anywhere; }
+.comment-card time { display: block; font-size: 12px; margin-top: 6px; }
+.comment-card p { white-space: pre-wrap; }

@@ -29,4 +29,6 @@ Bấm **Workspace** hoặc **My Tasks** ở menu để về danh sách, kể c�
 
 Nếu lỗi mạng, kiểm tra API/PostgreSQL rồi bấm **Thử lại** nơi có nút. Khi phiên hết hạn, đăng nhập lại. Nếu thao tác bị từ chối do quyền hoặc dữ liệu đã đổi, tải lại danh sách và liên hệ Owner/PM của nhóm để chuyển giao đúng vai trò.
 
-Bình luận, tệp đính kèm, đặt lại mật khẩu, Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md) để biết phạm vi hiện tại và [bước 7](buoc-7.md) để chạy nghiệm thu.
+Trong chi tiết Task, thành viên Project có thể nhập **Nội dung bình luận**, chọn **Nhắc thành viên (@mention)** rồi **Gửi bình luận**. Người được nhắc nhận thông báo và mở Task từ đó. Chọn thành viên sẽ chèn `@{email}` vào nội dung; giữ ký hiệu này để gửi mention. Có thể gửi bình luận không mention; lịch sử mới nhất trước, 20 bình luận mỗi trang. Project đã đóng chỉ cho xem lịch sử.
+
+Tệp đính kèm, đặt lại mật khẩu, Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md) để biết phạm vi hiện tại và [bước 8](buoc-8.md) để kiểm tra phần cộng tác.

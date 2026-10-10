@@ -3,9 +3,12 @@ import type { AuthService } from './auth.js';
 import { HttpError } from '../domain/errors.js';
 import { validate } from './auth-validation.js';
 import { idSchema } from './workspace-validation.js';
+import { commentSchema, commentQuerySchema } from './comment-validation.js';
 import { createTaskSchema, updateTaskSchema, assignTaskSchema, statusTaskSchema, taskQuerySchema } from './task-validation.js';
 export function createTaskService(repository: TaskRepository, auth: AuthService) {
   return {
+    async comments(token: string | undefined, id: unknown, query: unknown) { const user = await auth.me(token); return repository.comments(validate(idSchema, id), user.id, validate(commentQuerySchema, query).page); },
+    async addComment(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); return repository.addComment(validate(idSchema, id), user.id, validate(commentSchema, input).body); },
     async list(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.list(validate(idSchema, projectId), user.id, validate(taskQuerySchema, query)); },
     async myTasks(token: string | undefined, query: unknown) { const user = await auth.me(token); const data = validate(taskQuerySchema, query); if (data.assigneeId && data.assigneeId !== user.id) throw new HttpError(400, 'My Tasks chỉ hiển thị công việc giao cho bạn.'); return repository.myTasks(user.id, data); },
     async detail(token: string | undefined, id: unknown) { const user = await auth.me(token); return repository.detail(validate(idSchema, id), user.id); },

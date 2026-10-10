@@ -32,8 +32,12 @@ try {
   const task = await database.tasks.create(project.id, user.id, { title: 'Fresh task', description: '', priority: 'HIGH', assigneeId: user.id, startDate: '2026-10-10', dueDate: '2026-10-20', effort: 3 });
   assert.equal(task.status, 'TODO'); assert.equal(task.sprintId, null);
   assert.equal(await fresh.notification.count({ where: { relatedEntityId: task.id } }), 1);
+  const comment = await database.tasks.addComment(task.id, user.id, `Fresh comment @{${user.email}} @{${user.email}}`);
+  assert.equal(comment.mentions.length, 1);
+  assert.equal(await fresh.commentMention.count({ where: { commentId: comment.id } }), 1);
+  await assert.rejects(fresh.comment.create({ data: { taskId: task.id, authorId: user.id, body: '' } }));
   await assert.rejects(fresh.task.update({ where: { id: task.id }, data: { dueDate: new Date('2026-10-01') } }));
-  console.log('PASS: all migrations on a fresh PostgreSQL database; Workspace/Project/Task, notifications and date CHECK.');
+  console.log('PASS: all migrations on a fresh PostgreSQL database; Workspace/Project/Task, comments/mentions, notifications and CHECK constraints.');
 } finally {
   try {
     await Promise.all([database?.disconnect(), fresh?.$disconnect()]);

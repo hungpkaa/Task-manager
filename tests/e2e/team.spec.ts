@@ -102,6 +102,15 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await member.getByRole('listitem').filter({ hasText: taskName }).getByRole('button', { name: 'Mở công việc', exact: true }).click();
   await expect(member.getByRole('heading', { name: taskName, exact: true })).toBeVisible();
   await expect(member.getByRole('button', { name: 'Lưu thay đổi', exact: true })).toHaveCount(0);
+  const comments = member.getByRole('region', { name: 'Bình luận Task', exact: true });
+  await comments.getByLabel('Nội dung bình luận', { exact: true }).fill('Nhờ PM kiểm tra <script>alert(1)</script>');
+  await comments.getByRole('combobox', { name: 'Nhắc thành viên (@mention)', exact: true }).selectOption({ label: `PM QA · ${pmEmail}` });
+  await comments.getByRole('button', { name: 'Gửi bình luận', exact: true }).click();
+  await expect(comments.locator('.comment-card')).toContainText('Nhờ PM kiểm tra <script>alert(1)</script>');
+  await member.reload();
+  await nav(member, 'My Tasks');
+  await member.locator('.task-card').filter({ hasText: taskName }).click();
+  await expect(comments.locator('.comment-card')).toContainText('Đã nhắc: @PM QA');
   for (const label of ['Đang làm', 'Chờ duyệt', 'Hoàn thành']) {
     await member.getByRole('button', { name: `Chuyển sang ${label}`, exact: true }).click();
     await expect(member.locator('.task-detail dd').filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible();
@@ -134,6 +143,13 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await pm.screenshot({ path: testInfo.outputPath('closed-project.png'), fullPage: true });
   const task = await client.task.findFirstOrThrow({ where: { project: { workspace: { creator: { email: ownerEmail } } }, title: taskName } });
   expect(task.status).toBe('DONE');
+  await nav(pm, 'Thông báo');
+  await pm.getByRole('listitem').filter({ hasText: 'Bạn được nhắc trong bình luận' }).getByRole('button', { name: 'Mở công việc', exact: true }).click();
+  const closedComments = pm.getByRole('region', { name: 'Bình luận Task', exact: true });
+  await expect(closedComments.locator('.comment-card')).toContainText('Nhờ PM kiểm tra');
+  await expect(closedComments.getByRole('button', { name: 'Gửi bình luận', exact: true })).toHaveCount(0);
+  await noOverflow(pm);
+  await pm.screenshot({ path: testInfo.outputPath('comments.png'), fullPage: true });
 });
 
 test('registration errors, profile persistence, logout and network recovery are visible in the UI', async ({ page }) => {

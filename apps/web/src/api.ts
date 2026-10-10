@@ -149,6 +149,8 @@ export interface Task {
 export interface TaskInput { title: string; description: string; priority: TaskPriority; startDate: string | null; dueDate: string | null; effort: number | null; }
 export interface TaskPage { tasks: Task[]; total: number; page: number; pageSize: number; }
 export const taskApi = {
+  comments: (id: string, page = 1) => request<CommentPage>(`/tasks/${id}/comments?page=${page}`),
+  addComment: (id: string, body: string) => request<{ comment: TaskComment }>(`/tasks/${id}/comments`, json('POST', { body })),
   list: (projectId: string, query: URLSearchParams) => request<TaskPage>(`/projects/${projectId}/tasks?${query}`),
   mine: (query: URLSearchParams) => request<TaskPage>(`/tasks/mine?${query}`),
   detail: (id: string) => request<{ task: Task }>(`/tasks/${id}`),
@@ -158,3 +160,9 @@ export const taskApi = {
   status: (id: string, status: TaskStatus, expectedStatus: TaskStatus, acknowledgeBlocked = false) => request<{ task: Task; warning: string | null }>(`/tasks/${id}/status`, json('PATCH', { status, expectedStatus, acknowledgeBlocked })),
   remove: (id: string) => request<void>(`/tasks/${id}`, json('DELETE', {})),
 };
+
+export interface TaskComment {
+  id: string; body: string; createdAt: string; author: { id: string; displayName: string; email: string };
+  mentions: { user: { id: string; displayName: string; email: string } }[];
+}
+export interface CommentPage { items: TaskComment[]; total: number; page: number; pageSize: number; canPost: boolean; }

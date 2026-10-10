@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../domain/errors.js';
+import { mentionEmails } from '../services/comment-validation.js';
 import { taskStatuses, type CreateTaskInput, type UpdateTaskInput, type TaskQuery, type StatusTaskInput } from '../services/task-validation.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
@@ -75,6 +76,27 @@ export function createTaskRepository(client: PrismaClient) {
     return { tasks: items.map((task) => view(task, actorId)), total, page: query.page, pageSize: query.pageSize };
   }
   return {
+    async comments(id: string, actorId: string, page: number) {
+      const { project, projectMember } = await access(client, await taskProject(id), actorId);
+      return client.$transaction(async (tx) => {
+        const items = await tx.comment.findMany({ where: { taskId: id }, include: { author: { select: userSelect }, mentions: { include: { user: { select: userSelect } } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * 20, take: 20 });
+        const total = await tx.comment.count({ where: { taskId: id } });
+        return { items, total, page, pageSize: 20, canPost: project.status === 'ACTIVE' && Boolean(projectMember) };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
+    addComment: (id: string, actorId: string, body: string) => taskMutation(id, actorId, false, async (tx, task, project) => {
+      if (!await tx.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId: actorId } } })) throw new HttpError(403, 'Chỉ thành viên Project được bình luận.');
+      const emails = mentionEmails(body);
+      if (emails.length > 20) throw new HttpError(400, 'Mỗi bình luận mention tối đa 20 người.');
+      const members = await tx.projectMember.findMany({ where: { projectId: project.id, workspaceMember: { user: { email: { in: emails }, status: 'ACTIVE' } } }, include: { workspaceMember: { include: { user: { select: userSelect } } } } });
+      if (members.length !== emails.length) throw new HttpError(400, 'Người được mention phải là thành viên đang hoạt động trong Project.');
+      const comment = await tx.comment.create({ data: { taskId: id, authorId: actorId, body, mentions: { create: members.map((member) => ({ userId: member.userId })) } }, include: { author: { select: userSelect }, mentions: { include: { user: { select: userSelect } } } } });
+      for (const member of members) {
+        if (member.userId === actorId) continue;
+        await tx.notification.create({ data: { userId: member.userId, type: 'COMMENT_MENTION', title: 'Bạn được nhắc trong bình luận', message: `${comment.author.displayName} nhắc bạn trong công việc “${task.title}”.`, relatedEntityType: 'TASK', relatedEntityId: id } });
+      }
+      return comment;
+    }),
     async list(projectId: string, actorId: string, query: TaskQuery) { await access(client, projectId, actorId); return list({ ...whereQuery(query), projectId }, actorId, query); },
     myTasks: (actorId: string, query: TaskQuery) => list({ ...whereQuery(query), assigneeId: actorId, project: { members: { some: { userId: actorId, workspaceMember: { userId: actorId } } } } }, actorId, query),
     async detail(id: string, actorId: string) {

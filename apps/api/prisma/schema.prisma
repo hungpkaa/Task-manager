@@ -55,6 +55,8 @@ model User {
   workspaceMemberships WorkspaceMember[]
   notifications Notification[]
   assignedTasks Task[] @relation("TaskAssignee")
+  comments Comment[]
+  commentMentions CommentMention[]
 
   @@map("users")
 }
@@ -142,6 +144,7 @@ model Task {
   assignee    User? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
   dependencies TaskDependency[] @relation("TaskDependencies")
   dependents   TaskDependency[] @relation("TaskDependents")
+  comments Comment[]
 
   @@unique([id, projectId])
   @@index([projectId, status])
@@ -172,6 +175,31 @@ model ProjectMember {
   @@id([projectId, userId])
   @@index([workspaceId, userId])
   @@map("project_members")
+}
+
+model Comment {
+  id        String @id @default(uuid()) @db.Uuid
+  taskId    String @map("task_id") @db.Uuid
+  authorId  String @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  mentions  CommentMention[]
+
+  @@index([taskId, createdAt])
+  @@map("comments")
+}
+
+model CommentMention {
+  commentId String @map("comment_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([commentId, userId])
+  @@index([userId])
+  @@map("comment_mentions")
 }
 
 model Notification {

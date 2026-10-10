@@ -53,6 +53,57 @@ async function create(base: string, projectId: string, pm: UserFixture, data: Re
   assert.equal(response.status, 201);
   return (await response.json() as { task: { id: string; status: string; priority: string; assigneeId: string | null; sprintId: string | null; canEdit: boolean } }).task;
 }
+test('UC25: comments and unique mention notifications persist; permissions and closed Project are enforced', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [owner, pm, member, target, outsider, admin] = users; assert.ok(owner && pm && member && target && outsider && admin);
+  const task = await create(base, projectId, pm); const path = `/tasks/${task.id}/comments`;
+  const email = (await client.user.findUniqueOrThrow({ where: { id: target.id } })).email;
+  const body = `Xin kiểm tra @{${email}} @{${email.toUpperCase()}} <script>alert(1)</script>`;
+  const response = await request(base, path, member, 'POST', { body }); assert.equal(response.status, 201);
+  const saved = await response.json() as { comment: { id: string; body: string; authorId: string; mentions: unknown[] } };
+  assert.equal(saved.comment.authorId, member.id); assert.equal(saved.comment.body, body); assert.equal(saved.comment.mentions.length, 1);
+  assert.equal(await client.commentMention.count({ where: { commentId: saved.comment.id } }), 1);
+  assert.equal(await client.notification.count({ where: { userId: target.id, type: 'COMMENT_MENTION', relatedEntityId: task.id } }), 1);
+  const ownEmail = (await client.user.findUniqueOrThrow({ where: { id: member.id } })).email;
+  assert.equal((await request(base, path, member, 'POST', { body: `@{${ownEmail}}` })).status, 201);
+  assert.equal(await client.notification.count({ where: { userId: member.id, type: 'COMMENT_MENTION' } }), 0);
+  for (const user of [owner, outsider, admin]) assert.equal((await request(base, path, user, 'POST', { body: 'Forbidden' })).status, 403);
+  for (const user of [outsider, admin]) assert.equal((await request(base, path, user)).status, 403);
+  assert.equal((await request(base, path)).status, 401);
+  for (const input of [{ body: ' ' }, { body: 'x'.repeat(5001) }, { body: 'Forged', authorId: pm.id }, { body: '@{missing@example.invalid}' }]) assert.equal((await request(base, path, member, 'POST', input)).status, 400);
+  const outsideEmail = (await client.user.findUniqueOrThrow({ where: { id: outsider.id } })).email;
+  assert.equal((await request(base, path, member, 'POST', { body: `@{${outsideEmail}}` })).status, 400);
+  await client.user.update({ where: { id: target.id }, data: { status: 'LOCKED' } });
+  assert.equal((await request(base, path, member, 'POST', { body: `@{${email}}` })).status, 400);
+  assert.equal(await client.comment.count({ where: { taskId: task.id } }), 2);
+  await client.task.update({ where: { id: task.id }, data: { status: 'DONE' } });
+  assert.equal((await request(base, `/projects/${projectId}/close`, pm, 'POST', {})).status, 200);
+  assert.equal((await request(base, path, member, 'POST', { body: 'Closed' })).status, 409);
+  const list = await (await request(base, path, owner)).json() as { items: unknown[]; canPost: boolean };
+  assert.equal(list.items.length, 2); assert.equal(list.canPost, false);
+}));
+
+test('comments paginate, retain author history and roll back completely when notification creation fails', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [, pm, member, target] = users; assert.ok(pm && member && target);
+  const task = await create(base, projectId, pm);
+  await client.comment.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ taskId: task.id, authorId: member.id, body: `History ${index}`, createdAt: new Date(1700000000000 + index) })) });
+  const first = await (await request(base, `/tasks/${task.id}/comments`, pm)).json() as { items: { body: string }[]; total: number };
+  assert.equal(first.items.length, 20); assert.equal(first.total, 21); assert.equal(first.items[0]!.body, 'History 20');
+  const second = await (await request(base, `/tasks/${task.id}/comments?page=2`, pm)).json() as { items: { body: string }[] };
+  assert.equal(second.items.length, 1); assert.equal(second.items[0]!.body, 'History 0');
+  const wrapped = { $transaction: <T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) => client.$transaction((tx) => operation(new Proxy(tx, { get(txTarget, key) {
+    if (key === 'notification') return new Proxy(txTarget.notification, { get(delegate, action) { if (action === 'create') return async () => { throw new Error('Injected notification failure'); }; return Reflect.get(delegate, action); } });
+    return Reflect.get(txTarget, key);
+  } }))), task: client.task } as unknown as PrismaClient;
+  const email = (await client.user.findUniqueOrThrow({ where: { id: target.id } })).email;
+  await assert.rejects(createTaskRepository(wrapped).addComment(task.id, member.id, `@{${email}}`), /Injected/);
+  assert.equal(await client.comment.count({ where: { taskId: task.id } }), 21); assert.equal(await client.commentMention.count({ where: { comment: { taskId: task.id } } }), 0);
+  assert.equal((await request(base, `/projects/${projectId}/members/${member.id}`, pm, 'DELETE', {})).status, 204);
+  assert.equal((await request(base, `/tasks/${task.id}/comments`, member)).status, 403);
+  assert.equal(await client.comment.count({ where: { taskId: task.id, authorId: member.id } }), 21);
+  assert.equal((await request(base, `/tasks/${task.id}`, pm, 'DELETE', {})).status, 204);
+  assert.equal(await client.comment.count({ where: { taskId: task.id } }), 0);
+}));
+
 test('Task CRUD, assignment notifications, sequential status and persisted My Tasks follow UC18–24/27', async () => fixture(async ({ base, client, projectId, users }) => {
   const [owner, pm, assignee, member] = users; assert.ok(owner && pm && assignee && member);
   const task = await create(base, projectId, pm, { assigneeId: assignee.id, startDate: '2026-10-10', dueDate: '2026-10-20', effort: 5 });
