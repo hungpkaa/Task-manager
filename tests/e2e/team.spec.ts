@@ -65,6 +65,32 @@ async function noOverflow(page: Page) {
   }).toBeLessThanOrEqual(1);
 }
 
+test('Personal Dashboard recovers from network failure and shows a real mixed-status distribution', async ({ page, context }, testInfo) => {
+  const email = `e2e-dashboard-${randomUUID()}@example.invalid`; emails.push(email);
+  const token = randomBytes(32).toString('base64url');
+  const user = await client.user.create({ data: { email, displayName: 'Dashboard QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
+  const workspace = await client.workspace.create({ data: { name: 'Design Workspace', createdBy: user.id, members: { create: { userId: user.id, role: 'OWNER' } } } });
+  const project = await client.project.create({ data: { workspaceId: workspace.id, managerUserId: user.id, name: 'Website launch', members: { create: { userId: user.id } } } });
+  const longTitle = 'Hoàn thiện trải nghiệm người dùng và kiểm tra khả năng hiển thị tiêu đề dài trên màn hình điện thoại';
+  await client.task.createMany({ data: ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'].map((status, index) => ({ projectId: project.id, assigneeId: user.id, title: index === 0 ? longTitle : ['','Thiết kế trang Tổng quan', 'Kiểm tra trước bàn giao', 'Chuẩn bị yêu cầu'][index], status: status as 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE', effort: 3, dueDate: new Date('2026-01-01') })) });
+  await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
+  await observe(page); await page.route('**/api/dashboard/mine', (route) => route.abort()); await page.goto(baseURL);
+  const dashboard = page.getByRole('region', { name: 'Dashboard cá nhân', exact: true });
+  await expect(dashboard.getByRole('alert')).toBeVisible(); await expect(dashboard.locator('.status-donut')).toHaveCount(0);
+  await page.unroute('**/api/dashboard/mine');
+  let release!: () => void; const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('**/api/dashboard/mine', async (route) => { await gate; await route.continue(); });
+  await dashboard.getByRole('button', { name: 'Tải lại Dashboard', exact: true }).click();
+  try { await expect(dashboard.getByRole('status')).toHaveText('Đang tải Dashboard…'); } finally { release(); }
+  await expect(dashboard.getByRole('img', { name: /Tiến độ hoàn thành 25%/ })).toBeVisible();
+  await expect(dashboard.locator('.distribution-legend li strong')).toHaveText(['1', '1', '1', '1']);
+  await noOverflow(page); await page.screenshot({ path: testInfo.outputPath('overview-design.png'), fullPage: true });
+  await dashboard.getByRole('button').filter({ hasText: longTitle }).click();
+  await expect(dashboard.getByRole('heading', { name: longTitle, exact: true })).toBeVisible(); await noOverflow(page);
+  await dashboard.getByRole('button', { name: '← Về Dashboard cá nhân', exact: true }).click();
+  await expect(dashboard.getByRole('img', { name: /Tiến độ hoàn thành 25%/ })).toBeVisible();
+});
+
 test('Notification history supports pagination, unread filtering and reading the last page', async ({ page, context }, testInfo) => {
   const email = `e2e-notifications-${randomUUID()}@example.invalid`; emails.push(email);
   const token = randomBytes(32).toString('base64url');
@@ -74,7 +100,8 @@ test('Notification history supports pagination, unread filtering and reading the
   await observe(page); await page.goto(baseURL);
   await expect(page.getByRole('region', { name: 'Dashboard cá nhân', exact: true }).getByRole('button', { name: 'Tải lại Dashboard', exact: true })).toBeEnabled();
   await page.screenshot({ path: testInfo.outputPath('overview-theme.png'), fullPage: true });
-  await page.getByRole('region', { name: 'Bắt đầu công việc', exact: true }).getByRole('button').filter({ hasText: 'Mở Thông báo' }).click();
+  await expect(page.locator('.status-donut')).toHaveCount(0);
+  await nav(page, 'Thông báo');
   const panel = page.locator('.workspace-panel'); const items = panel.locator('.notification-list > li');
   await expect(items).toHaveCount(50); await expect(panel).toContainText('51 thông báo chưa đọc');
   await expect(items.first().locator('.notification-state')).toBeVisible();
@@ -141,7 +168,11 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
   await observe(page); await page.goto(baseURL);
   const personalDashboard = page.getByRole('region', { name: 'Dashboard cá nhân', exact: true });
+  await personalDashboard.getByText('Chi tiết số liệu', { exact: true }).click();
   await expect(personalDashboard).toContainText('Chưa DONE: 1 Task · 5 Effort đã biết');
+  await expect(personalDashboard.getByRole('img', { name: /Tiến độ hoàn thành/ })).toBeVisible();
+  await expect(personalDashboard.locator('.distribution-legend')).toContainText('Cần làm');
+  await personalDashboard.getByText('Chi tiết số liệu', { exact: true }).click();
   await noOverflow(page); await personalDashboard.screenshot({ path: testInfo.outputPath('personal-dashboard.png') });
   async function open(targetPage = page) {
     await nav(targetPage, 'Workspace');
@@ -481,6 +512,7 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await pmTasks.getByRole('combobox', { name: 'Người phụ trách', exact: true }).selectOption({ label: `Member QA · ${memberEmail}` });
   await pmTasks.getByRole('button', { name: 'Tạo Task', exact: true }).click();
   await expect(pmTasks.getByRole('heading', { name: taskName, exact: true })).toBeVisible();
+  await pmTasks.screenshot({ path: testInfo.outputPath('task-detail-design.png') });
   await pm.getByRole('button', { name: 'Đóng Project', exact: true }).click();
   const closeConfirm = pm.getByRole('group', { name: 'Xác nhận thay đổi Project' });
   await closeConfirm.getByRole('button', { name: 'Xác nhận', exact: true }).click();
@@ -667,10 +699,19 @@ test('pagination, keyboard navigation, invalid deadlines and deletion work throu
   await client.task.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ projectId: project.id, title: `Task ${String(index + 1).padStart(2, '0')}`, assigneeId: actor.id, status: 'DONE' as const })) });
   await nav(page, 'My Tasks');
   const tasks = page.locator('.tasks-panel');
+  await tasks.getByText('Bộ lọc nâng cao', { exact: true }).click();
   await tasks.getByRole('combobox', { name: 'Sắp xếp', exact: true }).selectOption('title');
   await tasks.getByRole('combobox', { name: 'Thứ tự', exact: true }).selectOption('asc');
   await tasks.getByRole('button', { name: 'Áp dụng', exact: true }).click();
   await expect(tasks.locator('.task-card')).toHaveCount(20);
+  await tasks.getByRole('button', { name: 'Trang sau →', exact: true }).click();
+  await expect(tasks.locator('.task-card')).toHaveCount(1);
+  await tasks.getByRole('button', { name: 'Xóa bộ lọc', exact: true }).click();
+  await expect(tasks.locator('.task-card')).toHaveCount(20);
+  await expect(tasks.getByRole('combobox', { name: 'Sắp xếp', exact: true })).toHaveValue('updatedAt');
+  await tasks.getByRole('combobox', { name: 'Sắp xếp', exact: true }).selectOption('title');
+  await tasks.getByRole('combobox', { name: 'Thứ tự', exact: true }).selectOption('asc');
+  await tasks.getByRole('button', { name: 'Áp dụng', exact: true }).click();
   await tasks.getByRole('button', { name: 'Trang sau →', exact: true }).click();
   await expect(tasks.locator('.task-card')).toHaveCount(1);
   await tasks.getByRole('button', { name: /^Task 21/ }).click();

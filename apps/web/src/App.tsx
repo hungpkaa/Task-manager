@@ -8,6 +8,7 @@ import { Notifications } from './components/Notifications';
 import { Tasks } from './components/Tasks';
 import { Dashboard } from './components/Dashboard';
 import { Admin } from './components/Admin';
+import { Icon } from './components/Icon';
 
 const stateLabels: Record<ConnectionState, string> = {
   checking: 'Đang kiểm tra', connected: 'Đã kết nối', unavailable: 'Chưa kết nối',
@@ -94,7 +95,7 @@ export function App() {
       <aside className="sidebar" aria-label="Thông tin ứng dụng">
         <Brand />
         <div className="workspace-label">KHÔNG GIAN LÀM VIỆC</div>
-        <nav className="account-nav" aria-label="Điều hướng">{(['overview', 'workspaces', 'tasks', 'notifications', 'profile'] as const).map((target) => <button key={target} className={screen === target ? 'nav-active' : ''} aria-current={screen === target ? 'page' : undefined} onClick={() => navigate(target)}>{screenLabels[target]}</button>)}</nav>
+        <nav className="account-nav" aria-label="Điều hướng">{(['overview', 'workspaces', 'tasks', 'notifications', 'profile'] as const).map((target) => <button key={target} className={screen === target ? 'nav-active' : ''} aria-current={screen === target ? 'page' : undefined} onClick={() => navigate(target)}><Icon name={target === 'workspaces' ? 'workspace' : target === 'tasks' ? 'task' : target === 'notifications' ? 'notification' : target} />{screenLabels[target]}</button>)}</nav>
         <div className="sidebar-note"><span className="note-dot" />Đã đăng nhập<p className="sidebar-account">{user.displayName}<br /><span>{user.email}</span></p></div>
         {user.systemRole === 'SYSTEM_ADMIN' && <button className="refresh-button" aria-current={screen === 'admin' ? 'page' : undefined} onClick={() => navigate('admin')}>Quản trị hệ thống</button>}
         <div className="sidebar-footer">TASK MANAGER <span>0.1</span></div>
@@ -105,16 +106,9 @@ export function App() {
         <div className="content">
           {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
           {screen === 'admin' && user.systemRole === 'SYSTEM_ADMIN' ? <Admin userId={user.id} onExpired={expired} /> : screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
-          <div className="eyebrow">CÔNG VIỆC RÕ RÀNG. NHÓM VỮNG VÀNG.</div>
-          <div className="heading-row"><div><h1>Chào {user.displayName},<br />cùng bắt đầu nhé.</h1><p className="intro">Nơi nhóm của bạn lên kế hoạch, phân công và cùng nhau<br className="desktop-break" /> đưa công việc đến đích.</p></div><div className="decor" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div>
-
-          <section className="overview-shortcuts" aria-label="Bắt đầu công việc">
-            <button onClick={() => navigate('tasks')}><span className="shortcut-icon" aria-hidden="true">✓</span><strong>Công việc của tôi</strong><span>Xem việc được giao và cập nhật tiến độ</span><span className="shortcut-link">Mở My Tasks →</span></button>
-            <button onClick={() => navigate('workspaces')}><span className="shortcut-icon" aria-hidden="true">▤</span><strong>Không gian nhóm</strong><span>Mở dự án, quản lý Task và Sprint</span><span className="shortcut-link">Mở Workspace →</span></button>
-            <button onClick={() => navigate('notifications')}><span className="shortcut-icon" aria-hidden="true">↗</span><strong>Cập nhật mới</strong><span>Xem thông báo giao việc và hoạt động nhóm</span><span className="shortcut-link">Mở Thông báo →</span></button>
-          </section>
-          <Dashboard key={user.id} onExpired={expired} />
-          <section className="connection-panel" aria-labelledby="connection-title">
+          <div className="overview-heading"><div><span className="eyebrow">KHÔNG GIAN CỦA BẠN</span><h1>Chào {user.displayName}.</h1><p>{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })} · Cùng đưa công việc đến đích.</p></div><div className="member-actions"><button className="refresh-button" onClick={() => navigate('workspaces')}><Icon name="workspace" />Mở Workspace</button><button className="primary-button" onClick={() => navigate('tasks')}><Icon name="task" />Mở My Tasks</button></div></div>
+          <Dashboard key={user.id} onExpired={expired} onWorkspace={() => navigate('workspaces')} />
+          <details className="connection-panel connection-details"><summary>Trạng thái kết nối</summary><section aria-labelledby="connection-title">
             <div className="panel-heading"><div><span className="eyebrow">NỀN TẢNG ỨNG DỤNG</span><h2 id="connection-title">Trạng thái kết nối</h2></div><button type="button" className="refresh-button" onClick={() => setAttempt((value) => value + 1)} disabled={checking}>{checking ? 'Đang kiểm tra…' : 'Kiểm tra lại ↻'}</button></div>
             <div className="connection-grid" aria-live="polite" aria-busy={checking}>
               <StatusCard name="Giao diện" detail="Không gian làm việc trên trình duyệt" state="connected" />
@@ -122,11 +116,7 @@ export function App() {
               <StatusCard name="Dữ liệu" detail="Lưu trữ thông tin của nhóm" state={connection.database} />
             </div>
             {!checking && (connection.api !== 'connected' || connection.database !== 'connected') && <p className="connection-warning" role="status">{connection.api !== 'connected' ? 'Chưa kết nối được máy chủ. Kiểm tra API đang chạy rồi thử lại.' : 'Máy chủ đang chạy, nhưng chưa kết nối được dữ liệu. Kiểm tra PostgreSQL và cấu hình kết nối rồi thử lại.'}</p>}
-          </section>
-
-          <section className="next-panel" aria-labelledby="next-title"><div className="next-icon" aria-hidden="true">↗</div><div><span className="eyebrow">KHÔNG GIAN CỦA NHÓM</span><h2 id="next-title">Kết nối nhóm của bạn.</h2><p>Tạo Workspace, thêm thành viên và phân quyền cho nhóm.</p></div><button className="primary-button" onClick={() => navigate('workspaces')}>Mở Workspace</button></section>
-
-          <section className="next-panel"><div><h2>Công việc được giao cho bạn</h2><p>Mở My Tasks để theo dõi deadline và cập nhật tiến độ.</p></div><button className="primary-button" onClick={() => navigate('tasks')}>Mở My Tasks</button></section>
+          </section></details>
           </>}
           <footer className="page-footer"><span>Task Manager · Quản lý công việc nhóm</span><span>Nền tảng đang được hoàn thiện</span></footer>
         </div>

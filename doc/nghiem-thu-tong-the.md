@@ -26,4 +26,4 @@ UC32 trước đây chỉ trả 50 thông báo mới nhất. Đã thêm lịch s
 
 ## Kiểm chứng
 
-Build và typecheck thành công. Kiểm thử API đạt 56/56 bài, gồm kiểm tra lịch sử thông báo, riêng tư, truy vấn không hợp lệ và thao tác đọc lặp lại. Kiểm thử trình duyệt đạt 16/16 bài trên desktop và mobile, gồm lịch sử thông báo và các luồng Workspace/Project/Task, cộng tác, Sprint và quản trị.
+Build và typecheck thành công. Kiểm thử API đạt 56/56 bài, gồm kiểm tra lịch sử thông báo, riêng tư, truy vấn không hợp lệ và thao tác đọc lặp lại. Sau thiết kế lại Tổng quan/Task, kiểm thử trình duyệt đạt 18/18 bài trên desktop và mobile, gồm Dashboard lỗi/tải lại/biểu đồ, lịch sử thông báo và các luồng Workspace/Project/Task, cộng tác, Sprint và quản trị.

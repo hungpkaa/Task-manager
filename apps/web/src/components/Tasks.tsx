@@ -3,11 +3,13 @@ import { Comments } from './Comments';
 import { Attachments } from './Attachments';
 import { TaskSprintPicker } from './TaskSprintPicker';
 import { TaskDependencies } from './TaskDependencies';
+import { Icon } from './Icon';
 import { ApiError, projectApi, taskApi, taskStatuses, taskPriorities, type Task, type TaskInput, type TaskPage, type TaskPriority, type TaskStatus, type ProjectMember } from '../api';
 
 export const statusLabels: Record<TaskStatus, string> = { TODO: 'Cần làm', IN_PROGRESS: 'Đang làm', REVIEW: 'Chờ duyệt', DONE: 'Hoàn thành' };
 const priorityLabels: Record<TaskPriority, string> = { LOW: 'Thấp', MEDIUM: 'Trung bình', HIGH: 'Cao', URGENT: 'Khẩn cấp' };
 const empty: TaskInput = { title: '', description: '', priority: 'MEDIUM', startDate: null, dueDate: null, effort: null };
+const defaultQuery = { q: '', status: '', priority: '', assigneeId: '', sort: 'updatedAt', direction: 'desc' };
 
 export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBack }: { projectId?: string; canCreate?: boolean; initialId?: string; onExpired: () => void; onBack?: () => void }) {
   const [selected, setSelected] = useState(initialId ?? '');
@@ -18,10 +20,11 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
   const [input, setInput] = useState<TaskInput>(empty);
   const [assigneeId, setAssigneeId] = useState('');
   const [sprintId, setSprintId] = useState('');
-  const [query, setQuery] = useState({ q: '', status: '', priority: '', assigneeId: '', sort: 'updatedAt', direction: 'desc' });
+  const [query, setQuery] = useState(defaultQuery);
   const [filters, setFilters] = useState(query);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<'list' | 'board'>('list');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,14 +76,14 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
     {!selected && !creating && <><form className="task-filters" onSubmit={(event) => { event.preventDefault(); setFilters({ ...query }); setPage(1); }}>
       <label>Tìm kiếm<input value={query.q} maxLength={200} placeholder="Tiêu đề hoặc mô tả" onChange={(event) => setQuery({ ...query, q: event.target.value })} /></label>
       <label>Trạng thái<select value={query.status} onChange={(event) => setQuery({ ...query, status: event.target.value })}><option value="">Tất cả</option>{taskStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
-      <label>Ưu tiên<select value={query.priority} onChange={(event) => setQuery({ ...query, priority: event.target.value })}><option value="">Tất cả</option>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label>
+      <details className="advanced-filters" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}><summary>Bộ lọc nâng cao</summary><div className="advanced-filter-fields"><label>Ưu tiên<select aria-label="Ưu tiên" value={query.priority} onChange={(event) => setQuery({ ...query, priority: event.target.value })}><option value="">Tất cả</option>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label>
       {projectId && <label>Phân công<select value={query.assigneeId} onChange={(event) => setQuery({ ...query, assigneeId: event.target.value })}><option value="">Tất cả</option><option value="unassigned">Chưa phân công</option>{members.map((member) => <option key={member.userId} value={member.userId}>{member.user.displayName}</option>)}</select></label>}
       <label>Sắp xếp<select value={query.sort} onChange={(event) => setQuery({ ...query, sort: event.target.value })}><option value="updatedAt">Cập nhật</option><option value="dueDate">Deadline</option><option value="priority">Ưu tiên</option><option value="title">Tiêu đề</option></select></label>
-      <label>Thứ tự<select value={query.direction} onChange={(event) => setQuery({ ...query, direction: event.target.value })}><option value="desc">Giảm dần</option><option value="asc">Tăng dần</option></select></label><button className="primary-button">Áp dụng</button>
-    </form><div className="task-view-tabs" role="group" aria-label="Cách xem công việc"><button className={view === 'list' ? 'primary-button' : 'refresh-button'} aria-pressed={view === 'list'} onClick={() => setView('list')}>Danh sách</button><button className={view === 'board' ? 'primary-button' : 'refresh-button'} aria-pressed={view === 'board'} onClick={() => setView('board')}>Kanban</button></div>
+      <label>Thứ tự<select value={query.direction} onChange={(event) => setQuery({ ...query, direction: event.target.value })}><option value="desc">Giảm dần</option><option value="asc">Tăng dần</option></select></label></div></details><button className="primary-button">Áp dụng</button><button className="refresh-button" type="button" onClick={() => { setQuery({ ...defaultQuery }); setFilters({ ...defaultQuery }); setPage(1); }}>Xóa bộ lọc</button>
+    </form><div className="task-view-tabs" role="group" aria-label="Cách xem công việc"><button className={view === 'list' ? 'primary-button' : 'refresh-button'} aria-pressed={view === 'list'} onClick={() => setView('list')}><Icon name="task" />Danh sách</button><button className={view === 'board' ? 'primary-button' : 'refresh-button'} aria-pressed={view === 'board'} onClick={() => setView('board')}><Icon name="board" />Kanban</button></div>
     <p>{pageData.total} công việc · Trang {page}/{Math.max(1, Math.ceil(pageData.total / 20))} · Tối đa 20 công việc mỗi trang, áp dụng cho cả Kanban.</p>
     {!pageData.tasks.length && !error && <p>{pageData.total ? 'Trang này không còn công việc. Quay lại trang trước.' : 'Chưa có công việc phù hợp.'}</p>}
-    {view === 'board' ? <div className="kanban-board">{taskStatuses.map((status) => <div className={`kanban-column column-${status.toLowerCase()}`} key={status}><h3>{statusLabels[status]} <span>{pageData.tasks.filter((item) => item.status === status).length}</span></h3>{pageData.tasks.filter((item) => item.status === status).map((item) => <TaskCard key={item.id} task={item} open={open} />)}</div>)}</div> : <div className="task-list">{pageData.tasks.map((item) => <TaskCard key={item.id} task={item} open={open} />)}</div>}
+    {view === 'board' ? <div className="kanban-board">{taskStatuses.map((status) => <div className={`kanban-column column-${status.toLowerCase()}`} key={status}><h3>{statusLabels[status]} <span>{pageData.tasks.filter((item) => item.status === status).length}</span></h3>{pageData.tasks.filter((item) => item.status === status).map((item) => <TaskCard key={item.id} task={item} open={open} />)}</div>)}</div> : <div className="task-table"><div className="task-table-head" aria-hidden="true"><span>Công việc / Project</span><span>Trạng thái</span><span>Ưu tiên</span><span>Người phụ trách</span><span>Deadline</span><span>Effort</span></div><div className="task-list">{pageData.tasks.map((item) => <TaskCard key={item.id} task={item} open={open} row />)}</div></div>}
     <div className="member-actions task-pagination"><button className="refresh-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← Trang trước</button><button className="refresh-button" disabled={page * 20 >= pageData.total} onClick={() => setPage((value) => value + 1)}>Trang sau →</button></div></>}
     {task && <div className="task-detail"><p className="project-description">{task.description || 'Chưa có mô tả.'}</p><dl><dt>Project</dt><dd>{task.project.name}</dd><dt>Trạng thái</dt><dd>{statusLabels[task.status]}</dd><dt>Ưu tiên</dt><dd>{priorityLabels[task.priority]}</dd><dt>Người phụ trách</dt><dd>{task.assignee?.displayName ?? 'Chưa phân công'}</dd><dt>Thời gian</dt><dd>{task.startDate?.slice(0, 10) ?? 'Chưa đặt'} → {task.dueDate?.slice(0, 10) ?? 'Chưa đặt'}</dd><dt>Effort</dt><dd>{task.effort ?? 'Chưa đặt'}</dd></dl>
       {task.blocked && <div className="form-notice"><strong>BLOCKED: còn công việc phụ thuộc chưa hoàn thành.</strong><ul>{task.blockingTasks.map((blocking) => <li key={blocking.id}>{blocking.title} · {statusLabels[blocking.status]}</li>)}</ul></div>}
@@ -105,6 +108,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
     </>}
   </section>;
 }
-function TaskCard({ task, open }: { task: Task; open: (id: string) => void }) {
-  return <button className="task-card" onClick={() => open(task.id)}><strong>{task.title}</strong><span className="task-badges"><span className={`task-badge status-${task.status.toLowerCase()}`}>{statusLabels[task.status]}</span><span className={`task-badge priority-${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span><span className="task-badge effort-badge">Effort: {task.effort ?? 'Chưa đặt'}</span></span><span>{task.assignee?.displayName ?? 'Chưa phân công'} · {task.dueDate ? `Hạn ${task.dueDate.slice(0, 10)}` : 'Chưa đặt deadline'}</span><small>{task.project.name}{task.blocked ? ' · BLOCKED' : ''}</small></button>;
+function TaskCard({ task, open, row = false }: { task: Task; open: (id: string) => void; row?: boolean }) {
+  const assignee = task.assignee?.displayName ?? 'Chưa phân công';
+  return <button className={`task-card ${row ? 'task-row' : 'board-card'}`} onClick={() => open(task.id)}><span className="task-title-cell"><strong>{task.title}</strong><small>{task.project.name}{task.blocked ? ' · BLOCKED' : ''}</small></span><span className={`task-badge status-${task.status.toLowerCase()}`}>{statusLabels[task.status]}</span><span className={`task-badge priority-${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span><span className="task-assignee"><span className="avatar-initial" aria-hidden="true">{task.assignee ? assignee.trim().split(/\s+/).map((part) => Array.from(part)[0]).slice(0, 2).join('').toUpperCase() : '—'}</span><span>{assignee}</span></span><span className="task-deadline"><Icon name="clock" />{task.dueDate ? `Hạn ${task.dueDate.slice(0, 10)}` : 'Chưa đặt deadline'}</span><span className="task-badge effort-badge">Effort: {task.effort ?? 'Chưa đặt'}</span></button>;
 }

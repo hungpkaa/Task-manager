@@ -2,12 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, projectApi, taskStatuses, type DashboardResult } from '../api';
 import { Tasks, statusLabels } from './Tasks';
 import { ProjectRisk } from './ProjectRisk';
+import { PersonalDashboardView } from './PersonalDashboardView';
 
 function currentPeriod() {
   const start = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7) + '-01'; const end = new Date(`${start}T00:00:00Z`); end.setUTCMonth(end.getUTCMonth() + 1, 0);
   return { start, end: end.toISOString().slice(0, 10) };
 }
-export function Dashboard({ projectId, onExpired }: { projectId?: string; onExpired: () => void }) {
+export function Dashboard({ projectId, onExpired, onWorkspace }: { projectId?: string; onExpired: () => void; onWorkspace?: () => void }) {
   const [open, setOpen] = useState(!projectId); const [period, setPeriod] = useState(currentPeriod); const [draft, setDraft] = useState(period);
   const [revision, setRevision] = useState(0); const [data, setData] = useState<DashboardResult | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [taskId, setTaskId] = useState('');
   const title = projectId ? 'Dashboard Project' : 'Dashboard cá nhân';
@@ -22,14 +23,14 @@ export function Dashboard({ projectId, onExpired }: { projectId?: string; onExpi
   function back() { setTaskId(''); setRevision((value) => value + 1); }
   function apply(event: FormEvent) { event.preventDefault(); setPeriod(draft); setRevision((value) => value + 1); }
   if (taskId) return <section aria-label={title}><button className="refresh-button" onClick={back}>← Về {title}</button><Tasks key={taskId} initialId={taskId} onExpired={onExpired} onBack={back} /></section>;
-  return <section className="sprints-panel" aria-label={title} aria-busy={loading}>
+  return <section className={`sprints-panel ${projectId ? '' : 'personal-dashboard'}`} aria-label={title} aria-busy={loading}>
     <div className="panel-heading"><h3>{title}</h3>{projectId && <button className="refresh-button" onClick={() => setOpen(!open)}>{open ? 'Thu gọn Dashboard' : 'Mở Dashboard Project'}</button>}</div>
     {open && <>
-      <p>{projectId ? 'Chỉ số tiến độ tính toàn Project; kỳ dưới đây áp dụng cho Workload và Risk.' : 'Chỉ tổng hợp Task giao cho bạn trong các Project bạn còn là thành viên, kể cả Project đã đóng.'}</p>
+      {projectId && <p>Chỉ số tiến độ tính toàn Project; kỳ dưới đây áp dụng cho Workload và Risk.</p>}
       {projectId && <form className="workspace-form" onSubmit={apply}><fieldset disabled={loading}><div className="project-dates"><label>Từ ngày<input aria-label="Kỳ Dashboard bắt đầu" type="date" required value={draft.start} onChange={(event) => setDraft({ ...draft, start: event.target.value })} /></label><label>Đến ngày<input aria-label="Kỳ Dashboard kết thúc" type="date" required min={draft.start} value={draft.end} onChange={(event) => setDraft({ ...draft, end: event.target.value })} /></label></div><button className="primary-button">Xem Dashboard theo kỳ</button></fieldset></form>}
       <button className="refresh-button" disabled={loading} onClick={() => setRevision((value) => value + 1)}>Tải lại Dashboard</button>
       {error && <p className="form-error" role="alert">{error}</p>}{loading && <p role="status">Đang tải Dashboard…</p>}
-      {data && <>
+      {data && !projectId ? <PersonalDashboardView data={data} onTask={setTaskId} onWorkspace={onWorkspace} /> : data && <>
         <p>Ngày đánh giá: {data.today} (Việt Nam). Số liệu hiện tại, tải lại sau khi thay đổi công việc.</p>
         {data.projectStatus === 'CLOSED' && <p>Project đã đóng; chỉ xem dữ liệu.</p>}
         <div className="dashboard-metrics">
