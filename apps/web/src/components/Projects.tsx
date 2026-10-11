@@ -3,6 +3,7 @@ import { ApiError, projectApi, workspaceApi, type Project, type ProjectMember, t
 import { Tasks } from './Tasks';
 import { Sprints } from './Sprints';
 import { Workload } from './Workload';
+import { Calendar } from './Calendar';
 
 const empty: ProjectInput = { name: '', description: '', startDate: null, endDate: null };
 export function Projects({ workspaceId, owner, initialId, onExpired }: { workspaceId: string; owner: boolean; initialId?: string; onExpired: () => void }) {
@@ -52,6 +53,7 @@ export function Projects({ workspaceId, owner, initialId, onExpired }: { workspa
     {project && <Tasks key={project.id} projectId={project.id} canCreate={Boolean(editable && manager)} onExpired={onExpired} />}
     {project && <Sprints key={`sprints-${project.id}`} projectId={project.id} canPlan={Boolean(editable && manager)} onExpired={onExpired} />}
     {project?.isManager && <Workload key={`workload-${project.id}`} projectId={project.id} onExpired={onExpired} />}
+    {project && <Calendar key={`calendar-${project.id}`} projectId={project.id} onExpired={onExpired} />}
     {editable && manager && <button className="danger-button" disabled={busy} onClick={() => setPending({ kind: 'close', name: project.name })}>Đóng Project</button>}
     {pending && <div className="confirm-panel" role="group" aria-label="Xác nhận thay đổi Project"><p>{pending.kind === 'manager' ? `Phân công ${pending.name} làm PM? ${project?.manager ? `${project.manager.displayName} sẽ mất quyền PM và vẫn là thành viên.` : 'Người được chọn sẽ có quyền quản lý Project.'}` : pending.kind === 'close' ? `Đóng Project “${pending.name}”? Project sẽ chuyển sang chỉ xem và không thể mở lại trong phiên bản này.` : `Xóa ${pending.name} khỏi Project? Người này sẽ mất quyền truy cập nếu không có quyền Workspace Owner.`}</p><button className="primary-button" disabled={busy} onClick={() => void mutate(async () => { if (pending.kind === 'manager') await projectApi.manager(selected, pending.userId!, project!.managerUserId); else if (pending.kind === 'close') await projectApi.close(selected); else await projectApi.remove(selected, pending.userId!); setNotice('Đã cập nhật Project.'); })}>Xác nhận</button> <button className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button></div>}
     </>}

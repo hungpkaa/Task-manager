@@ -13,6 +13,36 @@ import { createProjectService } from '../src/services/projects.js';
 import { withHttp } from './helpers/http.js';
 
 const origin = 'http://127.0.0.1:5173';
+test('UC30: Calendar scope, month/day overlap, undated tasks, history and pagination', async () => fixture(async ({ base, client, workspaceId, otherWorkspaceId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const project = await create(base, workspaceId, owner.cookie); const repository = createProjectRepository(client);
+  await repository.assignManager(project.id, owner.id, pm.id, null); await repository.addMember(project.id, pm.id, member.id);
+  const path = `/projects/${project.id}/calendar?month=2026-10`;
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, pm, member]) assert.equal((await request(base, path, user.cookie)).status, 200);
+  for (const user of [outsider, admin]) assert.equal((await request(base, path, user.cookie)).status, 403);
+  for (const suffix of ['month=2026-13', 'month=2026-02&day=2026-02-30', 'month=2026-10&day=2026-11-01', 'month=2026-10&page=0', 'month=2026-10&extra=true']) assert.equal((await request(base, `/projects/${project.id}/calendar?${suffix}`, pm.cookie)).status, 400);
+  const make = (title: string, startDate: string | null, dueDate: string | null) => client.task.create({ data: { projectId: project.id, title, startDate: startDate ? new Date(startDate) : null, dueDate: dueDate ? new Date(dueDate) : null } });
+  const spanning = await make('Spans month', '2026-09-01', '2026-11-01');
+  const boundary = await make('End boundary', '2026-10-31', '2026-10-31');
+  const onlyStart = await make('Only start', '2026-10-15', null);
+  const onlyDue = await make('Only due', null, '2026-10-01');
+  await make('Undated', null, null); await make('Outside', '2026-11-01', '2026-11-02');
+  await client.task.update({ where: { id: boundary.id }, data: { status: 'DONE' } });
+  const foreign = await client.project.create({ data: { workspaceId: otherWorkspaceId, name: 'Foreign Calendar' } });
+  await client.task.create({ data: { projectId: foreign.id, title: 'Foreign', dueDate: new Date('2026-10-15') } });
+  await client.sprint.create({ data: { projectId: project.id, name: 'Completed span', goal: 'History', startDate: new Date('2026-09-30'), endDate: new Date('2026-10-01'), status: 'COMPLETED' } });
+  const query = { month: '2026-10', page: 1, sprintPage: 1 };
+  const month = await repository.calendar(project.id, member.id, query);
+  assert.equal(month.taskTotal, 4); assert.equal(month.undatedCount, 1); assert.equal(month.sprintTotal, 1);
+  assert.deepEqual(new Set(month.tasks.map((task) => task.id)), new Set([spanning.id, boundary.id, onlyStart.id, onlyDue.id]));
+  const first = await repository.calendar(project.id, member.id, { ...query, day: '2026-10-01' }); assert.equal(first.taskTotal, 2); assert.equal(first.sprintTotal, 1);
+  const last = await repository.calendar(project.id, member.id, { ...query, day: '2026-10-31' }); assert.equal(last.taskTotal, 3); assert.equal(last.sprintTotal, 0);
+  await client.task.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ projectId: project.id, title: `Paged ${index}`, dueDate: new Date('2026-10-15') })) });
+  const second = await repository.calendar(project.id, member.id, { ...query, page: 2 }); assert.equal(second.taskTotal, 25); assert.equal(second.tasks.length, 5);
+  await client.project.update({ where: { id: project.id }, data: { status: 'CLOSED' } }); assert.equal((await request(base, path, member.cookie)).status, 200);
+  await client.projectMember.delete({ where: { projectId_userId: { projectId: project.id, userId: member.id } } }); assert.equal((await request(base, path, member.cookie)).status, 403);
+}));
 test('UC39: scoped read-only recommendations, eligible capacity candidates and blockers', async () => fixture(async ({ base, client, workspaceId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const project = await create(base, workspaceId, owner.cookie); const repository = createProjectRepository(client);

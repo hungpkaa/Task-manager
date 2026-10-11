@@ -5,6 +5,7 @@ import type { CapacityInput, WorkloadQuery } from '../services/coordination-vali
 import { workload } from './workload.js';
 import { projectRisk } from './project-risk.js';
 import { recommendations } from './recommendations.js';
+import type { CalendarQuery } from '../services/calendar-validation.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, email: true, displayName: true, status: true } as const;
@@ -58,6 +59,27 @@ export function createProjectRepository(client: PrismaClient) {
     await tx.notification.create({ data: { userId, type, title: 'Cập nhật Project', message: `${message} “${name}”.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
   }
   return {
+    async calendar(projectId: string, actorId: string, query: CalendarQuery) {
+      return client.$transaction(async (tx) => {
+        await projectAccess(tx, projectId, actorId);
+        const start = new Date(`${query.day ?? `${query.month}-01`}T00:00:00Z`);
+        const end = new Date(start); if (!query.day) end.setUTCMonth(end.getUTCMonth() + 1, 0);
+        const taskWhere: Prisma.TaskWhereInput = { projectId, AND: [
+          { OR: [{ startDate: { not: null } }, { dueDate: { not: null } }] },
+          { OR: [{ startDate: null }, { startDate: { lte: end } }] },
+          { OR: [{ dueDate: null }, { dueDate: { gte: start } }] },
+        ] };
+        const sprintWhere = { projectId, startDate: { lte: end }, endDate: { gte: start } };
+        return { month: query.month, day: query.day ?? null, page: query.page, sprintPage: query.sprintPage, pageSize: 20,
+          tasks: await tx.task.findMany({ where: taskWhere, orderBy: [{ dueDate: 'asc' }, { startDate: 'asc' }, { id: 'asc' }], skip: (query.page - 1) * 20, take: 20,
+            select: { id: true, title: true, status: true, startDate: true, dueDate: true, assignee: { select: { displayName: true } } } }),
+          taskTotal: await tx.task.count({ where: taskWhere }),
+          undatedCount: await tx.task.count({ where: { projectId, startDate: null, dueDate: null } }),
+          sprints: await tx.sprint.findMany({ where: sprintWhere, orderBy: [{ startDate: 'asc' }, { id: 'asc' }], skip: (query.sprintPage - 1) * 20, take: 20, select: { id: true, name: true, goal: true, status: true, startDate: true, endDate: true } }),
+          sprintTotal: await tx.sprint.count({ where: sprintWhere }),
+        };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
     async recommendations(projectId: string, actorId: string, query: WorkloadQuery, now = new Date()) {
       return client.$transaction(async (tx) => {
         const { project } = await projectAccess(tx, projectId, actorId);

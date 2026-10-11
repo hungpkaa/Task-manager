@@ -41,7 +41,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC27 | Xem My Tasks | Đã triển khai: công việc của chính mình trong các Project còn membership | 6 |
 | UC28 | Xem Kanban Board | Đã triển khai: bốn cột trạng thái, lọc và phân trang; đổi trạng thái trong chi tiết, chưa kéo thả | 6 |
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
-| UC30 | Xem Calendar | Chưa triển khai | 10 |
+| UC30 | Xem Calendar | Đã có: lịch Project theo tháng/ngày, Task/Sprint giao kỳ, mở Task, phân trang, quyền Owner/PM/Member | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
 | UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |

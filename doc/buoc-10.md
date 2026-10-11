@@ -69,8 +69,18 @@ Build và typecheck web/API thành công. `npm.cmd run test:db`: 50/50 kiểm th
 
 `npm.cmd run test:e2e -- --grep Sprint`: 2/2 luồng desktop/mobile thành công, gồm Risk Cao khi quá tải, lý do/thiếu dữ liệu, mở cách đánh giá, Risk trong preview/bắt đầu, snapshot cũ và ẩn Risk với Member. Ảnh `project-risk.png`, `task-dependencies.png`, `capacity-workload.png` và `sprint-workload.png` nằm trong `.local/e2e-results`; báo cáo tại `.local/e2e-report`. Đợt này chạy hai luồng Sprint, không chạy lại toàn bộ bộ trình duyệt.
 
-## Phần còn lại
+## UC30 — Calendar
+
+Calendar nằm trong Project, dành cho các tài khoản có quyền xem Project (Workspace Owner hoặc thành viên Project, gồm PM). `GET /projects/:id/calendar?month=YYYY-MM&page=1&sprintPage=1` nhận thêm `day=YYYY-MM-DD` thuộc tháng để xem riêng ngày. Query nghiêm ngặt, ngày/tháng không hợp lệ bị từ chối. API đọc trong RepeatableRead, không ghi và không cần migration.
+
+Lịch hiển thị các Task/Sprint có khoảng ngày giao với tháng/ngày, hai biên inclusive. Task thiếu một ngày được xem là không giới hạn đầu/cuối; thiếu cả hai ngày không đưa vào lịch và được đếm riêng toàn Project. Đây là lựa chọn triển khai cho dữ liệu ngày chưa đầy đủ. Lịch giữ Task DONE/Sprint COMPLETED và cho xem Project CLOSED. Task và Sprint phân trang độc lập 20, tổng đếm toàn kỳ. Ngày hiển thị giữ nguyên ngày nghiệp vụ; hôm nay/quá hạn theo Việt Nam.
+
+UI có bộ chọn tháng, lưới ngày bắt đầu từ thứ Hai, chọn ngày hoặc cả tháng, tải lại, danh sách Task và Sprint. Mở Task dùng màn hình chi tiết hiện có, trở về tải lại lịch. Calendar chỉ xem, không kéo/thả thay ngày; chỉnh Task trong chi tiết theo quyền sẵn có. Sprint hiển thị tên/Goal/trạng thái/ngày; thao tác quản lý nằm trong Sprint & Backlog.
 
 Đợt UC39: build/typecheck thành công; 51/51 kiểm thử tích hợp và 2/2 luồng Sprint desktop/mobile qua. Test bổ sung kiểm tra quyền PM/query, người nhận đủ Capacity, thiếu Effort, quá tải, tài khoản khóa/rời Project, dependency, Task đã bắt đầu, phân trang, Project CLOSED và không thay Task/notification khi đọc. Luồng trình duyệt kiểm tra lý do, trường hợp không có người phù hợp, mở Task/trở về và giữ nguyên phân công. Đã xem ảnh `recommendations.png` trên mobile; không tràn ngang trong luồng kiểm thử. Không chạy lại toàn bộ bộ trình duyệt.
 
-UC30 Calendar, UC33–34 Dashboard và UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.
+Đợt Calendar: build/typecheck thành công, 52/52 kiểm thử tích hợp và 2/2 luồng desktop/mobile qua. API kiểm tra scope, query, giao kỳ inclusive, Task/Sprint lịch sử, dữ liệu thiếu ngày, phân trang và thu hồi quyền. Trình duyệt kiểm tra chọn tháng/ngày, ngày không có Task, mở Task/trở về và không tràn ngang. Ảnh `calendar.png` nằm trong `.local/e2e-results`, đã xem bản mobile. Không chạy lại toàn bộ bộ trình duyệt.
+
+## Phần còn lại
+
+UC33–34 Dashboard và UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.

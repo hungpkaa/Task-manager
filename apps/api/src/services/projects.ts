@@ -4,9 +4,11 @@ import { validate } from './auth-validation.js';
 import { idSchema } from './workspace-validation.js';
 import { createProjectSchema, updateProjectSchema, managerSchema, projectMemberSchema } from './project-validation.js';
 import { capacitySchema, capacityQuerySchema, workloadQuerySchema, riskQuerySchema } from './coordination-validation.js';
+import { calendarQuerySchema } from './calendar-validation.js';
 
 export function createProjectService(repository: ProjectRepository, auth: AuthService) {
   return {
+    async calendar(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.calendar(validate(idSchema, projectId), user.id, validate(calendarQuerySchema, query)); },
     async recommendations(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.recommendations(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },
     async risk(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.risk(validate(idSchema, projectId), user.id, validate(riskQuerySchema, query)); },
     async workload(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.workload(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },

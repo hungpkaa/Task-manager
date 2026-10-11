@@ -45,7 +45,9 @@ Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và 
 
 PM chọn Sprint PLANNED → **Bắt đầu Sprint** → xem cảnh báo → xác nhận. Cần có Goal, ít nhất một Task và chưa có Sprint ACTIVE trong Project. Bắt đầu tạo thông báo cho thành viên Project và mở trang theo dõi. Thành viên Project có thể chọn Sprint → **Theo dõi Sprint** để xem Goal, tiến độ, Task BLOCKED/quá hạn và Board/danh sách. Lọc theo trạng thái, priority, người phụ trách; số liệu tổng vẫn tính toàn Sprint. Bấm Task để mở chi tiết; **Về theo dõi Sprint** tải lại tiến độ sau khi sửa. Board phân trang 20, dùng nút trang để xem đủ Task. Khi có thay đổi từ người khác, bấm **Tải lại tiến độ Sprint**.
 
-Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload và Risk trong kế hoạch, bước bắt đầu và theo dõi Sprint. Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
+Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload và Risk trong kế hoạch, bước bắt đầu và theo dõi Sprint. Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
+
+Trong Project, chọn **Mở Calendar**, chọn tháng rồi nhấn ngày hoặc **Xem cả tháng**. Lịch hiển thị Task/Sprint giao với kỳ, kể cả DONE/COMPLETED. Task thiếu cả ngày bắt đầu và hạn được đếm riêng. Nhấn Task để xem chi tiết; **Về Calendar** tải lại lịch. Owner và thành viên Project đều xem được, kể cả Project đã đóng.
 
 ## Daily Update trong Sprint
 
