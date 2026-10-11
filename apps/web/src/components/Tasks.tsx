@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Comments } from './Comments';
 import { Attachments } from './Attachments';
+import { TaskSprintPicker } from './TaskSprintPicker';
 import { ApiError, projectApi, taskApi, taskStatuses, taskPriorities, type Task, type TaskInput, type TaskPage, type TaskPriority, type TaskStatus, type ProjectMember } from '../api';
 
 export const statusLabels: Record<TaskStatus, string> = { TODO: 'Cần làm', IN_PROGRESS: 'Đang làm', REVIEW: 'Chờ duyệt', DONE: 'Hoàn thành' };
@@ -15,6 +16,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [input, setInput] = useState<TaskInput>(empty);
   const [assigneeId, setAssigneeId] = useState('');
+  const [sprintId, setSprintId] = useState('');
   const [query, setQuery] = useState({ q: '', status: '', priority: '', assigneeId: '', sort: 'updatedAt', direction: 'desc' });
   const [filters, setFilters] = useState(query);
   const [page, setPage] = useState(1);
@@ -35,7 +37,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
         if (active) { setTask(result.task); setMembers(membership.members); setInput({ title: result.task.title, description: result.task.description, priority: result.task.priority, startDate: result.task.startDate?.slice(0, 10) ?? null, dueDate: result.task.dueDate?.slice(0, 10) ?? null, effort: result.task.effort }); setAssigneeId(result.task.assigneeId ?? ''); }
       } else if (creating && projectId) {
         const result = await projectApi.members(projectId);
-        if (active) { setMembers(result.members); setInput(empty); setAssigneeId(''); }
+        if (active) { setMembers(result.members); setInput(empty); setAssigneeId(''); setSprintId(''); }
       } else {
         if (active) setPageData({ tasks: [], total: 0, page, pageSize: 20 });
         const params = new URLSearchParams({ page: String(page), pageSize: '20' });
@@ -58,7 +60,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
   function back() { if (onBack) { onBack(); return; } setSelected(''); setCreating(false); setNotice(''); }
   function save(event: FormEvent) { event.preventDefault(); void mutate(async () => {
     if (selected) { await taskApi.update(selected, input); setNotice('Đã lưu công việc.'); }
-    else if (projectId) { const result = await taskApi.create(projectId, { ...input, assigneeId: assigneeId || null }); setCreating(false); setSelected(result.task.id); setNotice('Đã tạo công việc.'); }
+    else if (projectId) { const result = await taskApi.create(projectId, { ...input, assigneeId: assigneeId || null, sprintId: sprintId || null }); setCreating(false); setSelected(result.task.id); setNotice('Đã tạo công việc.'); }
   }); }
   const nextStatus = task ? taskStatuses[taskStatuses.indexOf(task.status) + 1] : undefined;
   function advance(acknowledgeBlocked = false) { if (task && nextStatus) void mutate(async () => { const result = await taskApi.status(task.id, nextStatus, task.status, acknowledgeBlocked); setNotice(result.warning ?? 'Đã cập nhật trạng thái.'); }); }
@@ -90,6 +92,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBa
       <div className="project-dates"><div className="form-field"><label htmlFor="task-start">Ngày bắt đầu</label><input id="task-start" type="date" value={input.startDate ?? ''} onChange={(event) => setInput({ ...input, startDate: event.target.value || null })} /></div><div className="form-field"><label htmlFor="task-due">Deadline</label><input id="task-due" type="date" min={input.startDate ?? undefined} value={input.dueDate ?? ''} onChange={(event) => setInput({ ...input, dueDate: event.target.value || null })} /></div></div>
       <div className="task-filters"><label>Ưu tiên<select value={input.priority} onChange={(event) => setInput({ ...input, priority: event.target.value as TaskPriority })}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label><label>Effort<select value={input.effort ?? ''} onChange={(event) => setInput({ ...input, effort: event.target.value ? Number(event.target.value) : null })}><option value="">Chưa đặt</option>{[1, 2, 3, 5, 8].map((effort) => <option key={effort}>{effort}</option>)}</select></label>
       {creating && <label>Người phụ trách<select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Chưa phân công</option>{members.filter((member) => member.user.status === 'ACTIVE').map((member) => <option key={member.userId} value={member.userId}>{member.user.displayName} · {member.user.email}</option>)}</select></label>}</div>
+      {creating && projectId && <TaskSprintPicker key={projectId} projectId={projectId} value={sprintId} onChange={setSprintId} disabled={busy} onExpired={onExpired} />}
       <button className="primary-button">{busy ? 'Đang lưu…' : creating ? 'Tạo Task' : 'Lưu thay đổi'}</button>
     </fieldset></form>}
     {task?.canEdit && <><form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void mutate(async () => { await taskApi.assign(task.id, assigneeId || null); setNotice('Đã cập nhật người phụ trách.'); }); }}><h3>Phân công công việc</h3><div className="form-field"><label htmlFor="task-assignee">Thành viên Project</label><select id="task-assignee" disabled={busy} value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Chưa phân công</option>{task.assignee && !members.some((member) => member.userId === task.assigneeId) && <option value={task.assigneeId!} disabled>{task.assignee.displayName} · Không còn trong Project</option>}{members.filter((member) => member.user.status === 'ACTIVE' || member.userId === task.assigneeId).map((member) => <option key={member.userId} value={member.userId} disabled={member.user.status !== 'ACTIVE'}>{member.user.displayName} · {member.user.email}</option>)}</select></div><button className="primary-button" disabled={busy}>Lưu phân công</button></form><button className="danger-button" disabled={busy} onClick={() => setPending('delete')}>Xóa Task</button></>}

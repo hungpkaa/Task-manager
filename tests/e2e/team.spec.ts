@@ -221,6 +221,24 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await expect(monitor.getByRole('button', { name: 'Lưu Retrospective', exact: true })).toHaveCount(0);
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath('sprint-completed.png'), fullPage: true });
+  const plannedForTask = await client.sprint.create({ data: { projectId: project.id, name: 'Sprint tạo Task', goal: 'New tasks', startDate: new Date('2026-10-26'), endDate: new Date('2026-11-05') } });
+  const taskPanel = page.locator('.projects-panel .tasks-panel').first();
+  await taskPanel.getByRole('button', { name: '+ Tạo Task', exact: true }).click();
+  await taskPanel.getByLabel('Tiêu đề', { exact: true }).fill('Task tạo trong Sprint');
+  const picker = taskPanel.getByLabel('Sprint khi tạo Task', { exact: true });
+  await expect(picker.locator('option', { hasText: 'COMPLETED' })).toHaveCount(0);
+  await picker.selectOption(plannedForTask.id);
+  await expect(taskPanel).toContainText('Chưa có phân tích Capacity/Workload/Risk');
+  await noOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('task-sprint-picker.png'), fullPage: true });
+  await taskPanel.getByRole('button', { name: 'Tạo Task', exact: true }).click();
+  await expect(taskPanel.getByRole('heading', { name: 'Task tạo trong Sprint', exact: true })).toBeVisible();
+  expect((await client.task.findFirstOrThrow({ where: { projectId: project.id, title: 'Task tạo trong Sprint' } })).sprintId).toBe(plannedForTask.id);
+  await page.reload(); await open();
+  await page.getByLabel('Sprint đang xem / nhận Task').selectOption(plannedForTask.id);
+  await panel.getByRole('button', { name: 'Sprint Backlog', exact: true }).click();
+  await expect(panel.locator('.backlog-list')).toContainText('Task tạo trong Sprint');
+  await noOverflow(page);
 });
 
 test('three users complete Workspace → Project → Task → My Tasks → DONE → closed Project', async ({ browser }, testInfo) => {

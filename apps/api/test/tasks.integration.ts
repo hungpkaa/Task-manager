@@ -57,6 +57,31 @@ function upload(base: string, taskId: string, user: UserFixture | undefined, byt
   return fetch(`${base}/api/tasks/${taskId}/attachments`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename), ...(user ? { Cookie: user.cookie } : {}), ...extraHeaders }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(15_000) });
 }
 
+test('UC19: create directly in planned/active Sprint, backlog default and invalid Sprint rejection', async () => fixture(async ({ base, client, projectId, otherProjectId, users }) => {
+  const [owner, pm, assignee, member, outsider, admin] = users; assert.ok(owner && pm && assignee && member && outsider && admin);
+  const fields = { name: 'Task Sprint', goal: 'Test creation', startDate: new Date('2026-10-11'), endDate: new Date('2026-10-25') };
+  const planned = await client.sprint.create({ data: { projectId, ...fields } });
+  const active = await client.sprint.create({ data: { projectId, ...fields, status: 'ACTIVE' } });
+  const completed = await client.sprint.create({ data: { projectId, ...fields, status: 'COMPLETED' } });
+  const other = await client.sprint.create({ data: { projectId: otherProjectId, ...fields } });
+  const path = `/projects/${projectId}/tasks`;
+  for (const sprintId of [undefined, null, planned.id, active.id]) {
+    const task = await create(base, projectId, pm, { ...(sprintId !== undefined ? { sprintId } : {}), assigneeId: assignee.id });
+    assert.equal(task.sprintId, sprintId ?? null); assert.equal(task.status, 'TODO');
+    assert.equal(await client.notification.count({ where: { relatedEntityId: task.id, userId: assignee.id } }), 1);
+  }
+  const count = await client.task.count({ where: { projectId } });
+  for (const [sprintId, status] of [[completed.id, 409], [other.id, 400], [randomUUID(), 400], ['invalid', 400]] as const) assert.equal((await request(base, path, pm, 'POST', { title: 'Rejected', sprintId })).status, status);
+  for (const user of [owner, assignee, member, outsider, admin]) assert.equal((await request(base, path, user, 'POST', { title: 'Forbidden', sprintId: planned.id })).status, 403);
+  assert.equal(await client.task.count({ where: { projectId } }), count);
+  const task = await create(base, projectId, pm, { sprintId: planned.id });
+  assert.equal((await request(base, `/tasks/${task.id}`, pm, 'PATCH', { sprintId: active.id })).status, 400);
+  await client.sprint.update({ where: { id: planned.id }, data: { status: 'COMPLETED' } });
+  assert.equal((await request(base, path, pm, 'POST', { title: 'Stale selection', sprintId: planned.id })).status, 409);
+  await client.project.update({ where: { id: projectId }, data: { status: 'CLOSED' } });
+  assert.equal((await request(base, path, pm, 'POST', { title: 'Closed', sprintId: active.id })).status, 409);
+}));
+
 test('UC26: attachment bytes persist, metadata excludes data, downloads and deletion enforce Task scope', async () => fixture(async ({ base, client, projectId, otherProjectId, users }) => {
   const [owner, pm, member, peer, outsider, admin] = users; assert.ok(owner && pm && member && peer && outsider && admin);
   const task = await create(base, projectId, pm); const path = `/tasks/${task.id}/attachments`;

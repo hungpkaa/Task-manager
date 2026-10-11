@@ -30,7 +30,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC16 | Quản lý thành viên Project | Đã triển khai: PM thêm/xóa thành viên Workspace, chặn xóa PM/người còn Task chưa DONE | 5, 6 |
 | UC17 | Xem Project | Đã triển khai: Owner của Workspace hoặc thành viên Project; PM được thêm vào Project | 5 |
 | UC18 | Xem chi tiết Task | Đã triển khai: quyền Project, thuộc tính, assignee và cảnh báo dependency | 6 |
-| UC19 | Tạo Task | Cơ bản: PM, TODO, thuộc tính/effort/assignee, thông báo cùng transaction; sprintId null, chọn Sprint bổ sung ở bước 9 | 6, 9 |
+| UC19 | Tạo Task | Đã có: PM, TODO, thuộc tính/effort/assignee, Sprint PLANNED/ACTIVE cùng Project hoặc Product Backlog; thông báo cùng transaction | 6, 9 |
 | UC20 | Cập nhật Task | Đã triển khai: PM, tên/mô tả/priority/ngày/effort; kiểm tra dữ liệu cũ+mới | 6 |
 | UC21 | Xóa Task | Đã triển khai: PM, xác nhận UI, chặn Task đang được Task khác phụ thuộc | 6 |
 | UC22 | Gán / thay đổi người phụ trách | Đã triển khai: PM, thành viên Project ACTIVE, cho phép bỏ phân công, thông báo nguyên tử | 6 |
@@ -77,7 +77,7 @@ Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đ�
 
 ## Lựa chọn triển khai ngoài chi tiết đặc tả
 
-Task bước 6 đối chiếu image38/image39/image40/image52. Quyền đổi trạng thái PM hoặc assignee, chỉ chuyển bước kế tiếp, cảnh báo BLOCKED cần xác nhận, phân trang 20, priority mặc định MEDIUM và giữ assignee DONE sau xóa membership là lựa chọn triển khai ghi tại [bước 6](buoc-6.md). UC23 chưa nghiệm thu đầy đủ vì Dashboard/Progress chưa có; UC19 chưa chọn Sprint.
+Task bước 6 đối chiếu image38/image39/image40/image52. Quyền đổi trạng thái PM hoặc assignee, chỉ chuyển bước kế tiếp, cảnh báo BLOCKED cần xác nhận, phân trang 20, priority mặc định MEDIUM và giữ assignee DONE sau xóa membership là lựa chọn triển khai ghi tại [bước 6](buoc-6.md). UC23 chưa nghiệm thu đầy đủ vì Dashboard/Progress chưa có; UC19 đã bổ sung chọn Sprint ở bước 9.
 
 Project bước 5 đối chiếu UC12/UC13 chi tiết (image36/image37), sequence image17, ERD image29 và quy ước image51. UC14–UC17 chỉ có danh mục/quy tắc chung. Trạng thái ACTIVE/CLOSED, ngày tùy chọn, đóng chặn thay đổi nội dung, Owner vẫn chuyển PM sau đóng, PM tự vào Project, PM cũ giữ membership, phạm vi xem Member theo membership Project và giới hạn trường là lựa chọn triển khai ghi tại [bước 5](buoc-5.md).
 

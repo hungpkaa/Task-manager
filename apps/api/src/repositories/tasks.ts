@@ -140,7 +140,12 @@ export function createTaskRepository(client: PrismaClient) {
     },
     create: (projectId: string, actorId: string, input: CreateTaskInput) => mutate(projectId, actorId, true, async (tx) => {
       await assignee(tx, projectId, input.assigneeId);
-      const task = await tx.task.create({ data: { ...dateData(input), title: input.title, projectId, assigneeId: input.assigneeId } });
+      if (input.sprintId) {
+        const sprint = await tx.sprint.findFirst({ where: { id: input.sprintId, projectId } });
+        if (!sprint) throw new HttpError(400, 'Sprint được chọn phải thuộc Project này.', { sprintId: 'Chọn Sprint trong Project.' });
+        if (sprint.status === 'COMPLETED') throw new HttpError(409, 'Sprint đã hoàn thành. Chọn Sprint khác hoặc Product Backlog.');
+      }
+      const task = await tx.task.create({ data: { ...dateData(input), title: input.title, projectId, assigneeId: input.assigneeId, sprintId: input.sprintId ?? null } });
       if (task.assigneeId) await notify(tx, task.assigneeId, task.id, task.title);
       return result(tx, task.id, actorId);
     }),

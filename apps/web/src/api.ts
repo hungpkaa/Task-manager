@@ -198,7 +198,7 @@ export const taskApi = {
   list: (projectId: string, query: URLSearchParams) => request<TaskPage>(`/projects/${projectId}/tasks?${query}`),
   mine: (query: URLSearchParams) => request<TaskPage>(`/tasks/mine?${query}`),
   detail: (id: string) => request<{ task: Task }>(`/tasks/${id}`),
-  create: (projectId: string, data: TaskInput & { assigneeId: string | null }) => request<{ task: Task }>(`/projects/${projectId}/tasks`, json('POST', data)),
+  create: (projectId: string, data: TaskInput & { assigneeId: string | null; sprintId?: string | null }) => request<{ task: Task }>(`/projects/${projectId}/tasks`, json('POST', data)),
   update: (id: string, data: TaskInput) => request<{ task: Task }>(`/tasks/${id}`, json('PATCH', data)),
   assign: (id: string, assigneeId: string | null) => request<{ task: Task }>(`/tasks/${id}/assignee`, json('PATCH', { assigneeId })),
   status: (id: string, status: TaskStatus, expectedStatus: TaskStatus, acknowledgeBlocked = false) => request<{ task: Task; warning: string | null }>(`/tasks/${id}/status`, json('PATCH', { status, expectedStatus, acknowledgeBlocked })),

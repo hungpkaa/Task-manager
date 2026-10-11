@@ -4,7 +4,7 @@
 
 [Đặc tả gốc](sơ%20đồ.md), bảng [UC19](assets/so-do/image38.png), [UC22](assets/so-do/image39.png), [UC23](assets/so-do/image40.png), [Activity tạo Task](assets/so-do/image52.png). Nguồn yêu cầu PM tạo/giao Task, assignee thuộc Project, TODO mặc định, kiểm tra ngày, thông báo khi phân công và cảnh báo dependency. Task không thuộc Sprint nằm trong Product Backlog.
 
-Có frontend → REST controller → service → repository → PostgreSQL cho UC18–24, UC27–29 và UC31. UC19 còn phần chọn Sprint; UC23 còn cập nhật Dashboard/Progress. Calendar, bình luận, mention, attachment và giao diện quản lý dependency chưa triển khai. Đợt bước 6 không có nghĩa các phần phụ thuộc đã hoàn thành.
+Có frontend → REST controller → service → repository → PostgreSQL cho UC18–24, UC27–29 và UC31. Tại mốc bước 6, UC19 còn phần chọn Sprint (đã bổ sung ở bước 9); UC23 còn cập nhật Dashboard/Progress. Calendar, bình luận, mention, attachment và giao diện quản lý dependency chưa triển khai tại mốc này. Đợt bước 6 không có nghĩa các phần phụ thuộc đã hoàn thành.
 
 ## Hành vi và lựa chọn triển khai
 

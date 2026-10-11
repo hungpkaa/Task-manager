@@ -58,3 +58,7 @@ Thành viên và PM mở **Theo dõi Sprint** → phần **Sprint Retrospective*
 ## Kết thúc Sprint
 
 PM chọn Sprint ACTIVE → **Kết thúc Sprint**, xem số Task DONE/chưa DONE. Chọn Product Backlog hoặc một Sprint PLANNED cùng Project để nhận toàn bộ Task chưa DONE, rồi **Xác nhận kết thúc Sprint**; có thể chọn **Hủy kết thúc Sprint** để tiếp tục làm việc. Task giữ nguyên trạng thái và Task DONE ở lại Sprint. Nếu dữ liệu vừa thay đổi, kiểm tra kết thúc lại. Sau khi thành công, Sprint COMPLETED và thành viên nhận thông báo. Mở **Theo dõi Sprint** → **Kết quả khi kết thúc Sprint** để xem lịch sử chuyển tiếp.
+
+## Chọn Sprint khi tạo Task
+
+PM mở Project → **+ Tạo Task** → **Sprint khi tạo Task**, chọn Sprint PLANNED/ACTIVE hoặc giữ mặc định **Product Backlog**. Dùng nút trang trước/sau để tìm Sprint và **Tải lại lựa chọn Sprint** để cập nhật danh sách. Kiểm tra Effort, assignee và deadline trước khi tạo. Nếu Sprint vừa hoàn thành, chọn Sprint khác hoặc Product Backlog rồi gửi lại. Task đã tạo sẽ xuất hiện trong Sprint Backlog được chọn; nhấn tải lại Sprint & Backlog nếu đang mở màn hình đó.

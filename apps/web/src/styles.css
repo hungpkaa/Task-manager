@@ -149,6 +149,11 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 
 .daily-entry { border-bottom: 1px solid #dce3ed; padding: 12px 0; }
 .daily-entry p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.sprint-picker-pagination { flex-wrap: wrap; }
+.task-sprint-picker label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.task-sprint-picker select { width: 100%; }
+.task-filters label { min-width: 0; max-width: 100%; }
+.task-filters select { width: 100%; }
 
 .daily-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .daily-form textarea { width: 100%; box-sizing: border-box; min-height: 80px; resize: vertical; font: inherit; padding: 10px; border: 1px solid #d8e0d0; border-radius: 7px; }

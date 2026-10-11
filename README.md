@@ -2,7 +2,7 @@
 
 Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Sprint.
 
-Bước 9 đã có Backlog/kế hoạch, bắt đầu/theo dõi/kết thúc Sprint, Daily Update, Review và Retrospective. Chọn Sprint khi tạo Task và tích hợp Capacity/Workload còn lại; xem [tiến độ bước 9](doc/buoc-9.md).
+Bước 9 đã có Backlog/kế hoạch, bắt đầu/theo dõi/kết thúc Sprint, Daily Update, Review, Retrospective và chọn Sprint khi tạo Task. Tích hợp Capacity/Workload/Risk còn lại ở bước 10; xem [tiến độ bước 9](doc/buoc-9.md).
 
 ## Trạng thái
 

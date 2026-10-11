@@ -57,9 +57,35 @@ Ngày 2026-10-11: migration thứ 9 áp dụng thành công vào PostgreSQL cụ
 
 12 kiểm thử trình duyệt qua (6 luồng × máy tính/điện thoại), gồm hồi quy Workspace/Project/Task và tài khoản/email. Bài kiểm tra Sprint bao gồm tạo Sprint, chọn hai Task, xem/hủy cảnh báo, xác nhận, tải lại trang, đưa Task về Backlog và kiểm tra chiều rộng. Ảnh chụp cảnh báo lưu trong `.local/e2e-results`, báo cáo tại `.local/e2e-report`; mở bằng `npm.cmd run test:e2e:report`. Lần kiểm tra ứng dụng đang chạy cũng xác nhận React, API, PostgreSQL và Vite proxy hoạt động.
 
-## Phần còn lại
+## Phần 3: Daily Update (UC49)
 
-Bước 9 **chưa hoàn thành**: chọn Sprint ngay trong form tạo Task (UC19) vẫn chưa tích hợp. UC46–48 phải kiểm chứng lại sau khi có Capacity/Workload/Risk ở bước 10. Các luồng UC49–52 đã có.
+Đối chiếu đặc tả UC49 (`image47.png`). Trong **Theo dõi Sprint**, thành viên Project (bao gồm PM là thành viên) nhập tiến độ đã thực hiện, kế hoạch tiếp theo và blocker. Progress và kế hoạch bắt buộc, mỗi trường tối đa 2000 ký tự; blocker có thể để trống. Mỗi lần gửi là một bản ghi riêng, không sửa/xóa lịch sử và không thay đổi trạng thái Task. Tác giả lấy từ phiên đăng nhập, thời điểm lấy từ DB.
+
+Chỉ Project/Sprint ACTIVE cho phép ghi. Owner chưa thuộc Project và System Admin không được vượt phạm vi. Lịch sử được giữ khi Sprint hoàn thành, hiển thị mới nhất trước, phân trang 20 và thời gian Việt Nam. Thao tác ghi dùng cùng khóa Workspace để kiểm tra lại thành viên/trạng thái trong transaction.
+
+API: `GET /api/projects/:projectId/sprints/:id/daily?page=1` và `POST` cùng đường dẫn, nhận `{progress, nextPlan, blockers}`. Migration thứ 11 tạo bảng Daily Update, FK và ràng buộc độ dài. Build/typecheck, 17 unit và 39 integration test đã qua; 11 migration trên DB mới đã qua. Kiểm thử UC49 kiểm tra phân quyền, trạng thái, dữ liệu nhập, Origin, nhiều lần cập nhật, phân trang và lịch sử sau khi hoàn thành.
+
+Hai kiểm thử Sprint trên trình duyệt (máy tính/điện thoại) đã qua, bao gồm thành viên gửi Daily Update, thấy tác giả/nội dung, tải lại trang vẫn giữ lịch sử và Task không đổi trạng thái. Đã kiểm tra không tràn ngang; ảnh tại `.local/e2e-results/*/sprint-daily.png`. Lần này chỉ chạy lại hai luồng Sprint, không chạy lại toàn bộ 12 kiểm thử trình duyệt.
+
+## Phần 4: Sprint Review (UC50)
+
+Đối chiếu UC50 (`image48.png`). Trong **Theo dõi Sprint**, PM hiện tại nhập tổng kết và phản hồi (bắt buộc, tối đa 4000 ký tự mỗi trường). Mỗi Sprint có một bản Review tổng hợp; PM có thể cập nhật khi Sprint PLANNED/ACTIVE và Project còn ACTIVE. COMPLETED chỉ xem. Thành viên Project xem nội dung; Owner chưa thuộc Project và System Admin không vượt phạm vi. Review không thay đổi trạng thái Task hoặc Sprint.
+
+Màn hình hiển thị số Task DONE/chưa DONE hiện tại và số liệu tại lần lưu gần nhất. Backend tính và lưu số liệu trong cùng transaction với Review, lấy tác giả từ phiên. Dùng khóa Workspace để tuần tự hóa với Task, chuyển PM và vòng đời Project/Sprint. `expectedUpdatedAt` (null khi tạo mới) ngăn hai cửa sổ ghi đè; bản cũ nhận 409 và phải tải lại. Tải lại sẽ thay nội dung đang nhập bằng bản đã lưu.
+
+API: `GET /api/projects/:projectId/sprints/:id/review`; `PUT` cùng đường dẫn nhận `{summary, feedback, expectedUpdatedAt}`. Migration thứ 12 tạo `sprint_reviews`, UNIQUE sprint_id, FK và kiểm tra độ dài/số lượng không âm.
+
+Kiểm chứng ngày 2026-10-11: build/typecheck qua, 40 integration test qua và cả 12 migration trên DB mới qua. Test UC50 kiểm tra quyền, Origin, input, snapshot khác số liệu hiện tại, một bản ghi mỗi Sprint, hai bản sửa đồng thời, PM chuyển giao và lịch sử COMPLETED. Hai luồng Sprint trên trình duyệt (desktop/mobile) qua, gồm PM tạo/sửa Review, thành viên tải lại vẫn thấy nội dung và không có nút sửa; kiểm tra không tràn ngang. Chưa chạy lại toàn bộ bộ kiểm thử trình duyệt trong lần bổ sung UC50.
+
+## Phần 5: Sprint Retrospective (UC51)
+
+Đối chiếu UC51 (`image49.png`). Thành viên Project và PM mở **Theo dõi Sprint**, nhập điều làm tốt, điều cần cải thiện và việc sẽ thực hiện. Ba trường bắt buộc, tối đa 4000 ký tự mỗi trường. Mỗi Sprint có một bản tổng hợp chung (đúng ràng buộc UNIQUE sprint_id trong đặc tả); người cập nhật gần nhất và thời gian Việt Nam được hiển thị. Nội dung tập trung vào quy trình làm việc, không thay đổi Task/Review/Sprint.
+
+Cho phép cả thành viên và PM sửa khi Project ACTIVE và Sprint chưa COMPLETED. Owner chưa thuộc Project và System Admin không vượt phạm vi. Sau khi hoàn thành/đóng Project, chỉ xem bản đã lưu. Ghi dùng khóa Workspace cùng transaction để kiểm tra lại membership/trạng thái. `expectedUpdatedAt` null khi tạo, timestamp khi sửa; bản sửa cũ nhận 409, giữ nội dung đang nhập để người dùng đối chiếu trước khi tải lại.
+
+API `GET /api/projects/:projectId/sprints/:id/retrospective` và `PUT` cùng đường dẫn nhận `{wentWell, needsImprovement, actionItems, expectedUpdatedAt}`. Migration thứ 13 tạo bảng, UNIQUE, FK và kiểm tra độ dài.
+
+Kiểm chứng ngày 2026-10-11: build/typecheck qua, 41 integration test qua, 13 migration trên DB mới qua. UC51 kiểm tra quyền thành viên/PM, input/Origin, một bản chung, hai người sửa đồng thời, thu hồi membership, lịch sử COMPLETED/Project CLOSED và ràng buộc DB. Hai luồng Sprint desktop/mobile qua: thành viên lưu, PM sửa, thành viên gửi bản cũ nhận lỗi và tải lại thấy đúng nội dung mới; không tràn ngang. Chỉ chạy lại hai luồng Sprint, không chạy lại toàn bộ kiểm thử trình duyệt.
 
 ## Phần 6: Kết thúc Sprint (UC52)
 
@@ -73,32 +99,16 @@ Danh sách Sprint nhận trong hộp xác nhận hiện lấy từ trang danh s�
 
 Kiểm chứng ngày 2026-10-11: build/typecheck qua, 42 integration test qua, 14 migration trên DB mới qua. UC52 kiểm tra quyền/Origin, preview không ghi, snapshot cũ, sai Project, chuyển sang Sprint và về Backlog, giữ trạng thái Task, lịch sử, thông báo và rollback khi lỗi thông báo; hai yêu cầu kết thúc chỉ một thành công. Hai luồng desktop/mobile qua, gồm hủy/xác nhận, Task về Backlog, COMPLETED, lịch sử và Retrospective chỉ xem; không tràn ngang. Ảnh tại `.local/e2e-results/*/sprint-completed.png`. Chỉ chạy lại hai luồng Sprint trong lần này.
 
-## Phần 5: Sprint Retrospective (UC51)
+## Phần 7: Chọn Sprint khi tạo Task (UC19)
 
-Đối chiếu UC51 (`image49.png`). Thành viên Project và PM mở **Theo dõi Sprint**, nhập điều làm tốt, điều cần cải thiện và việc sẽ thực hiện. Ba trường bắt buộc, tối đa 4000 ký tự mỗi trường. Mỗi Sprint có một bản tổng hợp chung (đúng ràng buộc UNIQUE sprint_id trong đặc tả); người cập nhật gần nhất và thời gian Việt Nam được hiển thị. Nội dung tập trung vào quy trình làm việc, không thay đổi Task/Review/Sprint.
+Đối chiếu UC19 (`image38.png`). Form tạo Task có lựa chọn Sprint PLANNED/ACTIVE cùng Project, phân trang 20, tải lại và mặc định Product Backlog. Chỉ PM hiện tại tạo Task; Sprint COMPLETED không được nhận Task mới. API `POST /api/projects/:projectId/tasks` bổ sung `sprintId` tùy chọn/null; backend kiểm tra Sprint trong transaction có khóa Workspace cùng với tạo Task và thông báo phân công. Không có migration mới. PATCH Task vẫn từ chối sprintId; điều chuyển Task hiện có dùng luồng Sprint Backlog/kết thúc Sprint.
 
-Cho phép cả thành viên và PM sửa khi Project ACTIVE và Sprint chưa COMPLETED. Owner chưa thuộc Project và System Admin không vượt phạm vi. Sau khi hoàn thành/đóng Project, chỉ xem bản đã lưu. Ghi dùng khóa Workspace cùng transaction để kiểm tra lại membership/trạng thái. `expectedUpdatedAt` null khi tạo, timestamp khi sửa; bản sửa cũ nhận 409, giữ nội dung đang nhập để người dùng đối chiếu trước khi tải lại.
+Nếu Sprint vừa hoàn thành sau khi chọn, yêu cầu tạo bị từ chối và giữ form để người dùng chọn lại. Khi chọn Sprint, giao diện nhắc kiểm tra Effort/người phụ trách/deadline và giới hạn phân tích năng lực nhóm; chưa kết luận quá tải. Task mới luôn TODO, không có dependency được thêm qua form tạo.
 
-API `GET /api/projects/:projectId/sprints/:id/retrospective` và `PUT` cùng đường dẫn nhận `{wentWell, needsImprovement, actionItems, expectedUpdatedAt}`. Migration thứ 13 tạo bảng, UNIQUE, FK và kiểm tra độ dài.
+Kiểm chứng ngày 2026-10-11: build/typecheck và 43 integration test qua. UC19 kiểm tra tạo trong PLANNED/ACTIVE, bỏ chọn/null về Product Backlog, thông báo phân công, sai Project/COMPLETED/ID, quyền PM, Sprint vừa hoàn thành và Project CLOSED; PATCH vẫn từ chối đổi sprintId. Không cần migration mới.
 
-Kiểm chứng ngày 2026-10-11: build/typecheck qua, 41 integration test qua, 13 migration trên DB mới qua. UC51 kiểm tra quyền thành viên/PM, input/Origin, một bản chung, hai người sửa đồng thời, thu hồi membership, lịch sử COMPLETED/Project CLOSED và ràng buộc DB. Hai luồng Sprint desktop/mobile qua: thành viên lưu, PM sửa, thành viên gửi bản cũ nhận lỗi và tải lại thấy đúng nội dung mới; không tràn ngang. Chỉ chạy lại hai luồng Sprint, không chạy lại toàn bộ kiểm thử trình duyệt.
+Toàn bộ 12 kiểm thử trình duyệt desktop/mobile qua sau khi sửa chiều rộng ô chọn assignee với email dài. Luồng Sprint kiểm tra chọn Sprint khi tạo Task, loại COMPLETED khỏi lựa chọn, tạo thành công và tải lại thấy Task trong Sprint Backlog. Form có kiểm tra không tràn ngang và ảnh tại `.local/e2e-results/*/task-sprint-picker.png`. Các luồng hồi quy nhóm, tài khoản/email, phân trang/keyboard/deadline/xóa cũng qua. Báo cáo tại `.local/e2e-report`.
 
-## Phần 4: Sprint Review (UC50)
+## Phần còn lại
 
-Đối chiếu UC50 (`image48.png`). Trong **Theo dõi Sprint**, PM hiện tại nhập tổng kết và phản hồi (bắt buộc, tối đa 4000 ký tự mỗi trường). Mỗi Sprint có một bản Review tổng hợp; PM có thể cập nhật khi Sprint PLANNED/ACTIVE và Project còn ACTIVE. COMPLETED chỉ xem. Thành viên Project xem nội dung; Owner chưa thuộc Project và System Admin không vượt phạm vi. Review không thay đổi trạng thái Task hoặc Sprint.
-
-Màn hình hiển thị số Task DONE/chưa DONE hiện tại và số liệu tại lần lưu gần nhất. Backend tính và lưu số liệu trong cùng transaction với Review, lấy tác giả từ phiên. Dùng khóa Workspace để tuần tự hóa với Task, chuyển PM và vòng đời Project/Sprint. `expectedUpdatedAt` (null khi tạo mới) ngăn hai cửa sổ ghi đè; bản cũ nhận 409 và phải tải lại. Tải lại sẽ thay nội dung đang nhập bằng bản đã lưu.
-
-API: `GET /api/projects/:projectId/sprints/:id/review`; `PUT` cùng đường dẫn nhận `{summary, feedback, expectedUpdatedAt}`. Migration thứ 12 tạo `sprint_reviews`, UNIQUE sprint_id, FK và kiểm tra độ dài/số lượng không âm.
-
-Kiểm chứng ngày 2026-10-11: build/typecheck qua, 40 integration test qua và cả 12 migration trên DB mới qua. Test UC50 kiểm tra quyền, Origin, input, snapshot khác số liệu hiện tại, một bản ghi mỗi Sprint, hai bản sửa đồng thời, PM chuyển giao và lịch sử COMPLETED. Hai luồng Sprint trên trình duyệt (desktop/mobile) qua, gồm PM tạo/sửa Review, thành viên tải lại vẫn thấy nội dung và không có nút sửa; kiểm tra không tràn ngang. Chưa chạy lại toàn bộ bộ kiểm thử trình duyệt trong lần bổ sung UC50.
-
-## Phần 3: Daily Update (UC49)
-
-Đối chiếu đặc tả UC49 (`image47.png`). Trong **Theo dõi Sprint**, thành viên Project (bao gồm PM là thành viên) nhập tiến độ đã thực hiện, kế hoạch tiếp theo và blocker. Progress và kế hoạch bắt buộc, mỗi trường tối đa 2000 ký tự; blocker có thể để trống. Mỗi lần gửi là một bản ghi riêng, không sửa/xóa lịch sử và không thay đổi trạng thái Task. Tác giả lấy từ phiên đăng nhập, thời điểm lấy từ DB.
-
-Chỉ Project/Sprint ACTIVE cho phép ghi. Owner chưa thuộc Project và System Admin không được vượt phạm vi. Lịch sử được giữ khi Sprint hoàn thành, hiển thị mới nhất trước, phân trang 20 và thời gian Việt Nam. Thao tác ghi dùng cùng khóa Workspace để kiểm tra lại thành viên/trạng thái trong transaction.
-
-API: `GET /api/projects/:projectId/sprints/:id/daily?page=1` và `POST` cùng đường dẫn, nhận `{progress, nextPlan, blockers}`. Migration thứ 11 tạo bảng Daily Update, FK và ràng buộc độ dài. Build/typecheck, 17 unit và 39 integration test đã qua; 11 migration trên DB mới đã qua. Kiểm thử UC49 kiểm tra phân quyền, trạng thái, dữ liệu nhập, Origin, nhiều lần cập nhật, phân trang và lịch sử sau khi hoàn thành.
-
-Hai kiểm thử Sprint trên trình duyệt (máy tính/điện thoại) đã qua, bao gồm thành viên gửi Daily Update, thấy tác giả/nội dung, tải lại trang vẫn giữ lịch sử và Task không đổi trạng thái. Đã kiểm tra không tràn ngang; ảnh tại `.local/e2e-results/*/sprint-daily.png`. Lần này chỉ chạy lại hai luồng Sprint, không chạy lại toàn bộ 12 kiểm thử trình duyệt.
+Bước 9 đã có các luồng Scrum cơ bản, bao gồm chọn Sprint ngay khi tạo Task. **Chưa nghiệm thu đầy đủ UC46–48**: phải tích hợp và kiểm chứng lại Capacity/Workload/Risk ở bước 10. Các luồng UC49–52 đã có.
