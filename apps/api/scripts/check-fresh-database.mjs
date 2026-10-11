@@ -38,6 +38,15 @@ try {
   const planned = await database.sprints.plan(project.id, user.id, sprint.id, { tasks: [{ id: task.id, updatedAt: task.updatedAt.toISOString() }], confirmed: true });
   assert.equal(planned.applied, true);
   assert.equal((await fresh.task.findUniqueOrThrow({ where: { id: task.id } })).sprintId, sprint.id);
+  const started = await database.sprints.start(project.id, user.id, sprint.id, sprint.updatedAt.toISOString(), true);
+  assert.equal(started.sprint.status, 'ACTIVE'); assert.ok(started.sprint.startedAt);
+  assert.equal((await database.sprints.monitor(project.id, user.id, sprint.id, { page: 1 })).summary.total, 1);
+  await database.sprints.addDaily(project.id, user.id, sprint.id, { progress: 'Fresh progress', nextPlan: 'Fresh plan', blockers: '' });
+  assert.equal((await database.sprints.daily(project.id, user.id, sprint.id, 1)).total, 1);
+  await database.sprints.saveReview(project.id, user.id, sprint.id, { summary: 'Fresh summary', feedback: 'Fresh feedback', expectedUpdatedAt: null });
+  assert.equal((await database.sprints.review(project.id, user.id, sprint.id)).review.incompleteCount, 1);
+  await database.sprints.saveRetrospective(project.id, user.id, sprint.id, { wentWell: 'Fresh collaboration', needsImprovement: 'Fresh improvements', actionItems: 'Fresh actions', expectedUpdatedAt: null });
+  assert.equal((await database.sprints.retrospective(project.id, user.id, sprint.id)).retrospective.actionItems, 'Fresh actions');
   assert.equal(await fresh.notification.count({ where: { relatedEntityId: task.id } }), 1);
   const comment = await database.tasks.addComment(task.id, user.id, `Fresh comment @{${user.email}} @{${user.email}}`);
   assert.equal(comment.mentions.length, 1);

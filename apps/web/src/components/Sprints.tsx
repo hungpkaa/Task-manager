@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ApiError, sprintApi, type BacklogTask, type PlanningAssessment, type Sprint, type SprintInput } from '../api';
+import { ApiError, sprintApi, type BacklogTask, type PlanningAssessment, type Sprint, type SprintInput, type SprintStart } from '../api';
+import { SprintMonitor } from './SprintMonitor';
 const empty: SprintInput = { name: '', goal: '', startDate: '', endDate: '' };
 export function Sprints({ projectId, canPlan, onExpired }: { projectId: string; canPlan: boolean; onExpired: () => void }) {
   const [open, setOpen] = useState(false);
@@ -17,6 +18,9 @@ function SprintPlanning({ projectId, canPlan, onExpired }: { projectId: string; 
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<BacklogTask[]>([]);
   const [assessment, setAssessment] = useState<PlanningAssessment | null>(null);
+  const [pendingStart, setPendingStart] = useState<SprintStart | null>(null);
+  const [monitoring, setMonitoring] = useState(false);
+  const [canMonitor, setCanMonitor] = useState(false);
   const [pendingReturn, setPendingReturn] = useState<BacklogTask | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -26,16 +30,16 @@ function SprintPlanning({ projectId, canPlan, onExpired }: { projectId: string; 
   const target = sprints.find((sprint) => sprint.id === targetId);
   function failed(failure: unknown) { if (failure instanceof ApiError && failure.status === 401) onExpired(); else setError(failure instanceof Error ? failure.message : 'Không thể xử lý Sprint.'); }
   useEffect(() => {
-    let active = true; setLoading(true); setSelected([]); setAssessment(null); setPendingReturn(null); setError('');
+    let active = true; setLoading(true); setSelected([]); setAssessment(null); setPendingStart(null); setPendingReturn(null); setError('');
     Promise.all([sprintApi.list(projectId, sprintPage), scope === 'sprint' && !targetId ? Promise.resolve({ items: [], total: 0, pageSize: 20 }) : sprintApi.backlog(projectId, page, scope === 'sprint' ? targetId : '')]).then(([list, backlog]) => {
-      if (active) { setSprints(list.items); setSprintTotal(list.total); setTasks(backlog.items); setTotal(backlog.total); }
+      if (active) { setSprints(list.items); setSprintTotal(list.total); setCanMonitor(list.canMonitor); setTasks(backlog.items); setTotal(backlog.total); }
     }).catch((failure: unknown) => { if (active) failed(failure); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [projectId, sprintPage, scope, targetId, page, revision]);
   async function mutate(operation: () => Promise<void>, refresh = true) {
     setBusy(true); setError(''); setNotice('');
     try { await operation(); if (refresh) setRevision((value) => value + 1); }
-    catch (failure) { failed(failure); setAssessment(null); setPendingReturn(null); }
+    catch (failure) { failed(failure); setAssessment(null); setPendingStart(null); setPendingReturn(null); }
     finally { setBusy(false); }
   }
   function create(event: FormEvent) { event.preventDefault(); void mutate(async () => { const result = await sprintApi.create(projectId, input); setInput(empty); setSprintPage(1); setTargetId(result.sprint.id); setNotice('Đã tạo Sprint PLANNED. Chọn Task từ Product Backlog để lập kế hoạch.'); }); }
@@ -51,6 +55,10 @@ function SprintPlanning({ projectId, canPlan, onExpired }: { projectId: string; 
     </fieldset></form>}
     <div className="form-field"><label htmlFor="sprint-target">Sprint đang xem / nhận Task</label><select id="sprint-target" disabled={busy || loading || Boolean(assessment)} value={targetId} onChange={(event) => { setTargetId(event.target.value); setPage(1); }}><option value="">Chọn Sprint</option>{sprints.map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.name} · {sprint.status}</option>)}</select></div>
     {target && <div className="form-notice"><strong>{target.name} · {target.status}</strong><p>{target.goal}</p><p>{target.startDate.slice(0, 10)} → {target.endDate.slice(0, 10)} · {target._count?.tasks ?? 0} Task</p></div>}
+    {target && canPlan && target.status === 'PLANNED' && <button className="primary-button" disabled={busy || loading || Boolean(assessment) || Boolean(pendingStart)} onClick={() => void mutate(async () => { setPendingStart(await sprintApi.start(projectId, target, false)); }, false)}>Bắt đầu Sprint</button>}
+    {pendingStart && <div className="confirm-panel" role="group" aria-label="Xác nhận bắt đầu Sprint"><h4>Bắt đầu “{pendingStart.sprint.name}”?</h4><p>{pendingStart.taskCount} Task. Sprint sẽ chuyển sang ACTIVE.</p><ul>{pendingStart.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul><button className="primary-button" disabled={busy} onClick={() => void mutate(async () => { await sprintApi.start(projectId, pendingStart.sprint, true); setMonitoring(true); setNotice('Đã bắt đầu Sprint.'); })}>Xác nhận bắt đầu Sprint</button> <button className="refresh-button" disabled={busy} onClick={() => setPendingStart(null)}>Hủy bắt đầu Sprint</button></div>}
+    {target && canMonitor && <button className="refresh-button" aria-expanded={monitoring} disabled={busy || loading} onClick={() => setMonitoring(!monitoring)}>{monitoring ? 'Ẩn theo dõi Sprint' : 'Theo dõi Sprint'}</button>}
+    {target && monitoring && canMonitor && <SprintMonitor key={`${target.id}-${revision}`} projectId={projectId} sprintId={target.id} onExpired={onExpired} />}
     <div className="inline-fields"><button className="refresh-button" disabled={busy || Boolean(assessment) || sprintPage <= 1} onClick={() => { setSprintPage(sprintPage - 1); setTargetId(''); setPage(1); }}>Sprint trước</button><span>Trang Sprint {sprintPage} / {Math.max(1, Math.ceil(sprintTotal / 20))}</span><button className="refresh-button" disabled={busy || Boolean(assessment) || sprintPage * 20 >= sprintTotal} onClick={() => { setSprintPage(sprintPage + 1); setTargetId(''); setPage(1); }}>Sprint sau</button></div>
     <div className="inline-fields"><button className="refresh-button" disabled={busy || Boolean(assessment)} aria-pressed={scope === 'product'} onClick={() => { setScope('product'); setPage(1); }}>Product Backlog</button><button className="refresh-button" disabled={busy || Boolean(assessment) || !target} aria-pressed={scope === 'sprint'} onClick={() => { setScope('sprint'); setPage(1); }}>Sprint Backlog</button></div>
     <h4>{scope === 'product' ? 'Product Backlog' : 'Sprint Backlog'} ({total})</h4>

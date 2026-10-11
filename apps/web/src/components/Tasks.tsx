@@ -7,7 +7,7 @@ export const statusLabels: Record<TaskStatus, string> = { TODO: 'Cần làm', IN
 const priorityLabels: Record<TaskPriority, string> = { LOW: 'Thấp', MEDIUM: 'Trung bình', HIGH: 'Cao', URGENT: 'Khẩn cấp' };
 const empty: TaskInput = { title: '', description: '', priority: 'MEDIUM', startDate: null, dueDate: null, effort: null };
 
-export function Tasks({ projectId, canCreate = false, initialId, onExpired }: { projectId?: string; canCreate?: boolean; initialId?: string; onExpired: () => void }) {
+export function Tasks({ projectId, canCreate = false, initialId, onExpired, onBack }: { projectId?: string; canCreate?: boolean; initialId?: string; onExpired: () => void; onBack?: () => void }) {
   const [selected, setSelected] = useState(initialId ?? '');
   const [creating, setCreating] = useState(false);
   const [pageData, setPageData] = useState<TaskPage>({ tasks: [], total: 0, page: 1, pageSize: 20 });
@@ -55,7 +55,7 @@ export function Tasks({ projectId, canCreate = false, initialId, onExpired }: { 
     finally { setBusy(false); }
   }
   function open(id: string) { setSelected(id); setCreating(false); setNotice(''); }
-  function back() { setSelected(''); setCreating(false); setNotice(''); }
+  function back() { if (onBack) { onBack(); return; } setSelected(''); setCreating(false); setNotice(''); }
   function save(event: FormEvent) { event.preventDefault(); void mutate(async () => {
     if (selected) { await taskApi.update(selected, input); setNotice('Đã lưu công việc.'); }
     else if (projectId) { const result = await taskApi.create(projectId, { ...input, assigneeId: assigneeId || null }); setCreating(false); setSelected(result.task.id); setNotice('Đã tạo công việc.'); }

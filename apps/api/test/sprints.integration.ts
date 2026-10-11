@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
+import { createSprintRepository } from '../src/repositories/sprints.js';
 import { createApp } from '../src/app.js';
 import { readConfig } from '../src/config.js';
 import { createDatabase } from '../src/repositories/database.js';
@@ -110,4 +111,188 @@ test('concurrent planning has one winner; DB protects same Project, dates and on
   assert.equal((await request(base, path, pm.cookie)).status, 200);
   assert.equal((await request(base, path, pm.cookie, 'POST', input)).status, 409);
   assert.equal((await request(base, `/projects/${projectId}/sprints/${second.id}/plan`, pm.cookie, 'POST', body)).status, 409);
+}));
+
+test('UC47: only current PM starts a nonempty PLANNED Sprint, preview is read only and notifications persist once', async () => fixture(async ({ base, client, database, projectId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const sprint = await database.sprints.create(projectId, pm.id, input);
+  const path = `/projects/${projectId}/sprints/${sprint.id}/start`;
+  const body = { expectedUpdatedAt: sprint.updatedAt.toISOString(), confirmed: true };
+  assert.equal((await request(base, path, undefined, 'POST', body)).status, 401);
+  for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, path, user.cookie, 'POST', body)).status, 403);
+  assert.equal((await request(base, path, pm.cookie, 'POST', body)).status, 409);
+  await client.task.create({ data: { projectId, sprintId: sprint.id, title: 'Ready to start' } });
+  assert.equal((await request(base, path, pm.cookie, 'POST', { ...body, expectedUpdatedAt: 'invalid' })).status, 400);
+  assert.equal((await request(base, path, pm.cookie, 'POST', body, 'https://foreign.invalid')).status, 403);
+  const preview = await request(base, path, pm.cookie, 'POST', { ...body, confirmed: false }); assert.equal(preview.status, 200);
+  assert.equal((await client.sprint.findUniqueOrThrow({ where: { id: sprint.id } })).status, 'PLANNED');
+  assert.equal(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: projectId } }), 0);
+  const started = await request(base, path, pm.cookie, 'POST', body); assert.equal(started.status, 200);
+  const saved = await client.sprint.findUniqueOrThrow({ where: { id: sprint.id } }); assert.equal(saved.status, 'ACTIVE'); assert.ok(saved.startedAt);
+  assert.equal(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: projectId } }), 2);
+  assert.equal((await request(base, path, pm.cookie, 'POST', body)).status, 409);
+  assert.equal(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: projectId } }), 2);
+  const second = await database.sprints.create(projectId, pm.id, { ...input, name: 'Next' });
+  await client.task.create({ data: { projectId, sprintId: second.id, title: 'Next Task' } });
+  assert.equal((await request(base, `/projects/${projectId}/sprints/${second.id}/start`, pm.cookie, 'POST', { expectedUpdatedAt: second.updatedAt.toISOString(), confirmed: true })).status, 409);
+  await assert.rejects(database.projects.close(projectId, pm.id), /Task chưa DONE/);
+  await client.task.updateMany({ where: { projectId }, data: { status: 'DONE' } });
+  await assert.rejects(database.projects.close(projectId, pm.id), /Sprint ACTIVE/);
+}));
+
+test('UC48: Project membership, complete Sprint summary, filters, pagination and Vietnam date boundaries', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const sprint = await database.sprints.create(projectId, pm.id, input);
+  const dependency = await client.task.create({ data: { projectId, title: 'Prerequisite' } });
+  const blocked = await client.task.create({ data: { projectId, sprintId: sprint.id, title: 'Blocked task', status: 'IN_PROGRESS', priority: 'HIGH', assigneeId: member.id, dueDate: new Date('2026-10-10') } });
+  const done = await client.task.create({ data: { projectId, sprintId: sprint.id, title: 'Done task', status: 'DONE', dueDate: new Date('2026-10-01') } });
+  for (const task of [blocked, done]) await client.taskDependency.create({ data: { projectId, taskId: task.id, dependsOnTaskId: dependency.id } });
+  await client.task.createMany({ data: Array.from({ length: 20 }, (_, index) => ({ projectId, sprintId: sprint.id, title: `TODO ${index}`, dueDate: new Date('2026-10-11') })) });
+  const now = new Date('2026-10-10T18:00:00Z');
+  const filtered = await database.sprints.monitor(projectId, member.id, sprint.id, { page: 1, status: 'DONE' }, now);
+  assert.equal(filtered.total, 1); assert.equal(filtered.items.length, 1); assert.equal(filtered.summary.total, 22);
+  assert.deepEqual(filtered.summary.counts, { TODO: 20, IN_PROGRESS: 1, REVIEW: 0, DONE: 1 });
+  assert.equal(filtered.summary.progressPercent, 5); assert.equal(filtered.summary.today, '2026-10-11'); assert.equal(filtered.summary.daysRemaining, 14);
+  assert.equal(filtered.summary.blocked, 1); assert.equal(filtered.summary.overdue, 1); assert.equal(filtered.items[0]!.blocked, false); assert.equal(filtered.items[0]!.overdue, false);
+  const first = await database.sprints.monitor(projectId, member.id, sprint.id, { page: 1 }, now); assert.equal(first.items.length, 20);
+  const second = await database.sprints.monitor(projectId, member.id, sprint.id, { page: 2 }, now); assert.equal(second.items.length, 2);
+  const assigned = await database.sprints.monitor(projectId, member.id, sprint.id, { page: 1, assigneeId: member.id, priority: 'HIGH' }, now); assert.equal(assigned.total, 1); assert.equal(assigned.items[0]!.blocked, true); assert.equal(assigned.assignees[0]!.id, member.id);
+  await client.task.update({ where: { id: dependency.id }, data: { status: 'DONE' } });
+  assert.equal((await database.sprints.monitor(projectId, member.id, sprint.id, { page: 1 }, now)).summary.blocked, 0);
+  const path = `/projects/${projectId}/sprints/${sprint.id}/monitor`;
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, outsider, admin]) assert.equal((await request(base, path, user.cookie)).status, 403);
+  assert.equal((await request(base, path, member.cookie)).status, 200);
+  assert.equal((await request(base, `${path}?status=BLOCKED`, member.cookie)).status, 400);
+  assert.equal((await request(base, `${path}?page=0`, member.cookie)).status, 400);
+  const foreign = await client.sprint.create({ data: { projectId: otherId, name: 'Private', goal: 'Private goal', startDate: new Date(input.startDate), endDate: new Date(input.endDate) } });
+  assert.equal((await request(base, `/projects/${projectId}/sprints/${foreign.id}/monitor`, member.cookie)).status, 404);
+}));
+
+test('concurrent Sprint starts and Project closing are serialized; old PM cannot start after transfer', async () => fixture(async ({ client, database, projectId, users }) => {
+  const [owner, pm, member] = users; assert.ok(owner && pm && member);
+  const sprints = await Promise.all(['A', 'B'].map((name) => database.sprints.create(projectId, pm.id, { ...input, name })));
+  for (const sprint of sprints) await client.task.create({ data: { projectId, sprintId: sprint.id, title: sprint.name, status: 'DONE' } });
+  const results = await Promise.allSettled(sprints.map((sprint) => database.sprints.start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), true)));
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(await client.sprint.count({ where: { projectId, status: 'ACTIVE' } }), 1);
+  const active = await client.sprint.findFirstOrThrow({ where: { projectId, status: 'ACTIVE' } });
+  await client.sprint.update({ where: { id: active.id }, data: { status: 'COMPLETED' } });
+  const planned = await client.sprint.findFirstOrThrow({ where: { projectId, status: 'PLANNED' } });
+  await database.projects.assignManager(projectId, owner.id, member.id, pm.id);
+  await assert.rejects(database.sprints.start(projectId, pm.id, planned.id, planned.updatedAt.toISOString(), true), /Chỉ PM hiện tại/);
+  const race = await Promise.allSettled([database.sprints.start(projectId, member.id, planned.id, planned.updatedAt.toISOString(), true), database.projects.close(projectId, member.id)]);
+  assert.equal(race.filter((result) => result.status === 'fulfilled').length, 1);
+  const project = await client.project.findUniqueOrThrow({ where: { id: projectId } });
+  assert.equal(await client.sprint.count({ where: { projectId, status: 'ACTIVE' } }), project.status === 'CLOSED' ? 0 : 1);
+}));
+
+test('failed Sprint notification rolls back ACTIVE and startedAt together', async () => fixture(async ({ client, database, projectId, users }) => {
+  const pm = users[1]!; const sprint = await database.sprints.create(projectId, pm.id, input);
+  await client.task.create({ data: { projectId, sprintId: sprint.id, title: 'Rollback start' } });
+  const wrapped = { $transaction: <T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) => client.$transaction((tx) => operation(new Proxy(tx, { get(target, key) {
+    if (key === 'notification') return new Proxy(target.notification, { get(delegate, action) { if (action === 'create') return async () => { throw new Error('Injected notification failure'); }; return Reflect.get(delegate, action); } });
+    return Reflect.get(target, key);
+  } }))) } as unknown as PrismaClient;
+  await assert.rejects(createSprintRepository(wrapped).start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), true), /Injected/);
+  const saved = await client.sprint.findUniqueOrThrow({ where: { id: sprint.id } }); assert.equal(saved.status, 'PLANNED'); assert.equal(saved.startedAt, null);
+  assert.equal(await client.notification.count({ where: { relatedEntityId: projectId, type: 'SPRINT_STARTED' } }), 0);
+}));
+
+test('UC51: shared member/PM retrospective, stale edits, scope and retained history', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const sprint = await database.sprints.create(projectId, pm.id, input);
+  const path = `/projects/${projectId}/sprints/${sprint.id}/retrospective`;
+  const draft = { wentWell: 'Phối hợp tốt', needsImprovement: 'Review sớm hơn', actionItems: 'Review mỗi ngày', expectedUpdatedAt: null };
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, outsider, admin]) {
+    assert.equal((await request(base, path, user.cookie)).status, 403);
+    assert.equal((await request(base, path, user.cookie, 'PUT', draft)).status, 403);
+  }
+  for (const bad of [{ ...draft, wentWell: ' ' }, { ...draft, needsImprovement: '' }, { ...draft, actionItems: 'x'.repeat(4001) }, { ...draft, authorId: pm.id }]) assert.equal((await request(base, path, member.cookie, 'PUT', bad)).status, 400);
+  assert.equal((await request(base, path, member.cookie, 'PUT', draft, 'https://foreign.invalid')).status, 403);
+  const created = await request(base, path, member.cookie, 'PUT', draft); assert.equal(created.status, 200);
+  const record = await created.json() as { id: string; updatedAt: string; author: { id: string } };
+  assert.equal(record.author.id, member.id);
+  const shared = await (await request(base, path, pm.cookie)).json() as { canEdit: boolean; retrospective: { actionItems: string } };
+  assert.equal(shared.canEdit, true); assert.equal(shared.retrospective.actionItems, draft.actionItems);
+  const update = { ...draft, expectedUpdatedAt: record.updatedAt, actionItems: 'Cải tiến Sprint sau' };
+  const race = await Promise.all([request(base, path, pm.cookie, 'PUT', update), request(base, path, member.cookie, 'PUT', update)]);
+  assert.deepEqual(race.map((response) => response.status).sort(), [200, 409]);
+  const saved = await client.sprintRetrospective.findUniqueOrThrow({ where: { sprintId: sprint.id } });
+  assert.equal(saved.id, record.id); assert.equal(saved.actionItems, update.actionItems);
+  assert.equal(await client.sprintRetrospective.count({ where: { sprintId: sprint.id } }), 1);
+  await database.projects.removeMember(projectId, pm.id, member.id);
+  assert.equal((await request(base, path, member.cookie, 'PUT', { ...draft, expectedUpdatedAt: saved.updatedAt.toISOString() })).status, 403);
+  assert.equal((await request(base, `/projects/${otherId}/sprints/${sprint.id}/retrospective`, pm.cookie, 'PUT', draft)).status, 403);
+  await client.sprint.update({ where: { id: sprint.id }, data: { status: 'COMPLETED' } });
+  assert.equal((await request(base, path, pm.cookie, 'PUT', draft)).status, 409);
+  const history = await (await request(base, path, pm.cookie)).json() as { canEdit: boolean; retrospective: { id: string } };
+  assert.equal(history.canEdit, false); assert.equal(history.retrospective.id, record.id);
+  await client.sprint.update({ where: { id: sprint.id }, data: { status: 'PLANNED' } });
+  await database.projects.close(projectId, pm.id);
+  assert.equal((await request(base, path, pm.cookie, 'PUT', draft)).status, 409);
+  await assert.rejects(client.sprintRetrospective.update({ where: { id: saved.id }, data: { actionItems: '' } }));
+}));
+
+test('UC50: current PM, one Review, saved counts, stale writes and completed history', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const sprint = await database.sprints.create(projectId, pm.id, input);
+  const path = `/projects/${projectId}/sprints/${sprint.id}/review`;
+  const draft = { summary: 'Kết quả Sprint', feedback: 'Cần cải thiện trải nghiệm', expectedUpdatedAt: null };
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, outsider, admin]) assert.equal((await request(base, path, user.cookie)).status, 403);
+  for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, path, user.cookie, 'PUT', draft)).status, 403);
+  assert.equal((await request(base, path, pm.cookie, 'PUT', draft, 'https://foreign.invalid')).status, 403);
+  for (const bad of [{ ...draft, summary: ' ' }, { ...draft, feedback: '' }, { ...draft, feedback: 'a'.repeat(4001) }, { ...draft, authorId: member.id }, { summary: 'x', feedback: 'y' }]) assert.equal((await request(base, path, pm.cookie, 'PUT', bad)).status, 400);
+  await client.task.createMany({ data: [{ projectId, sprintId: sprint.id, title: 'Done', status: 'DONE' }, { projectId, sprintId: sprint.id, title: 'Pending' }] });
+  const created = await request(base, path, pm.cookie, 'PUT', draft); assert.equal(created.status, 200);
+  const review = await created.json() as { id: string; updatedAt: string; doneCount: number; incompleteCount: number };
+  assert.equal(review.doneCount, 1); assert.equal(review.incompleteCount, 1);
+  assert.equal((await request(base, path, pm.cookie, 'PUT', draft)).status, 409);
+  await client.task.updateMany({ where: { projectId }, data: { status: 'DONE' } });
+  const loaded = await (await request(base, path, member.cookie)).json() as { review: { doneCount: number }; current: { doneCount: number }; canEdit: boolean };
+  assert.equal(loaded.review.doneCount, 1); assert.equal(loaded.current.doneCount, 2); assert.equal(loaded.canEdit, false);
+  const update = { ...draft, expectedUpdatedAt: review.updatedAt, summary: 'Updated' };
+  const race = await Promise.all([request(base, path, pm.cookie, 'PUT', update), request(base, path, pm.cookie, 'PUT', update)]);
+  assert.deepEqual(race.map((response) => response.status).sort(), [200, 409]);
+  const saved = await client.sprintReview.findUniqueOrThrow({ where: { sprintId: sprint.id } });
+  assert.equal(saved.id, review.id); assert.equal(saved.doneCount, 2); assert.equal(saved.incompleteCount, 0);
+  assert.equal(await client.sprintReview.count({ where: { sprintId: sprint.id } }), 1);
+  assert.equal((await request(base, `/projects/${otherId}/sprints/${sprint.id}/review`, owner.cookie, 'PUT', draft)).status, 403);
+  await database.projects.assignManager(projectId, owner.id, member.id, pm.id);
+  assert.equal((await request(base, path, pm.cookie, 'PUT', { ...draft, expectedUpdatedAt: saved.updatedAt.toISOString() })).status, 403);
+  assert.equal((await request(base, path, member.cookie, 'PUT', { ...draft, expectedUpdatedAt: saved.updatedAt.toISOString() })).status, 200);
+  await client.sprint.update({ where: { id: sprint.id }, data: { status: 'COMPLETED' } });
+  assert.equal((await request(base, path, member.cookie, 'PUT', draft)).status, 409);
+  assert.equal((await request(base, path, member.cookie)).status, 200);
+  await assert.rejects(client.sprintReview.create({ data: { sprintId: sprint.id, authorId: member.id, summary: 'Duplicate', feedback: 'x', doneCount: 0, incompleteCount: 0 } }));
+}));
+
+test('UC49: member updates, append-only history, scope, ACTIVE and pagination', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const sprint = await database.sprints.create(projectId, pm.id, input);
+  const path = `/projects/${projectId}/sprints/${sprint.id}/daily`;
+  const update = { progress: 'Đã làm API', nextPlan: 'Kiểm thử', blockers: '' };
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, outsider, admin]) {
+    assert.equal((await request(base, path, user.cookie)).status, 403);
+    assert.equal((await request(base, path, user.cookie, 'POST', update)).status, 403);
+  }
+  assert.equal((await request(base, path, member.cookie, 'POST', update)).status, 409);
+  await client.sprint.update({ where: { id: sprint.id }, data: { status: 'ACTIVE' } });
+  for (const bad of [{ ...update, progress: ' ' }, { ...update, nextPlan: '' }, { ...update, authorId: pm.id }, { ...update, blockers: 'a'.repeat(2001) }]) assert.equal((await request(base, path, member.cookie, 'POST', bad)).status, 400);
+  assert.equal((await request(base, path, member.cookie, 'POST', update, 'https://foreign.invalid')).status, 403);
+  for (const user of [member, member, pm]) assert.equal((await request(base, path, user.cookie, 'POST', update)).status, 201);
+  const history = await (await request(base, path, member.cookie)).json() as { total: number; items: { author: { id: string }; progress: string }[] };
+  assert.equal(history.total, 3); assert.equal(history.items.filter((item) => item.author.id === member.id).length, 2); assert.equal(history.items[0]!.progress, update.progress);
+  assert.equal((await request(base, `/projects/${otherId}/sprints/${sprint.id}/daily`, owner.cookie)).status, 403);
+  await client.dailyUpdate.createMany({ data: Array.from({ length: 20 }, () => ({ sprintId: sprint.id, authorId: member.id, ...update })) });
+  const second = await (await request(base, `${path}?page=2`, member.cookie)).json() as { total: number; items: unknown[] };
+  assert.equal(second.total, 23); assert.equal(second.items.length, 3);
+  assert.equal((await request(base, `${path}?page=0`, member.cookie)).status, 400);
+  await client.sprint.update({ where: { id: sprint.id }, data: { status: 'COMPLETED' } });
+  assert.equal((await request(base, path, member.cookie, 'POST', update)).status, 409);
+  assert.equal((await request(base, path, member.cookie)).status, 200);
+  await assert.rejects(client.dailyUpdate.create({ data: { sprintId: sprint.id, authorId: member.id, ...update, progress: '' } }));
 }));

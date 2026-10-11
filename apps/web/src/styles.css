@@ -144,3 +144,11 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .backlog-list li > div { min-width: 0; overflow-wrap: anywhere; }
 .backlog-list label, .backlog-list strong { display: block; }
 .backlog-list input[type=checkbox] { width: auto; min-height: 20px; }
+.sprint-summary { background: #eef3e7; padding: 1rem; border-radius: 10px; overflow-wrap: anywhere; }
+.sprint-summary progress { width: 100%; accent-color: #263c35; }
+
+.daily-entry { border-bottom: 1px solid #dce3ed; padding: 12px 0; }
+.daily-entry p { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.daily-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.daily-form textarea { width: 100%; box-sizing: border-box; min-height: 80px; resize: vertical; font: inherit; padding: 10px; border: 1px solid #d8e0d0; border-radius: 7px; }

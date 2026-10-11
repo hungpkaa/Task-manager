@@ -2,7 +2,7 @@
 
 Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Sprint.
 
-Bước 9 đang triển khai: đã có Product Backlog, tạo Sprint PLANNED và kế hoạch Sprint cơ bản với cảnh báo/xác nhận. Vòng đời Sprint và Capacity/Workload chưa hoàn thiện; xem [tiến độ bước 9](doc/buoc-9.md).
+Bước 9 đang triển khai: đã có Backlog/kế hoạch, bắt đầu Sprint với cảnh báo/xác nhận, thông báo, Dashboard/Board theo dõi, Daily Update, Review và Retrospective. Kết thúc Sprint và Capacity/Workload chưa hoàn thiện; xem [tiến độ bước 9](doc/buoc-9.md).
 
 ## Trạng thái
 

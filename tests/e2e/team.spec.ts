@@ -65,7 +65,7 @@ async function noOverflow(page: Page) {
   }).toBeLessThanOrEqual(1);
 }
 
-test('PM creates a planned Sprint, reviews warnings, plans multiple Tasks and returns a Task before start', async ({ page, context }, testInfo) => {
+test('PM plans and starts a Sprint; PM and member follow live progress and open Task details', async ({ page, context, browser }, testInfo) => {
   const email = `e2e-sprint-${randomUUID()}@example.invalid`; emails.push(email);
   const token = randomBytes(32).toString('base64url');
   const user = await client.user.create({ data: { email, displayName: 'PM Sprint QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
@@ -75,11 +75,11 @@ test('PM creates a planned Sprint, reviews warnings, plans multiple Tasks and re
   await client.task.createMany({ data: [{ projectId: project.id, title: 'Task cần ước lượng' }, { projectId: project.id, title: 'Task đã ước lượng', effort: 5, assigneeId: user.id }] });
   await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
   await observe(page); await page.goto(baseURL);
-  async function open() {
-    await nav(page, 'Workspace');
-    await page.getByRole('button').filter({ hasText: 'Workspace Sprint QA' }).click();
-    await page.getByRole('button').filter({ hasText: 'Project Sprint QA' }).click();
-    await page.getByRole('button', { name: 'Mở Sprint & Backlog', exact: true }).click();
+  async function open(targetPage = page) {
+    await nav(targetPage, 'Workspace');
+    await targetPage.getByRole('button').filter({ hasText: 'Workspace Sprint QA' }).click();
+    await targetPage.getByRole('button').filter({ hasText: 'Project Sprint QA' }).click();
+    await targetPage.getByRole('button', { name: 'Mở Sprint & Backlog', exact: true }).click();
   }
   await open();
   const panel = page.getByRole('region', { name: 'Lập kế hoạch Sprint' });
@@ -120,6 +120,88 @@ test('PM creates a planned Sprint, reviews warnings, plans multiple Tasks and re
   await expect(panel.getByRole('heading', { name: 'Product Backlog (1)', exact: true })).toBeVisible();
   await expect(panel.locator('.backlog-list')).toContainText('Task cần ước lượng');
   await noOverflow(page);
+  await panel.getByRole('button', { name: 'Bắt đầu Sprint', exact: true }).click();
+  const startConfirm = panel.getByRole('group', { name: 'Xác nhận bắt đầu Sprint' });
+  await expect(startConfirm).toContainText('Capacity/Workload/Risk');
+  await startConfirm.getByRole('button', { name: 'Hủy bắt đầu Sprint', exact: true }).click();
+  expect((await client.sprint.findFirstOrThrow({ where: { projectId: project.id } })).status).toBe('PLANNED');
+  await panel.getByRole('button', { name: 'Bắt đầu Sprint', exact: true }).click();
+  await startConfirm.getByRole('button', { name: 'Xác nhận bắt đầu Sprint', exact: true }).click();
+  const monitor = panel.getByRole('region', { name: 'Theo dõi Sprint', exact: true });
+  await expect(monitor).toContainText('0/1 Task DONE');
+  await expect(monitor.getByRole('progressbar', { name: 'Tiến độ Sprint' })).toHaveAttribute('value', '0');
+  expect(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: project.id } })).toBe(1);
+  await monitor.getByRole('button').filter({ hasText: 'Task đã ước lượng' }).click();
+  for (const name of ['Chuyển sang Đang làm', 'Chuyển sang Chờ duyệt', 'Chuyển sang Hoàn thành']) await page.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('button', { name: '← Về theo dõi Sprint', exact: true }).click();
+  await expect(monitor).toContainText('1/1 Task DONE');
+  const review = monitor.getByRole('region', { name: 'Sprint Review', exact: true });
+  await review.getByLabel('Tổng kết Sprint', { exact: true }).fill('Hoàn thành luồng API Sprint');
+  await review.getByLabel('Phản hồi Sprint', { exact: true }).fill('Cần bổ sung hướng dẫn nhóm');
+  await review.getByRole('button', { name: 'Lưu Sprint Review', exact: true }).click();
+  await expect(review).toContainText('Đã lưu Sprint Review.');
+  await expect(review).toContainText('Tại lần lưu: DONE 1 · Chưa DONE 0');
+  await review.getByLabel('Phản hồi Sprint', { exact: true }).fill('Phản hồi đã cập nhật');
+  await review.getByRole('button', { name: 'Lưu Sprint Review', exact: true }).click();
+  await expect(review.locator('.daily-entry')).toContainText('Phản hồi đã cập nhật');
+  await monitor.getByLabel('Trạng thái Sprint Task', { exact: true }).selectOption('TODO');
+  await monitor.getByRole('button', { name: 'Lọc Sprint Task', exact: true }).click();
+  await expect(monitor).toContainText('Không có Task phù hợp.');
+  await expect(monitor.getByRole('progressbar', { name: 'Tiến độ Sprint' })).toHaveAttribute('value', '100');
+  await noOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('sprint-monitor.png'), fullPage: true });
+  await panel.getByRole('button', { name: 'Sprint Backlog', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Đưa về Product Backlog', exact: true })).toHaveCount(0);
+  const memberEmail = `e2e-sprint-member-${randomUUID()}@example.invalid`; emails.push(memberEmail);
+  const memberToken = randomBytes(32).toString('base64url');
+  const member = await client.user.create({ data: { email: memberEmail, displayName: 'Sprint Member QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(memberToken).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
+  await client.workspaceMember.create({ data: { workspaceId: workspace.id, userId: member.id } });
+  await client.projectMember.create({ data: { workspaceId: workspace.id, projectId: project.id, userId: member.id } });
+  const memberContext = await browser.newContext({ viewport: testInfo.project.use.viewport, hasTouch: testInfo.project.name === 'mobile' }); contexts.push(memberContext);
+  await memberContext.addCookies([{ name: 'task_manager_session', value: memberToken, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
+  const memberPage = await memberContext.newPage(); await observe(memberPage); await memberPage.goto(baseURL); await open(memberPage);
+  await memberPage.getByLabel('Sprint đang xem / nhận Task').selectOption({ label: 'Sprint nghiệm thu · ACTIVE' });
+  await memberPage.getByRole('button', { name: 'Theo dõi Sprint', exact: true }).click();
+  await expect(memberPage.getByRole('region', { name: 'Theo dõi Sprint', exact: true })).toContainText('1/1 Task DONE');
+  await expect(memberPage.getByRole('button', { name: 'Bắt đầu Sprint', exact: true })).toHaveCount(0);
+  const daily = memberPage.getByRole('region', { name: 'Daily Update', exact: true });
+  await daily.getByLabel('Tiến độ đã thực hiện', { exact: true }).fill('Đã hoàn thành API Daily');
+  await daily.getByLabel('Kế hoạch tiếp theo', { exact: true }).fill('Kiểm thử trên điện thoại');
+  await daily.getByLabel('Blocker', { exact: true }).fill('Cần phản hồi nhóm');
+  await daily.getByRole('button', { name: 'Gửi Daily Update', exact: true }).click();
+  await expect(daily).toContainText('Đã lưu Daily Update.');
+  await expect(daily.locator('.daily-entry')).toContainText('Cần phản hồi nhóm');
+  await memberPage.reload(); await open(memberPage);
+  await memberPage.getByLabel('Sprint đang xem / nhận Task').selectOption({ label: 'Sprint nghiệm thu · ACTIVE' });
+  await memberPage.getByRole('button', { name: 'Theo dõi Sprint', exact: true }).click();
+  await expect(daily.locator('.daily-entry')).toContainText('Đã hoàn thành API Daily');
+  await expect(daily.locator('.daily-entry')).toContainText('Sprint Member QA');
+  const memberReview = memberPage.getByRole('region', { name: 'Sprint Review', exact: true });
+  await expect(memberReview.locator('.daily-entry')).toContainText('Phản hồi đã cập nhật');
+  await expect(memberReview.getByRole('button', { name: 'Lưu Sprint Review', exact: true })).toHaveCount(0);
+  const retro = memberPage.getByRole('region', { name: 'Sprint Retrospective', exact: true });
+  await retro.getByLabel('Điều làm tốt', { exact: true }).fill('Nhóm trao đổi đều đặn');
+  await retro.getByLabel('Điều cần cải thiện', { exact: true }).fill('Chia nhỏ công việc sớm');
+  await retro.getByLabel('Việc sẽ thực hiện', { exact: true }).fill('Review kế hoạch mỗi sáng');
+  await retro.getByRole('button', { name: 'Lưu Retrospective', exact: true }).click();
+  await expect(retro).toContainText('Đã lưu Retrospective.');
+  await expect(retro.locator('.daily-entry')).toContainText('Sprint Member QA');
+  const pmRetro = monitor.getByRole('region', { name: 'Sprint Retrospective', exact: true });
+  await panel.getByRole('button', { name: 'Ẩn theo dõi Sprint', exact: true }).click();
+  await panel.getByRole('button', { name: 'Theo dõi Sprint', exact: true }).click();
+  await expect(pmRetro.locator('.daily-entry')).toContainText('Review kế hoạch mỗi sáng');
+  await pmRetro.getByLabel('Việc sẽ thực hiện', { exact: true }).fill('PM hỗ trợ review mỗi sáng');
+  await pmRetro.getByRole('button', { name: 'Lưu Retrospective', exact: true }).click();
+  await expect(pmRetro.locator('.daily-entry')).toContainText('PM hỗ trợ review mỗi sáng');
+  await retro.getByLabel('Việc sẽ thực hiện', { exact: true }).fill('Bản sửa cũ');
+  await retro.getByRole('button', { name: 'Lưu Retrospective', exact: true }).click();
+  await expect(retro.getByRole('alert')).toContainText('Retrospective đã thay đổi');
+  await retro.getByRole('button', { name: 'Tải lại Retrospective', exact: true }).click();
+  await expect(retro.locator('.daily-entry')).toContainText('PM hỗ trợ review mỗi sáng');
+  await expect(retro.getByLabel('Việc sẽ thực hiện', { exact: true })).toHaveValue('PM hỗ trợ review mỗi sáng');
+  expect((await client.task.findFirstOrThrow({ where: { projectId: project.id, sprintId: { not: null } } })).status).toBe('DONE');
+  await noOverflow(memberPage);
+  await memberPage.screenshot({ path: testInfo.outputPath('sprint-daily.png'), fullPage: true });
 });
 
 test('three users complete Workspace → Project → Task → My Tasks → DONE → closed Project', async ({ browser }, testInfo) => {

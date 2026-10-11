@@ -92,6 +92,7 @@ export function createProjectRepository(client: PrismaClient) {
     close: (projectId: string, actorId: string) => mutate(projectId, actorId, 'MANAGER', async (tx, project) => {
       if (project.status !== 'CLOSED') {
         if (await tx.task.count({ where: { projectId, status: { not: 'DONE' } } })) throw new HttpError(409, 'Còn Task chưa DONE. Hoàn thành công việc trước khi đóng Project.');
+        if (await tx.sprint.count({ where: { projectId, status: 'ACTIVE' } })) throw new HttpError(409, 'Còn Sprint ACTIVE. Kết thúc Sprint trước khi đóng Project.');
         await tx.project.update({ where: { id: projectId }, data: { status: 'CLOSED', closedAt: new Date() } });
         const members = await tx.projectMember.findMany({ where: { projectId } });
         for (const member of members) await notify(tx, member.userId, projectId, project.name, 'PROJECT_CLOSED', 'Project đã đóng');

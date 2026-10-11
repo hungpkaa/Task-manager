@@ -47,17 +47,38 @@ export class ApiError extends Error {
   }
 }
 
-export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
+export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; updatedAt: string; startedAt: string | null; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
+export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; }
+export interface SprintMonitorResult {
+  sprint: Sprint; summary: { total: number; counts: Record<TaskStatus, number>; progressPercent: number; blocked: number; overdue: number; daysRemaining: number; today: string; sprintOverdue: boolean };
+  items: (BacklogTask & { assigneeId: string | null; dueDate: string | null; blocked: boolean; overdue: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[] })[];
+  total: number; page: number; pageSize: number; assignees: { id: string; displayName: string }[]; warnings: string[];
+}
 export interface BacklogTask { id: string; title: string; status: string; priority: string; effort: number | null; updatedAt: string; assignee: { displayName: string } | null; }
 export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; }
 export interface SprintInput { name: string; goal: string; startDate: string; endDate: string; }
+export interface DailyResult { items: { id: string; progress: string; nextPlan: string; blockers: string; createdAt: string; author: { id: string; displayName: string } }[]; total: number; pageSize: number; canCreate: boolean; }
 export const sprintApi = {
-  list: (projectId: string, page: number) => request<{ items: Sprint[]; total: number; pageSize: number }>(`/projects/${projectId}/sprints?page=${page}`),
+  retrospective: (projectId: string, id: string) => request<RetrospectiveResult>(`/projects/${projectId}/sprints/${id}/retrospective`),
+  saveRetrospective: (projectId: string, id: string, input: RetrospectiveInput) => request<SprintRetrospectiveRecord>(`/projects/${projectId}/sprints/${id}/retrospective`, { method: 'PUT', body: JSON.stringify(input) }),
+  review: (projectId: string, id: string) => request<ReviewResult>(`/projects/${projectId}/sprints/${id}/review`),
+  saveReview: (projectId: string, id: string, input: { summary: string; feedback: string; expectedUpdatedAt: string | null }) => request<SprintReviewRecord>(`/projects/${projectId}/sprints/${id}/review`, { method: 'PUT', body: JSON.stringify(input) }),
+  daily: (projectId: string, id: string, page: number) => request<DailyResult>(`/projects/${projectId}/sprints/${id}/daily?page=${page}`),
+  addDaily: (projectId: string, id: string, input: { progress: string; nextPlan: string; blockers: string }) => request(`/projects/${projectId}/sprints/${id}/daily`, { method: 'POST', body: JSON.stringify(input) }),
+  list: (projectId: string, page: number) => request<{ items: Sprint[]; total: number; pageSize: number; canMonitor: boolean }>(`/projects/${projectId}/sprints?page=${page}`),
+  start: (projectId: string, sprint: Sprint, confirmed: boolean) => request<SprintStart>(`/projects/${projectId}/sprints/${sprint.id}/start`, { method: 'POST', body: JSON.stringify({ expectedUpdatedAt: sprint.updatedAt, confirmed }) }),
+  monitor: (projectId: string, sprintId: string, query: URLSearchParams) => request<SprintMonitorResult>(`/projects/${projectId}/sprints/${sprintId}/monitor?${query}`),
   backlog: (projectId: string, page: number, sprintId = '') => request<{ items: BacklogTask[]; total: number; pageSize: number }>(`/projects/${projectId}/backlog?page=${page}${sprintId ? `&sprintId=${sprintId}` : ''}`),
   create: (projectId: string, input: SprintInput) => request<{ sprint: Sprint }>(`/projects/${projectId}/sprints`, { method: 'POST', body: JSON.stringify(input) }),
   plan: (projectId: string, sprintId: string, tasks: { id: string; updatedAt: string }[], confirmed: boolean) => request<PlanningAssessment>(`/projects/${projectId}/sprints/${sprintId}/plan`, { method: 'POST', body: JSON.stringify({ tasks, confirmed }) }),
   returnTask: (projectId: string, sprintId: string, task: BacklogTask) => request<void>(`/projects/${projectId}/sprints/${sprintId}/tasks/${task.id}/return`, { method: 'POST', body: JSON.stringify({ updatedAt: task.updatedAt }) }),
 };
+
+export interface SprintReviewRecord { id: string; summary: string; feedback: string; doneCount: number; incompleteCount: number; updatedAt: string; author: { id: string; displayName: string }; }
+export interface ReviewResult { review: SprintReviewRecord | null; current: { doneCount: number; incompleteCount: number }; canEdit: boolean; }
+export interface RetrospectiveInput { wentWell: string; needsImprovement: string; actionItems: string; expectedUpdatedAt: string | null; }
+export interface SprintRetrospectiveRecord { id: string; wentWell: string; needsImprovement: string; actionItems: string; updatedAt: string; author: { id: string; displayName: string }; }
+export interface RetrospectiveResult { retrospective: SprintRetrospectiveRecord | null; canEdit: boolean; }
 
 async function request<T>(path: string, options: RequestInit = {}, binary = false): Promise<T> {
   let response: Response;

@@ -62,6 +62,9 @@ model User {
   workspaceMemberships WorkspaceMember[]
   notifications Notification[]
   assignedTasks Task[] @relation("TaskAssignee")
+  dailyUpdates DailyUpdate[]
+  sprintReviews SprintReview[]
+  sprintRetrospectives SprintRetrospective[]
   comments Comment[]
   commentMentions CommentMention[]
   attachments Attachment[]
@@ -185,9 +188,13 @@ model Sprint {
   startDate DateTime @map("start_date") @db.Date
   endDate   DateTime @map("end_date") @db.Date
   status    SprintStatus @default(PLANNED)
+  startedAt DateTime? @map("started_at") @db.Timestamptz(3)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  dailyUpdates DailyUpdate[]
+  review SprintReview?
+  retrospective SprintRetrospective?
   tasks     Task[]
 
   @@unique([id, projectId])
@@ -274,4 +281,47 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model DailyUpdate {
+  id String @id @default(uuid()) @db.Uuid
+  sprintId String @map("sprint_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  progress String
+  nextPlan String @map("next_plan")
+  blockers String @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  sprint Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  @@index([sprintId, createdAt, id])
+  @@map("daily_updates")
+}
+
+model SprintReview {
+  id String @id @default(uuid()) @db.Uuid
+  sprintId String @unique @map("sprint_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  summary String
+  feedback String
+  doneCount Int @map("done_count")
+  incompleteCount Int @map("incomplete_count")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sprint Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  @@map("sprint_reviews")
+}
+
+model SprintRetrospective {
+  id String @id @default(uuid()) @db.Uuid
+  sprintId String @unique @map("sprint_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  wentWell String @map("went_well")
+  needsImprovement String @map("needs_improvement")
+  actionItems String @map("action_items")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sprint Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  @@map("sprint_retrospectives")
 }

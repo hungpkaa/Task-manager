@@ -21,7 +21,7 @@ Trong Project, đổi giữa **Danh sách/Kanban**, tìm kiếm hoặc lọc the
 
 Task chưa Hoàn thành phải được chuyển giao hoặc bỏ phân công trước khi xóa thành viên khỏi Project/Workspace. Thành viên đang là PM phải được thay PM trước khi xóa khỏi Workspace. Workspace luôn giữ ít nhất một Owner.
 
-PM chỉ đóng Project khi mọi Task đã DONE. Dự án đóng và Task bên trong chỉ đọc; Owner vẫn có thể đổi PM để chuyển giao trách nhiệm. Lịch sử người phụ trách của Task đã hoàn thành được giữ lại.
+PM chỉ đóng Project khi mọi Task đã DONE và không còn Sprint ACTIVE. Dự án đóng và Task bên trong chỉ đọc; Owner vẫn có thể đổi PM để chuyển giao trách nhiệm. Lịch sử người phụ trách của Task đã hoàn thành được giữ lại.
 
 ## Điều hướng và xử lý lỗi
 
@@ -39,4 +39,18 @@ Thêm thành viên Workspace cũng tạo email mời trong hộp thư thử. Own
 
 Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và ngày để **Tạo Sprint PLANNED**; chọn Task từ **Product Backlog** → **Kiểm tra kế hoạch** → đọc cảnh báo → **Xác nhận đưa vào Sprint**. Chuyển **Sprint Backlog** để xem hoặc đưa Task về Product Backlog trước khi Sprint bắt đầu; thao tác đưa về cần xác nhận. Thành viên và Owner xem được nhưng chỉ PM lập kế hoạch. Task/Sprint phân trang 20; lựa chọn Task chỉ giữ trên trang hiện tại. Khi sửa Task ở khu vực Task, bấm **Tải lại Sprint & Backlog** để lấy dữ liệu mới.
 
-Phần kế hoạch hiện chưa tính Capacity/Workload; cảnh báo ghi rõ để PM tự kiểm tra năng lực nhóm. Chưa có bắt đầu/kết thúc Sprint, Daily, Review, Retro. Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 8](buoc-8.md) và [bước 9](buoc-9.md) để biết phạm vi hiện tại.
+PM chọn Sprint PLANNED → **Bắt đầu Sprint** → xem cảnh báo → xác nhận. Cần có Goal, ít nhất một Task và chưa có Sprint ACTIVE trong Project. Bắt đầu tạo thông báo cho thành viên Project và mở trang theo dõi. Thành viên Project có thể chọn Sprint → **Theo dõi Sprint** để xem Goal, tiến độ, Task BLOCKED/quá hạn và Board/danh sách. Lọc theo trạng thái, priority, người phụ trách; số liệu tổng vẫn tính toàn Sprint. Bấm Task để mở chi tiết; **Về theo dõi Sprint** tải lại tiến độ sau khi sửa. Board phân trang 20, dùng nút trang để xem đủ Task. Khi có thay đổi từ người khác, bấm **Tải lại tiến độ Sprint**.
+
+Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. Phần kế hoạch/theo dõi chưa tính Capacity/Workload/Risk; cảnh báo ghi rõ để PM tự kiểm tra năng lực nhóm. Chưa có kết thúc Sprint; Sprint ACTIVE chưa thể kết thúc trên giao diện trong phần này. Sprint, Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 8](buoc-8.md) và [bước 9](buoc-9.md) để biết phạm vi hiện tại.
+
+## Daily Update trong Sprint
+
+Mở Project → **Mở Sprint & Backlog** → chọn Sprint → **Theo dõi Sprint**. Khi Sprint ACTIVE, nhập **Tiến độ đã thực hiện**, **Kế hoạch tiếp theo**, **Blocker** rồi chọn **Gửi Daily Update**. Blocker có thể để trống. Mỗi lần gửi được giữ riêng theo thời gian; nhóm xem lịch sử ngay bên dưới, dùng **Tải lại Daily Update** để lấy cập nhật mới. Daily Update không thay thế cập nhật trạng thái Task.
+
+## Sprint Review
+
+Trong **Theo dõi Sprint**, PM nhập **Tổng kết Sprint** và **Phản hồi Sprint**, chọn **Lưu Sprint Review**. Có thể sửa trước khi Sprint hoàn thành; mỗi trường bắt buộc, tối đa 4000 ký tự. Thành viên Project xem bản đã lưu cùng người cập nhật và số Task DONE/chưa DONE tại lần lưu. Số liệu hiện tại hiển thị riêng. Nếu Review đã thay đổi ở cửa sổ khác, bản sửa cũ bị từ chối; dùng **Tải lại Sprint Review** để lấy bản mới (thao tác này thay nội dung đang nhập bằng bản đã lưu).
+
+## Sprint Retrospective
+
+Thành viên và PM mở **Theo dõi Sprint** → phần **Sprint Retrospective**, nhập **Điều làm tốt**, **Điều cần cải thiện**, **Việc sẽ thực hiện** rồi chọn **Lưu Retrospective**. Đây là bản tổng hợp chung của nhóm, có thể sửa trước khi Sprint hoàn thành; cả ba trường bắt buộc, tối đa 4000 ký tự. Nếu có người vừa sửa, bản cũ bị từ chối và nội dung đang nhập vẫn giữ nguyên. Sao chép các ý cần giữ trước khi chọn **Tải lại Retrospective**, vì thao tác này lấy bản mới và thay nội dung đang nhập. Sau khi đóng Sprint/Project, chỉ xem bản đã lưu.

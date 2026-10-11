@@ -26,7 +26,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC12 | Tạo Project | Đã triển khai: Owner, đúng Workspace, tên/mô tả/ngày tháng | 5 |
 | UC13 | Phân công Project Manager | Đã triển khai: Owner chọn thành viên ACTIVE của Workspace, tự thêm ProjectMember, xác nhận PM hiện tại, thông báo | 5 |
 | UC14 | Cập nhật Project | Đã triển khai: PM hiện tại, kiểm tra ngày tháng và trạng thái đóng | 5 |
-| UC15 | Đóng Project | Đã triển khai: PM, chặn khi còn Task chưa DONE, giữ dữ liệu CLOSED/thông báo; ràng buộc Sprint bổ sung ở bước 9 | 5, 6, 9 |
+| UC15 | Đóng Project | Đã triển khai: PM, chặn khi còn Task chưa DONE hoặc Sprint ACTIVE, giữ dữ liệu CLOSED/thông báo | 5, 6, 9 |
 | UC16 | Quản lý thành viên Project | Đã triển khai: PM thêm/xóa thành viên Workspace, chặn xóa PM/người còn Task chưa DONE | 5, 6 |
 | UC17 | Xem Project | Đã triển khai: Owner của Workspace hoặc thành viên Project; PM được thêm vào Project | 5 |
 | UC18 | Xem chi tiết Task | Đã triển khai: quyền Project, thuộc tính, assignee và cảnh báo dependency | 6 |
@@ -43,7 +43,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
 | UC30 | Xem Calendar | Chưa triển khai | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
-| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention; chưa Sprint | 4, 5, 6, 8 |
+| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu Sprint; chưa sự kiện hoàn thành Sprint | 4, 5, 6, 8, 9 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
 | UC35 | Thiết lập Effort và Capacity | Cơ bản: Task effort 1/2/3/5/8; chưa Capacity và Workload | 6, 10 |
@@ -58,11 +58,11 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC44 | Xem Product Backlog | Đã triển khai: Task cùng Project có sprintId null, phân quyền và phân trang | 9 |
 | UC45 | Tạo Sprint | Đã triển khai: PM, PLANNED, tên/Goal/ngày bắt buộc, kiểm tra khoảng ngày | 9 |
 | UC46 | Lập Sprint Backlog | Cơ bản: chọn nhiều Task, preview Effort/dependency/cảnh báo, xác nhận, cùng Project, return khi PLANNED; chưa Capacity/Workload/Risk | 9, 10 |
-| UC47 | Bắt đầu Sprint | Chưa triển khai; cần goal, ít nhất một Task, không có Sprint ACTIVE khác | 9, 10 |
-| UC48 | Theo dõi Sprint | Chưa triển khai; cần tiến độ, BLOCKED/overdue và cảnh báo liên quan | 9, 10 |
-| UC49 | Cập nhật Daily Update | Chưa triển khai | 9 |
-| UC50 | Thực hiện Sprint Review | Chưa triển khai | 9 |
-| UC51 | Thực hiện Sprint Retrospective | Chưa triển khai | 9 |
+| UC47 | Bắt đầu Sprint | Cơ bản: PM, PLANNED, Goal/Backlog, tối đa một ACTIVE, cảnh báo/xác nhận và thông báo atomic; chưa Workload/Risk | 9, 10 |
+| UC48 | Theo dõi Sprint | Cơ bản: thành viên Project, Dashboard toàn Sprint, Board/danh sách phân trang/lọc, mở Task, BLOCKED/overdue/ngày còn lại, Daily Update; chưa Workload/Risk | 9, 10 |
+| UC49 | Cập nhật Daily Update | Đã có: thành viên Project gửi progress/next plan/blocker trong Sprint ACTIVE; lưu riêng từng lần, lịch sử phân trang và thời gian Việt Nam | 9 |
+| UC50 | Thực hiện Sprint Review | Đã có: PM lưu/sửa summary và feedback trước COMPLETED; một bản ghi/Sprint, snapshot DONE/chưa DONE, chống ghi đè dữ liệu cũ; thành viên xem | 9 |
+| UC51 | Thực hiện Sprint Retrospective | Đã có: thành viên/PM cập nhật bản chung trước COMPLETED, went well/needs improvement/action items, chống ghi đè bản cũ và giữ nội dung sau khi đóng | 9 |
 | UC52 | Kết thúc Sprint | Chưa triển khai; PM xử lý Task chưa xong, lưu lịch sử | 9 |
 
 Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đủ khi đã tích hợp cả phần phụ thuộc; không đánh dấu xong ở bước đầu tiên chỉ vì đã có thao tác chính.
