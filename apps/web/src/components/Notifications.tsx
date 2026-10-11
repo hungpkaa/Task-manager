@@ -4,6 +4,7 @@ import { ApiError, notificationApi, projectApi, type Notification } from '../api
 export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { onExpired: () => void; onWorkspace: (id: string) => void; onProject: (workspaceId: string, projectId: string) => void; onTask: (id: string) => void }) {
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [page, setPage] = useState(1); const [total, setTotal] = useState(0); const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -13,11 +14,11 @@ export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { o
     else setError(failure instanceof Error ? failure.message : 'Không thể tải thông báo.');
   }
   useEffect(() => {
-    let active = true; setLoading(true); setError('');
-    notificationApi.list().then((result) => { if (active) { setItems(result.items); setUnread(result.unreadCount); } })
+    let active = true; setLoading(true); setError(''); setItems([]);
+    notificationApi.list(page, filter).then((result) => { if (active) { setItems(result.items); setUnread(result.unreadCount); setTotal(result.total); if (page > 1 && (page - 1) * result.pageSize >= result.total) setPage(Math.max(1, Math.ceil(result.total / result.pageSize))); } })
       .catch((failure: unknown) => { if (active) failed(failure); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [attempt]);
+  }, [attempt, page, filter]);
   async function read(item: Notification) {
     setBusy(item.id); setError('');
     try { await notificationApi.read(item.id); setAttempt((value) => value + 1); }
@@ -30,13 +31,16 @@ export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { o
   }
   return <section className="workspace-panel">
     <div className="panel-heading"><div><span className="eyebrow">CẬP NHẬT CỦA BẠN</span><h1>Thông báo</h1></div><button className="refresh-button" disabled={loading || Boolean(busy)} onClick={() => setAttempt((value) => value + 1)}>Làm mới</button></div>
-    <p>{unread} thông báo chưa đọc · Hiển thị 50 thông báo gần nhất.</p>{error && <p className="form-error" role="alert">{error}</p>}
+    <p>{unread} thông báo chưa đọc trong toàn bộ lịch sử.</p>
+    <label>Lọc thông báo<select aria-label="Lọc thông báo" disabled={loading || Boolean(busy)} value={filter} onChange={(event) => { setFilter(event.target.value as 'all' | 'unread'); setPage(1); }}><option value="all">Tất cả</option><option value="unread">Chưa đọc</option></select></label>
+    {error && <p className="form-error" role="alert">{error}</p>}
     {loading ? <p role="status">Đang tải thông báo…</p> : <ul className="notification-list">{items.map((item) => <li className={item.readAt ? '' : 'unread'} key={item.id}>
-      <h2>{item.title}</h2><p>{item.message}</p><small>{new Date(item.createdAt).toLocaleString('vi-VN')}</small>
+      <h2>{item.title}</h2><p>{item.message}</p><small>{new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</small>
       <div className="member-actions">{!item.readAt && <button className="refresh-button" disabled={Boolean(busy)} onClick={() => void read(item)}>{busy === item.id ? 'Đang lưu…' : 'Đánh dấu đã đọc'}</button>}
       {item.relatedEntityType === 'WORKSPACE' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onWorkspace(item.relatedEntityId)}>Mở Workspace</button>}
       {item.relatedEntityType === 'PROJECT' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => void openProject(item.relatedEntityId)}>Mở Project</button>}</div>
       {item.relatedEntityType === 'TASK' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onTask(item.relatedEntityId)}>Mở công việc</button>}
-    </li>)}</ul>}{!loading && !error && !items.length && <p>Bạn chưa có thông báo.</p>}
+    </li>)}</ul>}{!loading && !error && !items.length && <p>{filter === 'unread' ? 'Bạn không có thông báo chưa đọc.' : 'Bạn chưa có thông báo.'}</p>}
+    {!loading && !error && <><p>{total} thông báo trong bộ lọc · Trang {page}/{Math.max(1, Math.ceil(total / 50))}</p><div className="inline-fields"><button disabled={Boolean(busy) || page <= 1} onClick={() => setPage(page - 1)}>Thông báo trước</button><button disabled={Boolean(busy) || page * 50 >= total} onClick={() => setPage(page + 1)}>Thông báo sau</button></div></>}
   </section>;
 }

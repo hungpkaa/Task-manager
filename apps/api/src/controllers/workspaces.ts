@@ -26,7 +26,7 @@ export function workspaceRouter(options: WorkspaceOptions) {
 export function notificationRouter(options: WorkspaceOptions) {
   const router = sessionRouter(options);
   const token = (cookie: string | undefined) => readSessionToken(cookie, options.secureCookies);
-  router.get('/', async (request, response) => { response.json(await options.notifications.list(token(request.headers.cookie))); });
+  router.get('/', async (request, response) => { response.json(await options.notifications.list(token(request.headers.cookie), request.query)); });
   router.patch('/:id/read', async (request, response) => { response.json({ notification: await options.notifications.markRead(token(request.headers.cookie), request.params.id) }); });
   return router;
 }

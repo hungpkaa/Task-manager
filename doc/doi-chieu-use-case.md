@@ -43,7 +43,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
 | UC30 | Xem Calendar | Đã có: lịch Project theo tháng/ngày, Task/Sprint giao kỳ, mở Task, phân trang, quyền Owner/PM/Member | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
-| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9 |
+| UC32 | Xem và quản lý thông báo | Đã triển khai: riêng tư, lịch sử phân trang 50 mục, lọc chưa đọc, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9, nghiệm thu |
 | UC33 | Xem Dashboard cá nhân | Đã có: Tổng quan, Task được giao trong Project còn membership, trạng thái/tiến độ/overdue/blocked/hạn 7 ngày, mở Task | 10 |
 | UC34 | Xem Dashboard Project | Đã có: chỉ PM, tiến độ toàn Project, Sprint/thành viên, Workload/Risk theo kỳ, mở Task và tải lại | 10 |
 | UC35 | Thiết lập Effort và Capacity | Đã có: Task Effort 1/2/3/5/8, PM lưu/cập nhật Capacity dương theo thành viên/kỳ, chống ghi đè bản cũ và tính lại Workload | 6, 10 |
@@ -73,7 +73,7 @@ Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đ�
 - UC01, UC03, UC05 được liệt kê trong [sơ đồ tài khoản](assets/so-do/image2.png); tài liệu không có bảng chi tiết riêng cho ba UC này. Phạm vi thực tế được ghi trong bảng trên thay vì suy diễn thêm trường hồ sơ.
 - User có `status` và `systemRole` phù hợp [Class Diagram](assets/so-do/image27.png), [ERD](assets/so-do/image29.png) và ghi chú mô hình. System Admin là quyền trên User; không có thực thể Admin riêng.
 - Lớp HTTP → service → repository → PostgreSQL phù hợp mục 6 của đặc tả. Bảng Session là hạ tầng để hiện thực hóa token/session của UC02; không thay thế thực thể nghiệp vụ trong ERD.
-- Module A chưa đầy đủ vì UC04 chưa có. Việc bước 3 của lộ trình đã hoàn thành chỉ nói đến đợt triển khai tài khoản cơ bản.
+- UC04 đã được bổ sung ở bước 8 với hộp thư thử. UC01 và UC05 giữ phạm vi phiên bản đầu trong bảng trên; chỉnh hồ sơ hiện chỉ đổi tên hiển thị.
 
 ## Lựa chọn triển khai ngoài chi tiết đặc tả
 

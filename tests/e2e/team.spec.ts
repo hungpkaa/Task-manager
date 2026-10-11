@@ -65,6 +65,24 @@ async function noOverflow(page: Page) {
   }).toBeLessThanOrEqual(1);
 }
 
+test('Notification history supports pagination, unread filtering and reading the last page', async ({ page, context }, testInfo) => {
+  const email = `e2e-notifications-${randomUUID()}@example.invalid`; emails.push(email);
+  const token = randomBytes(32).toString('base64url');
+  const user = await client.user.create({ data: { email, displayName: 'Notification QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
+  await client.notification.createMany({ data: Array.from({ length: 61 }, (_, index) => ({ userId: user.id, type: 'TASK_ASSIGNED' as const, title: `Lịch sử ${index}`, message: 'Thông báo kiểm thử', relatedEntityType: 'TASK' as const, relatedEntityId: randomUUID(), createdAt: new Date('2026-10-11T00:00:00Z'), readAt: index < 10 ? new Date() : null })) });
+  await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
+  await observe(page); await page.goto(baseURL); await nav(page, 'Thông báo');
+  const panel = page.locator('.workspace-panel'); const items = panel.locator('.notification-list > li');
+  await expect(items).toHaveCount(50); await expect(panel).toContainText('51 thông báo chưa đọc');
+  await panel.getByRole('button', { name: 'Thông báo sau', exact: true }).click(); await expect(items).toHaveCount(11);
+  await expect(panel).toContainText('Trang 2/2');
+  await panel.getByLabel('Lọc thông báo', { exact: true }).selectOption('unread'); await expect(items).toHaveCount(50);
+  await panel.getByRole('button', { name: 'Thông báo sau', exact: true }).click(); await expect(items).toHaveCount(1);
+  await panel.getByRole('button', { name: 'Đánh dấu đã đọc', exact: true }).click();
+  await expect(items).toHaveCount(50); await expect(panel).toContainText('50 thông báo trong bộ lọc · Trang 1/1');
+  await noOverflow(page); await panel.screenshot({ path: testInfo.outputPath('notification-history.png') });
+});
+
 test('System Admin searches users and Workspaces, cancels and confirms lock, revokes sessions and unlocks', async ({ page, context, browser }, testInfo) => {
   const victimContext = await browser.newContext(); contexts.push(victimContext); const victim = await victimContext.newPage();
   const victimEmail = await register(victim, 'User Admin QA');

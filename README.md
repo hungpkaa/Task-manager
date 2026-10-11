@@ -8,7 +8,7 @@ Bước 10 đã có Task Dependency, Capacity/Workload, Project Risk, đề xu�
 
 ## Trạng thái
 
-Đã hoàn thành bước 7 trong phạm vi phiên bản đầu: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task, kèm nghiệm thu trình duyệt và responsive.
+Đã hoàn thành bước 7 trong phạm vi phiên bản đầu: nền tảng React/Express/PostgreSQL, tài khoản, Workspace, Project và Task, kèm nghiệm thu trình duyệt và responsive. Xem [rà soát nghiệm thu tổng thể](doc/nghiem-thu-tong-the.md) cho phạm vi hiện tại và giới hạn bàn giao.
 Có đăng ký, đăng nhập, đăng xuất, đọc/sửa hồ sơ và phiên đăng nhập lưu trong PostgreSQL.
 Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member và thông báo khi được thêm vào nhóm.
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.

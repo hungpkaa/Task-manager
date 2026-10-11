@@ -3,6 +3,7 @@ import type { NotificationRepository } from '../repositories/notifications.js';
 import type { AuthService } from './auth.js';
 import type { EmailSender } from './email.js';
 import { validate } from './auth-validation.js';
+import { notificationQuerySchema } from './notification-validation.js';
 import { createWorkspaceSchema, updateWorkspaceSchema, inviteMemberSchema, memberRoleSchema, idSchema } from './workspace-validation.js';
 
 export function createWorkspaceService(repository: WorkspaceRepository, auth: AuthService, email?: { sender: EmailSender; appOrigin: string }) {
@@ -54,7 +55,7 @@ export function createWorkspaceService(repository: WorkspaceRepository, auth: Au
 
 export function createNotificationService(repository: NotificationRepository, auth: AuthService) {
   return {
-    async list(token: string | undefined) { return repository.list((await auth.me(token)).id); },
+    async list(token: string | undefined, query: unknown = {}) { const user = await auth.me(token); return repository.list(user.id, validate(notificationQuerySchema, query)); },
     async markRead(token: string | undefined, id: unknown) {
       const user = await auth.me(token);
       return repository.markRead(validate(idSchema, id), user.id);

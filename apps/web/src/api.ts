@@ -171,7 +171,7 @@ export const workspaceApi = {
   remove: (id: string, userId: string) => request<void>(`/workspaces/${id}/members/${userId}`, json('DELETE', {})),
 };
 export const notificationApi = {
-  list: () => request<{ items: Notification[]; unreadCount: number }>('/notifications'),
+  list: (page = 1, status: 'all' | 'unread' = 'all') => request<{ items: Notification[]; unreadCount: number; total: number; page: number; pageSize: number }>(`/notifications?${new URLSearchParams({ page: String(page), status })}`),
   read: (id: string) => request<{ notification: Notification }>(`/notifications/${id}/read`, json('PATCH', {})),
 };
 

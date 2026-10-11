@@ -41,6 +41,23 @@ async function fixture(run: (context: { base: string; client: PrismaClient; mess
 function request(base: string, path: string, cookie?: string, method = 'GET', body?: unknown) {
   return fetch(`${base}/api${path}`, { method, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15_000) });
 }
+test('UC32: notification history pagination, unread filter, stable order and privacy', async () => fixture(async ({ base, client, users }) => {
+  const [owner, member, outsider] = users; assert.ok(owner && member && outsider);
+  await client.notification.createMany({ data: Array.from({ length: 61 }, (_, index) => ({ userId: member.id, type: 'TASK_ASSIGNED', title: `History ${index}`, message: 'History', relatedEntityType: 'TASK', relatedEntityId: randomUUID(), createdAt: new Date('2026-10-11T00:00:00Z'), readAt: index < 10 ? new Date('2026-10-11T01:00:00Z') : null })) });
+  await client.notification.create({ data: { userId: outsider.id, type: 'TASK_ASSIGNED', title: 'Private foreign', message: 'Foreign', relatedEntityType: 'TASK', relatedEntityId: randomUUID() } });
+  assert.equal((await request(base, '/notifications')).status, 401);
+  for (const suffix of ['page=0', 'page=1.5', 'status=bad', 'userId=other', 'page=100001']) assert.equal((await request(base, `/notifications?${suffix}`, member.cookie)).status, 400);
+  const first = await (await request(base, '/notifications', member.cookie)).json(); const second = await (await request(base, '/notifications?page=2', member.cookie)).json();
+  assert.equal(first.total, 61); assert.equal(first.unreadCount, 51); assert.equal(first.items.length, 50); assert.equal(second.items.length, 11);
+  assert.equal(new Set([...first.items, ...second.items].map((item) => item.id)).size, 61);
+  const unread = await (await request(base, '/notifications?status=unread&page=2', member.cookie)).json(); assert.equal(unread.total, 51); assert.equal(unread.items.length, 1); assert.equal(unread.items[0].readAt, null);
+  const oldId = unread.items[0].id;
+  assert.equal((await request(base, `/notifications/${oldId}/read`, owner.cookie, 'PATCH', {})).status, 404);
+  for (let index = 0; index < 2; index++) assert.equal((await request(base, `/notifications/${oldId}/read`, member.cookie, 'PATCH', {})).status, 200);
+  const filtered = await (await request(base, '/notifications?status=unread&page=2', member.cookie)).json(); assert.equal(filtered.total, 50); assert.equal(filtered.unreadCount, 50); assert.equal(filtered.items.length, 0);
+  assert.equal((await (await request(base, '/notifications', owner.cookie)).json()).total, 0);
+}));
+
 test('Workspace invitation emails can be resent only by Owner and email failure preserves membership', async () => fixture(async ({ base, client, users, messages }) => {
   const [owner, member, outsider] = users; assert.ok(owner && member && outsider);
   const repo = createWorkspaceRepository(client); const workspace = await repo.create(owner.id, { name: 'Email invitation', description: '' });

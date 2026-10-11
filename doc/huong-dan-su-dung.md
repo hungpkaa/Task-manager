@@ -106,3 +106,8 @@ Risk tính từ dữ liệu hiện tại, không tự sửa Task hoặc phân c�
 Thiết lập Capacity với ngày bắt đầu/kết thúc khớp chính xác Sprint. Khi **Kiểm tra kế hoạch** hoặc **Bắt đầu Sprint**, PM đọc phần **Capacity/Workload Sprint**: tải Sprint gồm Task hiện có + Task đang chọn; tổng Project còn tính công việc khác trong kỳ, mỗi Task một lần. Task cam kết vào Sprint vẫn được tính tải dù ngày nằm ngoài kỳ. Thiếu Effort hoặc Capacity được báo rõ; cảnh báo quá tải không tự thay quyết định của PM.
 
 Nếu xác nhận báo dữ liệu đã thay đổi, chọn kiểm tra kế hoạch/bắt đầu lại và đọc cảnh báo mới. Capacity, dependency hoặc công việc khác trong Project thay đổi cũng có thể làm preview cũ hết hiệu lực. Trong **Theo dõi Sprint**, PM thấy tải toàn Sprint dù đang lọc Task; dùng **Tải lại tiến độ Sprint** để lấy dữ liệu mới. Danh sách người phụ trách phân trang 20. Thành viên vẫn xem tiến độ/Board, phần tổng tải Project chỉ hiển thị cho PM.
+
+## Lịch sử thông báo
+
+Mở **Thông báo** từ thanh điều hướng. Chọn **Tất cả** hoặc **Chưa đọc**, rồi dùng **Thông báo trước / Thông báo sau** để xem lịch sử, mỗi trang tối đa 50 mục. Tổng số chưa đọc tính trên toàn bộ lịch sử. Đánh dấu đã đọc trong bộ lọc chưa đọc sẽ loại mục đó khỏi danh sách; trang cuối trống tự chuyển về trang còn dữ liệu.
+
