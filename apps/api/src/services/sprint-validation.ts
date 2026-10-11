@@ -7,6 +7,8 @@ export type ReviewInput = z.infer<typeof reviewInput>;
 export const retrospectiveInput = z.object({ wentWell: z.string().trim().min(1).max(4000), needsImprovement: z.string().trim().min(1).max(4000), actionItems: z.string().trim().min(1).max(4000), expectedUpdatedAt: z.iso.datetime().nullable() }).strict();
 export type RetrospectiveInput = z.infer<typeof retrospectiveInput>;
 export const startInput = z.object({ expectedUpdatedAt: z.iso.datetime(), confirmed: z.boolean().default(false) }).strict();
+export const finishInput = z.object({ expectedSnapshot: z.string().regex(/^[a-f0-9]{64}$/), destinationSprintId: z.uuid().nullable(), confirmed: z.boolean().default(false) }).strict();
+export type FinishInput = z.infer<typeof finishInput>;
 export const monitorQuery = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),
   status: z.enum(taskStatuses).optional(), priority: z.enum(taskPriorities).optional(),

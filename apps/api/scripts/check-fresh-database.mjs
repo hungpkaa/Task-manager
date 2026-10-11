@@ -47,6 +47,9 @@ try {
   assert.equal((await database.sprints.review(project.id, user.id, sprint.id)).review.incompleteCount, 1);
   await database.sprints.saveRetrospective(project.id, user.id, sprint.id, { wentWell: 'Fresh collaboration', needsImprovement: 'Fresh improvements', actionItems: 'Fresh actions', expectedUpdatedAt: null });
   assert.equal((await database.sprints.retrospective(project.id, user.id, sprint.id)).retrospective.actionItems, 'Fresh actions');
+  const finish = await database.sprints.finishPreview(project.id, user.id, sprint.id);
+  await database.sprints.finish(project.id, user.id, sprint.id, { expectedSnapshot: finish.snapshot, destinationSprintId: null, confirmed: true });
+  assert.equal((await fresh.sprint.findUniqueOrThrow({ where: { id: sprint.id } })).status, 'COMPLETED');
   assert.equal(await fresh.notification.count({ where: { relatedEntityId: task.id } }), 1);
   const comment = await database.tasks.addComment(task.id, user.id, `Fresh comment @{${user.email}} @{${user.email}}`);
   assert.equal(comment.mentions.length, 1);

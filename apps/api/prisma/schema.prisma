@@ -189,6 +189,8 @@ model Sprint {
   endDate   DateTime @map("end_date") @db.Date
   status    SprintStatus @default(PLANNED)
   startedAt DateTime? @map("started_at") @db.Timestamptz(3)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+  completion Json?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

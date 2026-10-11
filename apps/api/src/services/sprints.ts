@@ -2,9 +2,11 @@ import type { SprintRepository } from '../repositories/sprints.js';
 import type { AuthService } from './auth.js';
 import { validate } from './auth-validation.js';
 import { idSchema } from './workspace-validation.js';
-import { retrospectiveInput, reviewInput, backlogQuery, planningInput, returnInput, sprintInput, startInput, monitorQuery, dailyInput } from './sprint-validation.js';
+import { finishInput, retrospectiveInput, reviewInput, backlogQuery, planningInput, returnInput, sprintInput, startInput, monitorQuery, dailyInput } from './sprint-validation.js';
 export function createSprintService(repository: SprintRepository, auth: AuthService) {
   return {
+    async finishPreview(token: string | undefined, projectId: unknown, id: unknown) { const user = await auth.me(token); return repository.finishPreview(validate(idSchema, projectId), user.id, validate(idSchema, id)); },
+    async finish(token: string | undefined, projectId: unknown, id: unknown, input: unknown) { const user = await auth.me(token); return repository.finish(validate(idSchema, projectId), user.id, validate(idSchema, id), validate(finishInput, input)); },
     async retrospective(token: string | undefined, projectId: unknown, id: unknown) { const user = await auth.me(token); return repository.retrospective(validate(idSchema, projectId), user.id, validate(idSchema, id)); },
     async saveRetrospective(token: string | undefined, projectId: unknown, id: unknown, input: unknown) { const user = await auth.me(token); return repository.saveRetrospective(validate(idSchema, projectId), user.id, validate(idSchema, id), validate(retrospectiveInput, input)); },
     async review(token: string | undefined, projectId: unknown, id: unknown) { const user = await auth.me(token); return repository.review(validate(idSchema, projectId), user.id, validate(idSchema, id)); },

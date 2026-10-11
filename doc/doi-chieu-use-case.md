@@ -63,7 +63,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC49 | Cập nhật Daily Update | Đã có: thành viên Project gửi progress/next plan/blocker trong Sprint ACTIVE; lưu riêng từng lần, lịch sử phân trang và thời gian Việt Nam | 9 |
 | UC50 | Thực hiện Sprint Review | Đã có: PM lưu/sửa summary và feedback trước COMPLETED; một bản ghi/Sprint, snapshot DONE/chưa DONE, chống ghi đè dữ liệu cũ; thành viên xem | 9 |
 | UC51 | Thực hiện Sprint Retrospective | Đã có: thành viên/PM cập nhật bản chung trước COMPLETED, went well/needs improvement/action items, chống ghi đè bản cũ và giữ nội dung sau khi đóng | 9 |
-| UC52 | Kết thúc Sprint | Chưa triển khai; PM xử lý Task chưa xong, lưu lịch sử | 9 |
+| UC52 | Kết thúc Sprint | Đã có: PM xem trước/hủy/xác nhận, chuyển toàn bộ Task chưa DONE về Backlog hoặc Sprint PLANNED cùng Project, COMPLETED/lịch sử/thông báo atomically | 9 |
 
 Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đủ khi đã tích hợp cả phần phụ thuộc; không đánh dấu xong ở bước đầu tiên chỉ vì đã có thao tác chính.
 

@@ -202,6 +202,25 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   expect((await client.task.findFirstOrThrow({ where: { projectId: project.id, sprintId: { not: null } } })).status).toBe('DONE');
   await noOverflow(memberPage);
   await memberPage.screenshot({ path: testInfo.outputPath('sprint-daily.png'), fullPage: true });
+  const activeSprint = await client.sprint.findFirstOrThrow({ where: { projectId: project.id, status: 'ACTIVE' } });
+  const unfinished = await client.task.create({ data: { projectId: project.id, sprintId: activeSprint.id, title: 'Task chuyển tiếp', status: 'IN_PROGRESS' } });
+  await panel.getByRole('button', { name: 'Kết thúc Sprint', exact: true }).click();
+  const finish = panel.getByRole('group', { name: 'Xác nhận kết thúc Sprint', exact: true });
+  await expect(finish).toContainText('DONE 1 · Chưa DONE 1');
+  await finish.getByRole('button', { name: 'Hủy kết thúc Sprint', exact: true }).click();
+  expect((await client.sprint.findUniqueOrThrow({ where: { id: activeSprint.id } })).status).toBe('ACTIVE');
+  await panel.getByRole('button', { name: 'Kết thúc Sprint', exact: true }).click();
+  await finish.getByRole('button', { name: 'Xác nhận kết thúc Sprint', exact: true }).click();
+  await expect(panel).toContainText('Đã kết thúc Sprint.');
+  await expect(monitor).toContainText('COMPLETED');
+  const movedTask = await client.task.findUniqueOrThrow({ where: { id: unfinished.id } });
+  expect(movedTask.sprintId).toBeNull(); expect(movedTask.status).toBe('IN_PROGRESS');
+  await monitor.getByText('Kết quả khi kết thúc Sprint', { exact: true }).click();
+  await expect(monitor).toContainText('DONE 1 · Chuyển tiếp 1');
+  await expect(monitor).toContainText('Task chuyển tiếp');
+  await expect(monitor.getByRole('button', { name: 'Lưu Retrospective', exact: true })).toHaveCount(0);
+  await noOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('sprint-completed.png'), fullPage: true });
 });
 
 test('three users complete Workspace → Project → Task → My Tasks → DONE → closed Project', async ({ browser }, testInfo) => {

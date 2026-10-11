@@ -32,7 +32,7 @@ Các API yêu cầu session; thao tác ghi yêu cầu JSON và Origin hợp lệ
 
 Plan nhận `tasks: [{id, updatedAt}]` (1–100, không trùng) và `confirmed` (mặc định false). Preview không ghi dữ liệu; confirm kiểm tra lại và cập nhật atomically. Return nhận `updatedAt` của Task đang xem. API không cho gửi một `sprintId` tùy ý qua PATCH Task để vượt qua kiểm tra kế hoạch.
 
-Mở Workspace → Project → **Mở Sprint & Backlog**. PM tạo Sprint, chọn Sprint nhận Task, chọn các checkbox trong Product Backlog → **Kiểm tra kế hoạch** → xem cảnh báo → **Xác nhận đưa vào Sprint**. Có thể chuyển sang **Sprint Backlog**, chọn **Đưa về Product Backlog** và xác nhận. Bấm tải lại để lấy thay đổi từ màn hình Task; chọn Task chỉ giữ trong trang đang xem. Phần bắt đầu/theo dõi Sprint được bổ sung bên dưới; kết thúc Sprint chưa có.
+Mở Workspace → Project → **Mở Sprint & Backlog**. PM tạo Sprint, chọn Sprint nhận Task, chọn các checkbox trong Product Backlog → **Kiểm tra kế hoạch** → xem cảnh báo → **Xác nhận đưa vào Sprint**. Có thể chuyển sang **Sprint Backlog**, chọn **Đưa về Product Backlog** và xác nhận. Bấm tải lại để lấy thay đổi từ màn hình Task; chọn Task chỉ giữ trong trang đang xem. Các phần vòng đời Sprint được bổ sung bên dưới.
 
 ## Phần 2: bắt đầu và theo dõi Sprint (UC47–48)
 
@@ -59,7 +59,19 @@ Ngày 2026-10-11: migration thứ 9 áp dụng thành công vào PostgreSQL cụ
 
 ## Phần còn lại
 
-Bước 9 **chưa hoàn thành**. Tiếp theo: UC52 kết thúc và xử lý Task chưa DONE, thông báo hoàn thành Sprint. Chọn Sprint ngay trong form tạo Task (UC19) vẫn chưa tích hợp. UC46–48 phải kiểm chứng lại sau khi có Capacity/Workload/Risk ở bước 10. Hiện Sprint đã ACTIVE chưa có nút kết thúc; phần tiếp theo sẽ triển khai luồng đó, không tự chuyển COMPLETED hoặc xóa dữ liệu.
+Bước 9 **chưa hoàn thành**: chọn Sprint ngay trong form tạo Task (UC19) vẫn chưa tích hợp. UC46–48 phải kiểm chứng lại sau khi có Capacity/Workload/Risk ở bước 10. Các luồng UC49–52 đã có.
+
+## Phần 6: Kết thúc Sprint (UC52)
+
+Đối chiếu UC52 (`image50.png`). PM hiện tại chọn **Kết thúc Sprint** khi ACTIVE, xem số Task DONE/chưa DONE rồi hủy hoặc xác nhận. PM chọn một nơi nhận cho toàn bộ Task chưa DONE: Product Backlog hoặc Sprint PLANNED khác cùng Project. Task chuyển tiếp giữ nguyên trạng thái, DONE ở lại Sprint. Không yêu cầu phải có Review/Retro để kết thúc vì đặc tả không nêu điều kiện đó.
+
+Backend khóa Workspace và kiểm tra lại PM/Project/Sprint, snapshot toàn bộ Task (bao gồm phiên bản) và trạng thái Sprint nhận trước khi xác nhận. Nếu dữ liệu thay đổi sau preview, trả 409 và phải kiểm tra lại. Chuyển Task, cập nhật COMPLETED/completedAt, lưu JSON lịch sử Task/tên/trạng thái/nơi nhận và gửi thông báo `SPRINT_COMPLETED` cho thành viên trong một transaction; lỗi hoàn tác tất cả. Yêu cầu kết thúc lặp bị từ chối. Daily/Review/Retro giữ lại và chỉ xem.
+
+Màn hình theo dõi có **Kết quả khi kết thúc Sprint**, phân biệt snapshot lịch sử với số liệu Task hiện tại. Migration thứ 14 thêm completed_at/completion. API `POST /api/projects/:projectId/sprints/:id/finish-preview` nhận JSON `{}`; `POST .../finish` nhận `{expectedSnapshot, destinationSprintId, confirmed}`. Destination null là Product Backlog, confirmed false không ghi.
+
+Danh sách Sprint nhận trong hộp xác nhận hiện lấy từ trang danh sách Sprint đang mở (20 Sprint); API kiểm tra và hỗ trợ mọi Sprint PLANNED trong Project. Chưa chuyển từng Task đến nhiều nơi khác nhau trong một thao tác.
+
+Kiểm chứng ngày 2026-10-11: build/typecheck qua, 42 integration test qua, 14 migration trên DB mới qua. UC52 kiểm tra quyền/Origin, preview không ghi, snapshot cũ, sai Project, chuyển sang Sprint và về Backlog, giữ trạng thái Task, lịch sử, thông báo và rollback khi lỗi thông báo; hai yêu cầu kết thúc chỉ một thành công. Hai luồng desktop/mobile qua, gồm hủy/xác nhận, Task về Backlog, COMPLETED, lịch sử và Retrospective chỉ xem; không tràn ngang. Ảnh tại `.local/e2e-results/*/sprint-completed.png`. Chỉ chạy lại hai luồng Sprint trong lần này.
 
 ## Phần 5: Sprint Retrospective (UC51)
 

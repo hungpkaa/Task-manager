@@ -47,7 +47,7 @@ export class ApiError extends Error {
   }
 }
 
-export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; updatedAt: string; startedAt: string | null; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
+export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; updatedAt: string; startedAt: string | null; completedAt?: string | null; completion?: { doneCount: number; incompleteCount: number; tasks: { id: string; title: string; status: string; destinationSprintId: string | null }[] } | null; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
 export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; }
 export interface SprintMonitorResult {
   sprint: Sprint; summary: { total: number; counts: Record<TaskStatus, number>; progressPercent: number; blocked: number; overdue: number; daysRemaining: number; today: string; sprintOverdue: boolean };
@@ -59,6 +59,8 @@ export interface PlanningAssessment { applied: boolean; warnings: string[]; tota
 export interface SprintInput { name: string; goal: string; startDate: string; endDate: string; }
 export interface DailyResult { items: { id: string; progress: string; nextPlan: string; blockers: string; createdAt: string; author: { id: string; displayName: string } }[]; total: number; pageSize: number; canCreate: boolean; }
 export const sprintApi = {
+  finishPreview: (projectId: string, id: string) => request<{ snapshot: string; doneCount: number; incompleteCount: number }>(`/projects/${projectId}/sprints/${id}/finish-preview`, { method: 'POST', body: '{}' }),
+  finish: (projectId: string, id: string, expectedSnapshot: string, destinationSprintId: string | null) => request(`/projects/${projectId}/sprints/${id}/finish`, { method: 'POST', body: JSON.stringify({ expectedSnapshot, destinationSprintId, confirmed: true }) }),
   retrospective: (projectId: string, id: string) => request<RetrospectiveResult>(`/projects/${projectId}/sprints/${id}/retrospective`),
   saveRetrospective: (projectId: string, id: string, input: RetrospectiveInput) => request<SprintRetrospectiveRecord>(`/projects/${projectId}/sprints/${id}/retrospective`, { method: 'PUT', body: JSON.stringify(input) }),
   review: (projectId: string, id: string) => request<ReviewResult>(`/projects/${projectId}/sprints/${id}/review`),

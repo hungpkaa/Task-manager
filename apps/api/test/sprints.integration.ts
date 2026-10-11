@@ -199,6 +199,47 @@ test('failed Sprint notification rolls back ACTIVE and startedAt together', asyn
   assert.equal(await client.notification.count({ where: { relatedEntityId: projectId, type: 'SPRINT_STARTED' } }), 0);
 }));
 
+test('UC52: preview, stale snapshot, transfer, history, permissions and atomic completion', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const source = await database.sprints.create(projectId, pm.id, input);
+  const destination = await database.sprints.create(projectId, pm.id, { ...input, name: 'Next' });
+  await client.sprint.update({ where: { id: source.id }, data: { status: 'ACTIVE' } });
+  const done = await client.task.create({ data: { projectId, sprintId: source.id, title: 'Done', status: 'DONE' } });
+  const pending = await client.task.create({ data: { projectId, sprintId: source.id, title: 'Pending', status: 'REVIEW' } });
+  const path = `/projects/${projectId}/sprints/${source.id}`;
+  assert.equal((await request(base, `${path}/finish-preview`, undefined, 'POST', {})).status, 401);
+  for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, `${path}/finish-preview`, user.cookie, 'POST', {})).status, 403);
+  const preview = await database.sprints.finishPreview(projectId, pm.id, source.id);
+  assert.equal(preview.doneCount, 1); assert.equal(preview.incompleteCount, 1);
+  const data = { expectedSnapshot: preview.snapshot, destinationSprintId: destination.id, confirmed: true };
+  assert.equal((await request(base, `${path}/finish`, pm.cookie, 'POST', data, 'https://foreign.invalid')).status, 403);
+  assert.equal((await request(base, `${path}/finish`, member.cookie, 'POST', data)).status, 403);
+  assert.equal((await database.sprints.finish(projectId, pm.id, source.id, { ...data, confirmed: false })).applied, false);
+  assert.equal((await client.sprint.findUniqueOrThrow({ where: { id: source.id } })).status, 'ACTIVE');
+  await client.task.update({ where: { id: pending.id }, data: { title: 'Changed' } });
+  assert.equal((await request(base, `${path}/finish`, pm.cookie, 'POST', data)).status, 409);
+  const refreshed = await database.sprints.finishPreview(projectId, pm.id, source.id);
+  const cross = await client.sprint.create({ data: { projectId: otherId, name: 'Other', goal: 'x', startDate: source.startDate, endDate: source.endDate } });
+  assert.equal((await request(base, `${path}/finish`, pm.cookie, 'POST', { ...data, expectedSnapshot: refreshed.snapshot, destinationSprintId: cross.id })).status, 404);
+  const wrapped = { $transaction: <T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) => client.$transaction((tx) => operation(new Proxy(tx, { get(target, key) {
+    if (key === 'notification') return new Proxy(target.notification, { get(delegate, action) { if (action === 'createMany') return async () => { throw new Error('Injected completion failure'); }; return Reflect.get(delegate, action); } });
+    return Reflect.get(target, key);
+  } }))) } as unknown as PrismaClient;
+  await assert.rejects(createSprintRepository(wrapped).finish(projectId, pm.id, source.id, { ...data, expectedSnapshot: refreshed.snapshot }), /Injected/);
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: pending.id } })).sprintId, source.id);
+  const race = await Promise.allSettled([database.sprints.finish(projectId, pm.id, source.id, { ...data, expectedSnapshot: refreshed.snapshot }), database.sprints.finish(projectId, pm.id, source.id, { ...data, expectedSnapshot: refreshed.snapshot })]);
+  assert.equal(race.filter((item) => item.status === 'fulfilled').length, 1);
+  const completed = await client.sprint.findUniqueOrThrow({ where: { id: source.id } });
+  assert.equal(completed.status, 'COMPLETED'); assert.ok(completed.completedAt); assert.ok(completed.completion);
+  const moved = await client.task.findUniqueOrThrow({ where: { id: pending.id } }); assert.equal(moved.sprintId, destination.id); assert.equal(moved.status, 'REVIEW');
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: done.id } })).sprintId, source.id);
+  assert.equal(await client.notification.count({ where: { type: 'SPRINT_COMPLETED', relatedEntityId: projectId } }), 2);
+  await client.sprint.update({ where: { id: destination.id }, data: { status: 'ACTIVE' } });
+  const nextPreview = await database.sprints.finishPreview(projectId, pm.id, destination.id);
+  await database.sprints.finish(projectId, pm.id, destination.id, { expectedSnapshot: nextPreview.snapshot, destinationSprintId: null, confirmed: true });
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: pending.id } })).sprintId, null);
+}));
+
 test('UC51: shared member/PM retrospective, stale edits, scope and retained history', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const sprint = await database.sprints.create(projectId, pm.id, input);

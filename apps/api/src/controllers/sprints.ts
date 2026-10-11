@@ -4,6 +4,8 @@ export interface SprintOptions extends SessionOptions { service: SprintService; 
 export function sprintRouter(options: SprintOptions) {
   const router = sessionRouter(options);
   const token = (cookie?: string) => readSessionToken(cookie, options.secureCookies);
+  router.post('/projects/:projectId/sprints/:id/finish-preview', async (req, res) => { res.json(await options.service.finishPreview(token(req.headers.cookie), req.params.projectId, req.params.id)); });
+  router.post('/projects/:projectId/sprints/:id/finish', async (req, res) => { res.json(await options.service.finish(token(req.headers.cookie), req.params.projectId, req.params.id, req.body)); });
   router.get('/projects/:projectId/sprints/:id/retrospective', async (req, res) => { res.json(await options.service.retrospective(token(req.headers.cookie), req.params.projectId, req.params.id)); });
   router.put('/projects/:projectId/sprints/:id/retrospective', async (req, res) => { res.json(await options.service.saveRetrospective(token(req.headers.cookie), req.params.projectId, req.params.id, req.body)); });
   router.get('/projects/:projectId/sprints/:id/review', async (req, res) => { res.json(await options.service.review(token(req.headers.cookie), req.params.projectId, req.params.id)); });

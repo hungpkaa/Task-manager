@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, sprintApi, type BacklogTask, type PlanningAssessment, type Sprint, type SprintInput, type SprintStart } from '../api';
 import { SprintMonitor } from './SprintMonitor';
+import { SprintFinish } from './SprintFinish';
 const empty: SprintInput = { name: '', goal: '', startDate: '', endDate: '' };
 export function Sprints({ projectId, canPlan, onExpired }: { projectId: string; canPlan: boolean; onExpired: () => void }) {
   const [open, setOpen] = useState(false);
@@ -57,6 +58,7 @@ function SprintPlanning({ projectId, canPlan, onExpired }: { projectId: string; 
     {target && <div className="form-notice"><strong>{target.name} · {target.status}</strong><p>{target.goal}</p><p>{target.startDate.slice(0, 10)} → {target.endDate.slice(0, 10)} · {target._count?.tasks ?? 0} Task</p></div>}
     {target && canPlan && target.status === 'PLANNED' && <button className="primary-button" disabled={busy || loading || Boolean(assessment) || Boolean(pendingStart)} onClick={() => void mutate(async () => { setPendingStart(await sprintApi.start(projectId, target, false)); }, false)}>Bắt đầu Sprint</button>}
     {pendingStart && <div className="confirm-panel" role="group" aria-label="Xác nhận bắt đầu Sprint"><h4>Bắt đầu “{pendingStart.sprint.name}”?</h4><p>{pendingStart.taskCount} Task. Sprint sẽ chuyển sang ACTIVE.</p><ul>{pendingStart.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul><button className="primary-button" disabled={busy} onClick={() => void mutate(async () => { await sprintApi.start(projectId, pendingStart.sprint, true); setMonitoring(true); setNotice('Đã bắt đầu Sprint.'); })}>Xác nhận bắt đầu Sprint</button> <button className="refresh-button" disabled={busy} onClick={() => setPendingStart(null)}>Hủy bắt đầu Sprint</button></div>}
+    {target && canPlan && target.status === 'ACTIVE' && !loading && <SprintFinish key={`finish-${target.id}-${revision}`} projectId={projectId} sprint={target} sprints={sprints} onExpired={onExpired} onFinished={() => { setNotice('Đã kết thúc Sprint.'); setRevision((value) => value + 1); }} />}
     {target && canMonitor && <button className="refresh-button" aria-expanded={monitoring} disabled={busy || loading} onClick={() => setMonitoring(!monitoring)}>{monitoring ? 'Ẩn theo dõi Sprint' : 'Theo dõi Sprint'}</button>}
     {target && monitoring && canMonitor && <SprintMonitor key={`${target.id}-${revision}`} projectId={projectId} sprintId={target.id} onExpired={onExpired} />}
     <div className="inline-fields"><button className="refresh-button" disabled={busy || Boolean(assessment) || sprintPage <= 1} onClick={() => { setSprintPage(sprintPage - 1); setTargetId(''); setPage(1); }}>Sprint trước</button><span>Trang Sprint {sprintPage} / {Math.max(1, Math.ceil(sprintTotal / 20))}</span><button className="refresh-button" disabled={busy || Boolean(assessment) || sprintPage * 20 >= sprintTotal} onClick={() => { setSprintPage(sprintPage + 1); setTargetId(''); setPage(1); }}>Sprint sau</button></div>

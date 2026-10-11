@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
+import { createHash } from 'node:crypto';
 import { HttpError } from '../domain/errors.js';
-import type { RetrospectiveInput, ReviewInput, DailyInput, PlanningInput, SprintInput, MonitorQuery } from '../services/sprint-validation.js';
+import type { FinishInput, RetrospectiveInput, ReviewInput, DailyInput, PlanningInput, SprintInput, MonitorQuery } from '../services/sprint-validation.js';
 type Client = PrismaClient | Prisma.TransactionClient;
 async function access(client: Client, projectId: string, actorId: string, write = false) {
   const project = await client.project.findUnique({ where: { id: projectId } });
@@ -33,6 +34,32 @@ export function createSprintRepository(client: PrismaClient) {
     return { project, target: await sprint(tx, projectId, id) };
   }
   return {
+    finishPreview: (projectId: string, actorId: string, id: string) => mutate(projectId, actorId, async (tx) => {
+      const target = await sprint(tx, projectId, id);
+      if (target.status !== 'ACTIVE') throw new HttpError(409, 'Chỉ Sprint ACTIVE được kết thúc.');
+      const tasks = await tx.task.findMany({ where: { projectId, sprintId: id }, orderBy: { id: 'asc' }, select: { id: true, title: true, status: true, updatedAt: true } });
+      const snapshot = createHash('sha256').update(JSON.stringify({ target, tasks })).digest('hex');
+      return { snapshot, doneCount: tasks.filter((task) => task.status === 'DONE').length, incompleteCount: tasks.filter((task) => task.status !== 'DONE').length };
+    }),
+    finish: (projectId: string, actorId: string, id: string, input: FinishInput) => mutate(projectId, actorId, async (tx) => {
+      const target = await sprint(tx, projectId, id);
+      if (target.status !== 'ACTIVE') throw new HttpError(409, 'Chỉ Sprint ACTIVE được kết thúc.');
+      const tasks = await tx.task.findMany({ where: { projectId, sprintId: id }, orderBy: { id: 'asc' }, select: { id: true, title: true, status: true, updatedAt: true } });
+      const snapshot = createHash('sha256').update(JSON.stringify({ target, tasks })).digest('hex');
+      if (snapshot !== input.expectedSnapshot) throw new HttpError(409, 'Sprint hoặc Task đã thay đổi. Hãy kiểm tra kết thúc lại.');
+      const incomplete = tasks.filter((task) => task.status !== 'DONE');
+      if (input.destinationSprintId) {
+        const destination = await sprint(tx, projectId, input.destinationSprintId);
+        if (destination.id === id || destination.status !== 'PLANNED') throw new HttpError(409, 'Sprint nhận Task phải là Sprint PLANNED khác trong cùng Project.');
+      }
+      if (!input.confirmed) return { applied: false };
+      await tx.task.updateMany({ where: { id: { in: incomplete.map((task) => task.id) } }, data: { sprintId: input.destinationSprintId } });
+      const completion = { actorId, destinationSprintId: input.destinationSprintId, doneCount: tasks.length - incomplete.length, incompleteCount: incomplete.length, tasks: tasks.map((task) => ({ id: task.id, title: task.title, status: task.status, destinationSprintId: task.status === 'DONE' ? id : input.destinationSprintId })) };
+      await tx.sprint.update({ where: { id }, data: { status: 'COMPLETED', completedAt: new Date(), completion } });
+      const members = await tx.projectMember.findMany({ where: { projectId } });
+      await tx.notification.createMany({ data: members.map((member) => ({ userId: member.userId, type: 'SPRINT_COMPLETED', title: 'Sprint đã hoàn thành', message: `Sprint “${target.name}” đã kết thúc: ${completion.doneCount} Task DONE, ${completion.incompleteCount} Task chuyển tiếp.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId })) });
+      return { applied: true };
+    }),
     async retrospective(projectId: string, actorId: string, id: string) {
       return client.$transaction(async (tx) => {
         const { project, target } = await dailyAccess(tx, projectId, actorId, id);
