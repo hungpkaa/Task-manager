@@ -4,7 +4,7 @@ Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Spr
 
 Bước 9 đã có Backlog/kế hoạch, bắt đầu/theo dõi/kết thúc Sprint, Daily Update, Review, Retrospective và chọn Sprint khi tạo Task. Capacity/Workload/Risk được tích hợp ở bước 10; xem [tiến độ bước 9](doc/buoc-9.md).
 
-Bước 10 đã có Task Dependency, Capacity/Workload, Project Risk, đề xuất điều phối, Calendar và Dashboard cá nhân/Project. PM xem lý do, người còn Capacity và mở Task để tự quyết định. Risk/Workload đã tích hợp Sprint; Dashboard tính tiến độ từ Task hiện tại. Quản trị hệ thống còn lại; xem [tiến độ bước 10](doc/buoc-10.md).
+Bước 10 đã có Task Dependency, Capacity/Workload, Project Risk, đề xuất điều phối, Calendar, Dashboard cá nhân/Project và System Admin (danh sách user/Workspace, khóa/mở khóa, thống kê). Risk/Workload đã tích hợp Sprint; Dashboard tính tiến độ từ Task hiện tại. Xem [kết quả bước 10 và cấp admin đầu tiên](doc/buoc-10.md).
 
 ## Trạng thái
 
@@ -13,7 +13,7 @@ Có đăng ký, đăng nhập, đăng xuất, đọc/sửa hồ sơ và phiên �
 Có tạo/sửa Workspace, thêm/xóa thành viên, phân quyền Owner/Member và thông báo khi được thêm vào nhóm.
 Có tạo Project, phân công/thay Project Manager, sửa dự án, quản lý thành viên và đóng dự án.
 Có tạo/sửa/xóa Task, phân công, priority/ngày/effort, đổi trạng thái, My Tasks, List/Kanban, tìm kiếm/lọc/sắp xếp và thông báo giao việc.
-Sprint, cộng tác mở rộng, Dashboard và phân tích điều phối chưa hoàn thiện; xem bảng Use Case để biết các phần phụ thuộc còn lại.
+Các nhóm Scrum, cộng tác, Dashboard, điều phối và quản trị đã có trong phạm vi ghi nhận ở bước 8–10; xem bảng Use Case để biết giới hạn thực tế.
 Đã hoàn thành bước 8 trong môi trường cục bộ: bình luận/mention, tệp đính kèm, quên/đặt lại mật khẩu, email mời và gửi lại. Email dùng hộp thư thử theo lựa chọn của nhóm; chưa gửi email thật.
 
 ## Tài liệu

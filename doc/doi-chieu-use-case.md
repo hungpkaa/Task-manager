@@ -51,10 +51,10 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC37 | Xem Workload thành viên | Đã có: PM chọn kỳ, tổng Effort Task chưa DONE giao với kỳ / Capacity, cảnh báo quá tải/thiếu dữ liệu, phân trang và lịch sử Capacity; tích hợp tải Sprint/tổng Project vào UC46–48 | 10 |
 | UC38 | Xem Project Risk | Đã có: PM, HIGH/MEDIUM/LOW/UNKNOWN theo Workload/blocked/overdue/tiến độ, nguyên nhân và độ đầy đủ dữ liệu; API/UI và tích hợp Sprint | 10 |
 | UC39 | Xem đề xuất điều phối | Đã có: PM xem lý do, gợi ý tối đa 3 người theo Capacity/Effort, mở Task; không tự phân công | 10 |
-| UC40 | Xem danh sách người dùng hệ thống | Chưa triển khai | 10 |
-| UC41 | Khóa / mở khóa tài khoản | Chưa triển khai API/giao diện quản trị; auth đã từ chối tài khoản LOCKED | 10 |
-| UC42 | Xem danh sách Workspace | Chưa triển khai | 10 |
-| UC43 | Xem thống kê hệ thống | Chưa triển khai | 10 |
+| UC40 | Xem danh sách người dùng hệ thống | Đã có: chỉ System Admin ACTIVE, tìm tên/email, lọc trạng thái, phân trang 20, không lộ hash/session | 10 |
+| UC41 | Khóa / mở khóa tài khoản | Đã có: xác nhận/hủy, kiểm tra phiên bản, thu hồi session/reset token khi khóa, mở khóa đăng nhập mới; chặn tự khóa/giữ admin hoạt động | 10 |
+| UC42 | Xem danh sách Workspace | Đã có: metadata toàn hệ thống, tìm tên, phân trang 20; không tự cấp quyền nội dung | 10 |
+| UC43 | Xem thống kê hệ thống | Đã có: User/Workspace/Project/Task/Sprint theo trạng thái, chỉ System Admin, snapshot đọc nhất quán | 10 |
 | UC44 | Xem Product Backlog | Đã triển khai: Task cùng Project có sprintId null, phân quyền và phân trang | 9 |
 | UC45 | Tạo Sprint | Đã triển khai: PM, PLANNED, tên/Goal/ngày bắt buộc, kiểm tra khoảng ngày | 9 |
 | UC46 | Lập Sprint Backlog | Preview Effort/dependency/Capacity/Workload/Risk, tải Sprint gồm Task hiện có + đang chọn, snapshot chống cảnh báo cũ, xác nhận và return khi PLANNED | 9, 10 |

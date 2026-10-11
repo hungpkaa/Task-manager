@@ -46,6 +46,16 @@ export class ApiError extends Error {
     super(message);
   }
 }
+export interface AdminUser { id: string; email: string; displayName: string; systemRole: 'MEMBER' | 'SYSTEM_ADMIN'; status: 'ACTIVE' | 'LOCKED'; createdAt: string; updatedAt: string; }
+export interface AdminUserPage { items: AdminUser[]; total: number; page: number; pageSize: number; }
+export interface AdminWorkspacePage { items: { id: string; name: string; createdAt: string; creator: { id: string; email: string; displayName: string }; _count: { members: number; projects: number } }[]; total: number; page: number; pageSize: number; }
+export interface AdminStatistics { generatedAt: string; users: Record<'ACTIVE' | 'LOCKED', number>; activeAdminCount: number; workspaceCount: number; projects: Record<'ACTIVE' | 'CLOSED', number>; tasks: Record<TaskStatus, number>; sprints: Record<'PLANNED' | 'ACTIVE' | 'COMPLETED', number>; }
+export const adminApi = {
+  users: (query: URLSearchParams) => request<AdminUserPage>(`/admin/users?${query}`),
+  workspaces: (query: URLSearchParams) => request<AdminWorkspacePage>(`/admin/workspaces?${query}`),
+  statistics: () => request<AdminStatistics>('/admin/statistics'),
+  status: (user: AdminUser, status: AdminUser['status']) => request<{ user: AdminUser }>(`/admin/users/${user.id}/status`, { method: 'PATCH', body: JSON.stringify({ status, expectedStatus: user.status, expectedUpdatedAt: user.updatedAt }) }),
+};
 
 export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; updatedAt: string; startedAt: string | null; completedAt?: string | null; completion?: { doneCount: number; incompleteCount: number; tasks: { id: string; title: string; status: string; destinationSprintId: string | null }[] } | null; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
 export interface SprintWorkloadResult {

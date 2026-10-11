@@ -8,6 +8,7 @@ import { createTaskService } from './services/tasks.js';
 import { createPasswordResetService } from './services/password-resets.js';
 import { createEmailSender } from './services/email.js';
 import { createSprintService } from './services/sprints.js';
+import { createAdminService } from './services/admin.js';
 
 const config = readConfig();
 const database = createDatabase(config.databaseUrl);
@@ -15,6 +16,8 @@ const auth = createAuthService(database.accounts);
 const email = createEmailSender();
 const server = createApp(database, {
   service: auth,
+  // Browser QA shares one loopback IP across many independent test accounts.
+  rateLimit: process.env.NODE_ENV === 'test' ? 200 : undefined,
   passwordResets: createPasswordResetService(database.passwordResets, email, config.appOrigin),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
@@ -33,6 +36,10 @@ const server = createApp(database, {
   secureCookies: config.secureCookies,
 }, {
   service: createSprintService(database.sprints, auth),
+  appOrigin: config.appOrigin,
+  secureCookies: config.secureCookies,
+}, {
+  service: createAdminService(database.admin, auth),
   appOrigin: config.appOrigin,
   secureCookies: config.secureCookies,
 }).listen(config.port, config.host, () => {

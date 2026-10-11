@@ -91,8 +91,37 @@ Tiến độ = số Task DONE / tổng Task × 100, làm tròn hai chữ số; P
 
 Danh sách cần chú ý giới hạn 10 Task chưa DONE có dependency chưa DONE hoặc hạn không sau 7 ngày tới, gồm quá hạn; sắp theo hạn sớm rồi ID, ngày thiếu ở cuối. Tổng quan tính mọi Task trong scope, không bị giới hạn theo danh sách. Mở Task dùng màn hình hiện có; trở về tải lại Dashboard. Thay trạng thái/dependency ở nơi khác thì dùng **Tải lại Dashboard** hoặc mở lại trang. API đọc trong RepeatableRead từ dữ liệu hiện tại, không lưu bộ đếm/snapshot báo cáo và không realtime; không cần migration.
 
-## Phần còn lại
+## Kiểm chứng Dashboard
 
 Đợt Dashboard: build/typecheck web/API thành công; 53/53 kiểm thử tích hợp PostgreSQL và toàn bộ 12/12 luồng trình duyệt desktop/mobile qua. API kiểm tra quyền PM/scope cá nhân, query, Project CLOSED, thu hồi membership, dữ liệu trống, trạng thái/tiến độ thay đổi, dependency DONE, hạn 7 ngày inclusive, Workload/Risk, Sprint ACTIVE và tổng số liệu ngoài danh sách 10 Task. Trình duyệt kiểm tra Dashboard cá nhân, Dashboard Project, chọn kỳ, mở Task/đổi trạng thái/trở về và không tràn ngang, cùng các luồng hồi quy đăng ký/phiên/mật khẩu/nhóm/công việc. Đã xem ảnh `personal-dashboard.png` và `project-dashboard.png` trên desktop/mobile trong `.local/e2e-results`; báo cáo tại `.local/e2e-report`.
 
-UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.
+## UC40–43 — System Admin
+
+Quản trị có router/service/repository riêng, kiểm tra tài khoản ACTIVE và `systemRole=SYSTEM_ADMIN` ở service và repository. Giao diện **Quản trị hệ thống** chỉ hiện cho admin; API vẫn từ chối Member/Owner/PM chưa có quyền hệ thống. Quyền này không tự cấp quyền đọc/sửa nội dung Workspace/Project. Không thêm bảng hoặc migration.
+
+- `GET /admin/users?q=&status=ACTIVE&page=1`: tìm tên/email không phân biệt hoa thường, lọc ACTIVE/LOCKED, phân trang 20. Chỉ trả ID, tên/email, vai trò/trạng thái và timestamps, không trả passwordHash/session/reset token.
+- `GET /admin/workspaces?q=&page=1`: metadata gồm tên, người tạo, ngày tạo và số thành viên/Project; tìm theo tên, phân trang 20, không trả mô tả/nội dung Project/Task.
+- `GET /admin/statistics`: số user ACTIVE/LOCKED, admin ACTIVE, tổng Workspace, Project/Task/Sprint theo trạng thái; thống kê toàn hệ thống, độc lập tìm kiếm. Các API đọc trong RepeatableRead, không có tác động ghi.
+- `PATCH /admin/users/:id/status`: JSON `status`, `expectedStatus`, `expectedUpdatedAt`; Origin/JSON bắt buộc. UI xác nhận/hủy trước khi gửi. Dữ liệu cũ hoặc yêu cầu không đổi trạng thái trả 409; ID không tồn tại trả 404. Query/input ngoài phạm vi bị từ chối.
+
+Khóa dùng advisory lock chung và khóa hàng User cùng thứ tự với đăng nhập/đặt lại mật khẩu; kiểm tra lại quyền/session của admin bên trong transaction. Khóa user, xóa mọi Session và PasswordResetToken nguyên tử; membership, Task/assignee và lịch sử giữ nguyên. Mở khóa chỉ cho phép đăng nhập mới, không khôi phục session/link cũ. Không cho tự khóa admin đang sử dụng và phải giữ ít nhất một admin ACTIVE. Hai admin khóa lẫn nhau đồng thời chỉ một yêu cầu có thể áp dụng; yêu cầu còn lại mất quyền/session. Các quy tắc bảo vệ admin và phiên bản là lựa chọn triển khai.
+
+### Cấp admin đầu tiên
+
+Không có đăng ký hoặc API công khai để tự chọn vai trò admin. Người vận hành có quyền truy cập DB đăng ký tài khoản ACTIVE, build API rồi dùng:
+
+```powershell
+npm.cmd run build
+npm.cmd run admin:bootstrap -- registered-email@example.com
+npm.cmd run admin:bootstrap -- registered-email@example.com --apply
+```
+
+Lệnh đầu chỉ kiểm tra, `--apply` cấp quyền cho tài khoản đã đăng ký khi hệ thống chưa có bất kỳ System Admin nào. Bootstrap dùng cùng advisory lock, không mở khóa hoặc thay vai trò tài khoản quản trị đã có. Sau khi cấp, đăng nhập lại/tải lại ứng dụng để hiện menu. Đợt này chỉ kiểm tra `--help`, chưa bootstrap tài khoản thực; fixture test cấp quyền riêng và được dọn sau test.
+
+### Phạm vi hiện tại
+
+Đợt quản trị: build/typecheck web/API thành công; 17/17 unit test, 55/55 kiểm thử tích hợp PostgreSQL và toàn bộ 14/14 luồng desktop/mobile qua. Sau chỉnh bố cục form, chạy lại riêng 2/2 luồng quản trị thành công. API kiểm tra quyền, metadata không có thông tin xác thực, tìm kiếm/lọc/phân trang, thống kê, Origin/JSON/input, tự khóa, dữ liệu cũ, thu hồi session/reset token, mở khóa/đăng nhập mới, khóa cùng lúc tạo session và hai admin khóa lẫn nhau. Trình duyệt kiểm tra menu chỉ cho admin, tìm kiếm, hủy/xác nhận, giữ Task/assignee, bị từ chối đăng nhập khi khóa, đăng nhập lại sau mở khóa, Workspace/thống kê và không tràn ngang. Đã xem ảnh `admin-users.png`, `admin-workspaces.png`, `admin-statistics.png` trên desktop/mobile trong `.local/e2e-results`; `.local/admin-e2e-tests.log` giữ kết quả toàn bộ 14 luồng. Không thay schema, vẫn 15 migration.
+
+Máy chủ Playwright chạy `NODE_ENV=test` với giới hạn xác thực 200 lượt/15 phút vì nhiều tài khoản test dùng chung IP loopback. Chạy bình thường vẫn giữ 20 lượt/15 phút; kiểm thử unit riêng xác nhận 429/Retry-After. Cấu hình test không áp dụng nếu dùng `WEB_URL` trỏ tới máy chủ bên ngoài.
+
+Bước 10 đã có các nhóm chức năng theo lộ trình: dependency, Capacity/Workload/Risk/Recommendation, Calendar, Dashboard và System Admin. Đánh giá Risk/đề xuất dựa theo quy tắc đã ghi, không dự báo kỹ năng/velocity. Báo cáo tải lại dữ liệu hiện tại, không realtime/lịch sử phân tích. Email vẫn dùng hộp thư thử theo lựa chọn nhóm; không coi đây là nghiệm thu triển khai production hoặc mọi trường hợp của 52 Use Case.

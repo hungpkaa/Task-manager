@@ -7,6 +7,7 @@ import { Workspaces } from './components/Workspaces';
 import { Notifications } from './components/Notifications';
 import { Tasks } from './components/Tasks';
 import { Dashboard } from './components/Dashboard';
+import { Admin } from './components/Admin';
 
 const stateLabels: Record<ConnectionState, string> = {
   checking: 'Đang kiểm tra', connected: 'Đã kết nối', unavailable: 'Chưa kết nối',
@@ -27,7 +28,7 @@ export function App() {
   const [sessionError, setSessionError] = useState('');
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [notice, setNotice] = useState('');
-  const [screen, setScreen] = useState<'overview' | 'profile' | 'workspaces' | 'notifications' | 'tasks'>('overview');
+  const [screen, setScreen] = useState<'overview' | 'profile' | 'workspaces' | 'notifications' | 'tasks' | 'admin'>('overview');
   const [taskId, setTaskId] = useState<string>();
   const [workspaceId, setWorkspaceId] = useState<string>();
   const [projectId, setProjectId] = useState<string>();
@@ -39,7 +40,7 @@ export function App() {
     }
     setScreen(target);
   }
-  const screenLabels = { overview: 'Tổng quan', profile: 'Hồ sơ cá nhân', workspaces: 'Workspace', notifications: 'Thông báo', tasks: 'My Tasks' };
+  const screenLabels = { overview: 'Tổng quan', profile: 'Hồ sơ cá nhân', workspaces: 'Workspace', notifications: 'Thông báo', tasks: 'My Tasks', admin: 'Quản trị hệ thống' };
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -95,6 +96,7 @@ export function App() {
         <div className="workspace-label">KHÔNG GIAN LÀM VIỆC</div>
         <nav className="account-nav" aria-label="Điều hướng">{(['overview', 'workspaces', 'tasks', 'notifications', 'profile'] as const).map((target) => <button key={target} className={screen === target ? 'nav-active' : ''} aria-current={screen === target ? 'page' : undefined} onClick={() => navigate(target)}>{screenLabels[target]}</button>)}</nav>
         <div className="sidebar-note"><span className="note-dot" />Đã đăng nhập<p className="sidebar-account">{user.displayName}<br /><span>{user.email}</span></p></div>
+        {user.systemRole === 'SYSTEM_ADMIN' && <button className="refresh-button" aria-current={screen === 'admin' ? 'page' : undefined} onClick={() => navigate('admin')}>Quản trị hệ thống</button>}
         <div className="sidebar-footer">TASK MANAGER <span>0.1</span></div>
       </aside>
 
@@ -102,7 +104,7 @@ export function App() {
         <header className="topbar"><span>Không gian làm việc <span className="slash">/</span> <strong>{screenLabels[screen]}</strong></span><div className="account-actions"><button className="profile-link" onClick={() => setScreen('profile')}>{user.displayName}</button><button className="refresh-button" onClick={logout} disabled={loggingOut}>{loggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></div></header>
         <div className="content">
           {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
-          {screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
+          {screen === 'admin' && user.systemRole === 'SYSTEM_ADMIN' ? <Admin userId={user.id} onExpired={expired} /> : screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
           <div className="eyebrow">CÔNG VIỆC RÕ RÀNG. NHÓM VỮNG VÀNG.</div>
           <div className="heading-row"><div><h1>Chào {user.displayName},<br />cùng bắt đầu nhé.</h1><p className="intro">Nơi nhóm của bạn lên kế hoạch, phân công và cùng nhau<br className="desktop-break" /> đưa công việc đến đích.</p></div><div className="decor" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div>
 

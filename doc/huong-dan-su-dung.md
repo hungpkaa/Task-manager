@@ -2,6 +2,12 @@
 
 Mở http://127.0.0.1:5173 sau khi ứng dụng và PostgreSQL đã chạy theo README. Nhóm có thể dùng ba tài khoản riêng để thử Owner, Project Manager (PM) và Member. Mỗi người đăng ký tên, email và mật khẩu 15–128 ký tự; dùng cửa sổ riêng hoặc đăng xuất khi đổi tài khoản.
 
+## Quản trị hệ thống
+
+Tài khoản System Admin ACTIVE có menu **Quản trị hệ thống**. Tab **Người dùng hệ thống** tìm theo tên/email, lọc trạng thái và phân trang. Chọn khóa/mở khóa, xem tài khoản trong hộp xác nhận rồi xác nhận hoặc hủy. Khóa thu hồi mọi phiên và link đặt lại mật khẩu; dữ liệu công việc được giữ. Mở khóa yêu cầu người dùng đăng nhập lại. Không tự khóa tài khoản đang sử dụng; nếu dữ liệu đã thay đổi, tải lại trước khi thao tác.
+
+Tab **Workspace hệ thống** xem metadata và số thành viên/Project, tìm tên. Tab **Thống kê hệ thống** xem số liệu toàn hệ thống theo trạng thái. System Admin vẫn cần quyền Workspace/Project phù hợp để mở nội dung công việc. Cách cấp admin đầu tiên dành cho người vận hành được ghi ở [bước 10](buoc-10.md); đăng ký thông thường luôn là Member.
+
 ## Xem Dashboard
 
 Vào **Tổng quan** để xem Dashboard cá nhân: Task được giao trong Project bạn còn là thành viên, tiến độ, quá hạn, BLOCKED và hạn 7 ngày tới. PM mở Project → **Mở Dashboard Project** để xem tiến độ toàn Project, Sprint/thành viên và Workload/Risk theo kỳ. Chọn kỳ chỉ thay Workload/Risk, không lọc tiến độ Project.

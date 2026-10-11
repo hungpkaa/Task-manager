@@ -166,6 +166,8 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .dashboard-metrics strong, .dashboard-metrics span { display: block; overflow-wrap: anywhere; }
 .dashboard-metrics strong { font-size: 24px; margin-bottom: 8px; }
 .dashboard-statuses { display: flex; flex-wrap: wrap; gap: 20px; padding-left: 20px; }
+.admin-search label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.admin-search input, .admin-search select { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px; border: 1px solid #d8e0d0; border-radius: 6px; font: inherit; }
 .calendar-grid button { min-width: 0; padding: 10px 2px; border: 1px solid #d8e0d0; border-radius: 6px; cursor: pointer; }
 .calendar-grid button[aria-pressed="true"] { background: #294f32; color: white; }
 .calendar-grid button[aria-current="date"] { border: 2px solid #294f32; font-weight: 700; }

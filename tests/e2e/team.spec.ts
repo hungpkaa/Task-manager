@@ -65,6 +65,48 @@ async function noOverflow(page: Page) {
   }).toBeLessThanOrEqual(1);
 }
 
+test('System Admin searches users and Workspaces, cancels and confirms lock, revokes sessions and unlocks', async ({ page, context, browser }, testInfo) => {
+  const victimContext = await browser.newContext(); contexts.push(victimContext); const victim = await victimContext.newPage();
+  const victimEmail = await register(victim, 'User Admin QA');
+  await expect(victim.locator('.sidebar').getByRole('button', { name: 'Quản trị hệ thống', exact: true })).toHaveCount(0);
+  const victimUser = await client.user.findUniqueOrThrow({ where: { email: victimEmail } });
+  const adminEmail = `e2e-admin-${randomUUID()}@example.invalid`; emails.push(adminEmail); const token = randomBytes(32).toString('base64url');
+  await client.user.create({ data: { email: adminEmail, displayName: 'System Admin QA', passwordHash: victimUser.passwordHash, systemRole: 'SYSTEM_ADMIN', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
+  const workspace = await client.workspace.create({ data: { name: 'Workspace Admin QA', createdBy: victimUser.id, members: { create: { userId: victimUser.id, role: 'OWNER' } } } });
+  const project = await client.project.create({ data: { workspaceId: workspace.id, managerUserId: victimUser.id, name: 'Preserved Admin QA' } });
+  await client.projectMember.create({ data: { projectId: project.id, workspaceId: workspace.id, userId: victimUser.id } });
+  const task = await client.task.create({ data: { projectId: project.id, title: 'Preserved Task', assigneeId: victimUser.id } });
+  await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
+  await observe(page); await page.goto(baseURL); await nav(page, 'Quản trị hệ thống');
+  const panel = page.getByRole('region', { name: 'Quản trị hệ thống', exact: true });
+  await panel.getByLabel('Tìm kiếm quản trị', { exact: true }).fill(victimEmail);
+  await panel.getByRole('button', { name: 'Tìm kiếm quản trị', exact: true }).click();
+  await expect(panel).toContainText('1 kết quả');
+  await panel.getByRole('button', { name: 'Khóa tài khoản', exact: true }).click();
+  const confirm = panel.getByRole('group', { name: 'Xác nhận trạng thái tài khoản', exact: true });
+  await confirm.getByRole('button', { name: 'Hủy thay đổi trạng thái', exact: true }).click();
+  expect((await client.user.findUniqueOrThrow({ where: { id: victimUser.id } })).status).toBe('ACTIVE');
+  await panel.getByRole('button', { name: 'Khóa tài khoản', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Xác nhận trạng thái', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Mở khóa tài khoản', exact: true })).toBeVisible();
+  expect(await client.session.count({ where: { userId: victimUser.id } })).toBe(0);
+  expect((await client.task.findUniqueOrThrow({ where: { id: task.id } })).assigneeId).toBe(victimUser.id);
+  await victim.reload(); await expect(victim.getByRole('button', { name: 'Đăng nhập →', exact: true })).toBeVisible();
+  await victim.getByLabel('Email', { exact: true }).fill(victimEmail); await victim.getByLabel('Mật khẩu', { exact: true }).fill(password); await victim.getByRole('button', { name: 'Đăng nhập →', exact: true }).click();
+  await expect(victim.getByRole('alert')).toContainText('Tài khoản đang bị khóa');
+  await noOverflow(page); await panel.screenshot({ path: testInfo.outputPath('admin-users.png') });
+  await panel.getByRole('button', { name: 'Mở khóa tài khoản', exact: true }).click();
+  await confirm.getByRole('button', { name: 'Xác nhận trạng thái', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Khóa tài khoản', exact: true })).toBeVisible();
+  await victim.getByRole('button', { name: 'Đăng nhập →', exact: true }).click(); await expect(victim.locator('.sidebar')).toBeVisible();
+  await panel.getByRole('button', { name: 'Workspace hệ thống', exact: true }).click();
+  await panel.getByLabel('Tìm kiếm quản trị', { exact: true }).fill('Workspace Admin QA'); await panel.getByRole('button', { name: 'Tìm kiếm quản trị', exact: true }).click();
+  await expect(panel).toContainText('1 kết quả'); await expect(panel).toContainText('1 thành viên · 1 Project');
+  await noOverflow(page); await panel.screenshot({ path: testInfo.outputPath('admin-workspaces.png') });
+  await panel.getByRole('button', { name: 'Thống kê hệ thống', exact: true }).click(); await expect(panel).toContainText('System Admin hoạt động');
+  await noOverflow(page); await panel.screenshot({ path: testInfo.outputPath('admin-statistics.png') });
+});
+
 test('PM plans and starts a Sprint; PM and member follow live progress and open Task details', async ({ page, context, browser }, testInfo) => {
   const email = `e2e-sprint-${randomUUID()}@example.invalid`; emails.push(email);
   const token = randomBytes(32).toString('base64url');
