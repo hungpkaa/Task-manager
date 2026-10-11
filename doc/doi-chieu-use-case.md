@@ -34,7 +34,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC20 | Cập nhật Task | Đã triển khai: PM, tên/mô tả/priority/ngày/effort; kiểm tra dữ liệu cũ+mới | 6 |
 | UC21 | Xóa Task | Đã triển khai: PM, xác nhận UI, chặn Task đang được Task khác phụ thuộc | 6 |
 | UC22 | Gán / thay đổi người phụ trách | Đã triển khai: PM, thành viên Project ACTIVE, cho phép bỏ phân công, thông báo nguyên tử | 6 |
-| UC23 | Cập nhật trạng thái Task | Cơ bản: PM/assignee, chuyển tuần tự, kiểm tra dependency và xác nhận BLOCKED; Dashboard/Progress tích hợp sau | 6, 10 |
+| UC23 | Cập nhật trạng thái Task | Đã có: PM/assignee, chuyển tuần tự, dependency/BLOCKED; Dashboard/Progress tính lại từ trạng thái hiện tại khi tải | 6, 10 |
 | UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu | 6 |
 | UC25 | Bình luận và @mention | Đã triển khai: bình luận có phân trang, mention thành viên ACTIVE trong Project, thông báo transaction; lựa chọn chi tiết xem bước 8 | 8 |
 | UC26 | Đính kèm tệp vào Task | Đã triển khai: upload/download có quyền theo Task, PostgreSQL BYTEA, giới hạn 10 MiB, xóa bởi người tải lên/PM; lựa chọn chi tiết xem bước 8 | 8 |
@@ -44,8 +44,8 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC30 | Xem Calendar | Đã có: lịch Project theo tháng/ngày, Task/Sprint giao kỳ, mở Task, phân trang, quyền Owner/PM/Member | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
 | UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9 |
-| UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
-| UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
+| UC33 | Xem Dashboard cá nhân | Đã có: Tổng quan, Task được giao trong Project còn membership, trạng thái/tiến độ/overdue/blocked/hạn 7 ngày, mở Task | 10 |
+| UC34 | Xem Dashboard Project | Đã có: chỉ PM, tiến độ toàn Project, Sprint/thành viên, Workload/Risk theo kỳ, mở Task và tải lại | 10 |
 | UC35 | Thiết lập Effort và Capacity | Đã có: Task Effort 1/2/3/5/8, PM lưu/cập nhật Capacity dương theo thành viên/kỳ, chống ghi đè bản cũ và tính lại Workload | 6, 10 |
 | UC36 | Quản lý Task Dependency | PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang, BLOCKED; Risk tính lại khi tải điều phối/Sprint | 10 |
 | UC37 | Xem Workload thành viên | Đã có: PM chọn kỳ, tổng Effort Task chưa DONE giao với kỳ / Capacity, cảnh báo quá tải/thiếu dữ liệu, phân trang và lịch sử Capacity; tích hợp tải Sprint/tổng Project vào UC46–48 | 10 |
@@ -77,7 +77,7 @@ Một Use Case trải qua nhiều bước chỉ được nghiệm thu đầy đ�
 
 ## Lựa chọn triển khai ngoài chi tiết đặc tả
 
-Task bước 6 đối chiếu image38/image39/image40/image52. Quyền đổi trạng thái PM hoặc assignee, chỉ chuyển bước kế tiếp, cảnh báo BLOCKED cần xác nhận, phân trang 20, priority mặc định MEDIUM và giữ assignee DONE sau xóa membership là lựa chọn triển khai ghi tại [bước 6](buoc-6.md). UC23 chưa nghiệm thu đầy đủ vì Dashboard/Progress chưa có; UC19 đã bổ sung chọn Sprint ở bước 9.
+Task bước 6 đối chiếu image38/image39/image40/image52. Quyền đổi trạng thái PM hoặc assignee, chỉ chuyển bước kế tiếp, cảnh báo BLOCKED cần xác nhận, phân trang 20, priority mặc định MEDIUM và giữ assignee DONE sau xóa membership là lựa chọn triển khai ghi tại [bước 6](buoc-6.md). UC23 đã nối Dashboard/Progress tính động ở bước 10; UC19 đã bổ sung chọn Sprint ở bước 9.
 
 Project bước 5 đối chiếu UC12/UC13 chi tiết (image36/image37), sequence image17, ERD image29 và quy ước image51. UC14–UC17 chỉ có danh mục/quy tắc chung. Trạng thái ACTIVE/CLOSED, ngày tùy chọn, đóng chặn thay đổi nội dung, Owner vẫn chuyển PM sau đóng, PM tự vào Project, PM cũ giữ membership, phạm vi xem Member theo membership Project và giới hạn trường là lựa chọn triển khai ghi tại [bước 5](buoc-5.md).
 

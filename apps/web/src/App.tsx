@@ -6,6 +6,7 @@ import { Profile } from './components/Profile';
 import { Workspaces } from './components/Workspaces';
 import { Notifications } from './components/Notifications';
 import { Tasks } from './components/Tasks';
+import { Dashboard } from './components/Dashboard';
 
 const stateLabels: Record<ConnectionState, string> = {
   checking: 'Đang kiểm tra', connected: 'Đã kết nối', unavailable: 'Chưa kết nối',
@@ -105,6 +106,7 @@ export function App() {
           <div className="eyebrow">CÔNG VIỆC RÕ RÀNG. NHÓM VỮNG VÀNG.</div>
           <div className="heading-row"><div><h1>Chào {user.displayName},<br />cùng bắt đầu nhé.</h1><p className="intro">Nơi nhóm của bạn lên kế hoạch, phân công và cùng nhau<br className="desktop-break" /> đưa công việc đến đích.</p></div><div className="decor" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div>
 
+          <Dashboard key={user.id} onExpired={expired} />
           <section className="connection-panel" aria-labelledby="connection-title">
             <div className="panel-heading"><div><span className="eyebrow">NỀN TẢNG ỨNG DỤNG</span><h2 id="connection-title">Trạng thái kết nối</h2></div><button type="button" className="refresh-button" onClick={() => setAttempt((value) => value + 1)} disabled={checking}>{checking ? 'Đang kiểm tra…' : 'Kiểm tra lại ↻'}</button></div>
             <div className="connection-grid" aria-live="polite" aria-busy={checking}>

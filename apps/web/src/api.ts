@@ -186,12 +186,23 @@ export interface CalendarPage {
   tasks: { id: string; title: string; status: TaskStatus; startDate: string | null; dueDate: string | null; assignee: { displayName: string } | null }[];
   sprints: { id: string; name: string; goal: string; status: string; startDate: string; endDate: string }[];
 }
+export interface DashboardResult {
+  today: string; total: number; counts: Record<TaskStatus, number>; progressPercent: number | null; activeCount: number; activeKnownEffort: number;
+  overdueCount: number; dueSoonCount: number; blockedCount: number; missingEffortCount: number; missingDeadlineCount: number; unassignedCount: number;
+  attention: { id: string; title: string; status: TaskStatus; dueDate: string | null; project: { name: string }; dependencies: { dependsOnTaskId: string }[] }[];
+  projectStatus?: 'ACTIVE' | 'CLOSED'; memberCount?: number; sprintCounts?: Record<'PLANNED' | 'ACTIVE' | 'COMPLETED', number>;
+  activeSprint?: { id: string; name: string; goal: string; startDate: string; endDate: string } | null;
+  risk?: ProjectRiskResult;
+  workload?: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number; unassignedEffort: number; overloadedCount: number; missingCapacityCount: number; unavailableAssigneeCount: number };
+}
 export interface RecommendationsPage {
   periodStart: string; periodEnd: string; today: string; page: number; pageSize: number; total: number; projectStatus: 'ACTIVE' | 'CLOSED';
   advice: { code: string; message: string }[];
   items: { task: { id: string; title: string; status: TaskStatus; assignee: string | null }; reasons: { code: string; message: string }[]; blockingCount: number; blockingTasks: { id: string; title: string }[]; candidates: { userId: string; displayName: string; knownEffort: number; capacityPoints: number; projectedEffort: number; projectedPercent: number }[] }[];
 }
 export const projectApi = {
+  personalDashboard: () => request<DashboardResult>('/dashboard/mine'),
+  dashboard: (id: string, periodStart: string, periodEnd: string) => request<DashboardResult>(`/projects/${id}/dashboard?${new URLSearchParams({ periodStart, periodEnd })}`),
   calendar: (id: string, query: URLSearchParams) => request<CalendarPage>(`/projects/${id}/calendar?${query}`),
   recommendations: (id: string, periodStart: string, periodEnd: string, page = 1) => request<RecommendationsPage>(`/projects/${id}/recommendations?${new URLSearchParams({ periodStart, periodEnd, page: String(page) })}`),
   risk: (id: string, periodStart: string, periodEnd: string) => request<ProjectRiskResult>(`/projects/${id}/risk?${new URLSearchParams({ periodStart, periodEnd })}`),

@@ -81,6 +81,18 @@ UI có bộ chọn tháng, lưới ngày bắt đầu từ thứ Hai, chọn ng�
 
 Đợt Calendar: build/typecheck thành công, 52/52 kiểm thử tích hợp và 2/2 luồng desktop/mobile qua. API kiểm tra scope, query, giao kỳ inclusive, Task/Sprint lịch sử, dữ liệu thiếu ngày, phân trang và thu hồi quyền. Trình duyệt kiểm tra chọn tháng/ngày, ngày không có Task, mở Task/trở về và không tràn ngang. Ảnh `calendar.png` nằm trong `.local/e2e-results`, đã xem bản mobile. Không chạy lại toàn bộ bộ trình duyệt.
 
+## UC33–34 — Dashboard cá nhân và Project
+
+`GET /dashboard/mine` tổng hợp Task được giao cho người đăng nhập, trong Project còn membership như My Tasks. Không nhận userId hoặc query khác; không tiết lộ Task thuộc Project đã rời, kể cả assignee lịch sử DONE. Dashboard cá nhân nằm ở **Tổng quan** và không có Workload/Risk Project.
+
+`GET /projects/:id/dashboard?periodStart=YYYY-MM-DD&periodEnd=YYYY-MM-DD` chỉ cho PM hiện tại. Owner/Member/System Admin không tự có quyền. Project CLOSED vẫn xem được. Response có tổng Task, các trạng thái, tiến độ, overdue/BLOCKED, hạn từ hôm nay đến 7 ngày tới inclusive, thiếu Effort/deadline/phân công, Effort chưa DONE đã biết, số thành viên/Sprint và Sprint ACTIVE. Workload/Risk dùng đúng kỳ đã chọn với các quy tắc UC35–38. Chỉ số tiến độ tính toàn Project và độc lập kỳ Workload.
+
+Tiến độ = số Task DONE / tổng Task × 100, làm tròn hai chữ số; Project/cá nhân chưa có Task trả null, không kết luận hoàn thành. Đây là tiến độ theo số Task, không theo Effort hay dự báo thời gian. Task DONE không tính overdue/BLOCKED/tải/thiếu dữ liệu. Ngày đánh giá theo Việt Nam, deadline đúng hôm nay chưa quá hạn. Các nhóm cảnh báo có thể giao nhau.
+
+Danh sách cần chú ý giới hạn 10 Task chưa DONE có dependency chưa DONE hoặc hạn không sau 7 ngày tới, gồm quá hạn; sắp theo hạn sớm rồi ID, ngày thiếu ở cuối. Tổng quan tính mọi Task trong scope, không bị giới hạn theo danh sách. Mở Task dùng màn hình hiện có; trở về tải lại Dashboard. Thay trạng thái/dependency ở nơi khác thì dùng **Tải lại Dashboard** hoặc mở lại trang. API đọc trong RepeatableRead từ dữ liệu hiện tại, không lưu bộ đếm/snapshot báo cáo và không realtime; không cần migration.
+
 ## Phần còn lại
 
-UC33–34 Dashboard và UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.
+Đợt Dashboard: build/typecheck web/API thành công; 53/53 kiểm thử tích hợp PostgreSQL và toàn bộ 12/12 luồng trình duyệt desktop/mobile qua. API kiểm tra quyền PM/scope cá nhân, query, Project CLOSED, thu hồi membership, dữ liệu trống, trạng thái/tiến độ thay đổi, dependency DONE, hạn 7 ngày inclusive, Workload/Risk, Sprint ACTIVE và tổng số liệu ngoài danh sách 10 Task. Trình duyệt kiểm tra Dashboard cá nhân, Dashboard Project, chọn kỳ, mở Task/đổi trạng thái/trở về và không tràn ngang, cùng các luồng hồi quy đăng ký/phiên/mật khẩu/nhóm/công việc. Đã xem ảnh `personal-dashboard.png` và `project-dashboard.png` trên desktop/mobile trong `.local/e2e-results`; báo cáo tại `.local/e2e-report`.
+
+UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.

@@ -75,6 +75,9 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await client.task.createMany({ data: [{ projectId: project.id, title: 'Task cần ước lượng' }, { projectId: project.id, title: 'Task đã ước lượng', effort: 5, assigneeId: user.id }] });
   await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
   await observe(page); await page.goto(baseURL);
+  const personalDashboard = page.getByRole('region', { name: 'Dashboard cá nhân', exact: true });
+  await expect(personalDashboard).toContainText('Chưa DONE: 1 Task · 5 Effort đã biết');
+  await noOverflow(page); await personalDashboard.screenshot({ path: testInfo.outputPath('personal-dashboard.png') });
   async function open(targetPage = page) {
     await nav(targetPage, 'Workspace');
     await targetPage.getByRole('button').filter({ hasText: 'Workspace Sprint QA' }).click();
@@ -145,6 +148,20 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await expect(calendar).toContainText('Đang xem: 2026-10');
   await noOverflow(page); await calendar.screenshot({ path: testInfo.outputPath('calendar.png') });
   await calendar.getByRole('button', { name: 'Thu gọn Calendar', exact: true }).click();
+  const dashboard = page.getByRole('region', { name: 'Dashboard Project', exact: true });
+  await dashboard.getByRole('button', { name: 'Mở Dashboard Project', exact: true }).click();
+  await expect(dashboard).toContainText('Chưa DONE: 3 Task');
+  await dashboard.getByRole('button').filter({ hasText: 'Task Calendar QA' }).click();
+  await dashboard.getByRole('button', { name: 'Chuyển sang Đang làm', exact: true }).click();
+  await expect(dashboard.getByRole('button', { name: 'Chuyển sang Chờ duyệt', exact: true })).toBeVisible();
+  await dashboard.getByRole('button', { name: '← Về Dashboard Project', exact: true }).click();
+  await expect(dashboard).toContainText('Đang làm: 1');
+  await dashboard.getByLabel('Kỳ Dashboard bắt đầu', { exact: true }).fill('2026-10-11');
+  await dashboard.getByLabel('Kỳ Dashboard kết thúc', { exact: true }).fill('2026-10-25');
+  await dashboard.getByRole('button', { name: 'Xem Dashboard theo kỳ', exact: true }).click();
+  await expect(dashboard).toContainText('Workload trong kỳ 2026-10-11 → 2026-10-25');
+  await noOverflow(page); await dashboard.screenshot({ path: testInfo.outputPath('project-dashboard.png') });
+  await dashboard.getByRole('button', { name: 'Thu gọn Dashboard', exact: true }).click();
   await client.task.delete({ where: { id: calendarTask.id } });
   const panel = page.getByRole('region', { name: 'Lập kế hoạch Sprint' });
   await panel.getByLabel('Tên Sprint', { exact: true }).fill('Sprint nghiệm thu');

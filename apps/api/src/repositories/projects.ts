@@ -6,6 +6,7 @@ import { workload } from './workload.js';
 import { projectRisk } from './project-risk.js';
 import { recommendations } from './recommendations.js';
 import type { CalendarQuery } from '../services/calendar-validation.js';
+import { taskDashboard } from './dashboard.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, email: true, displayName: true, status: true } as const;
@@ -59,6 +60,23 @@ export function createProjectRepository(client: PrismaClient) {
     await tx.notification.create({ data: { userId, type, title: 'Cập nhật Project', message: `${message} “${name}”.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
   }
   return {
+    async personalDashboard(actorId: string, now = new Date()) {
+      return client.$transaction((tx) => taskDashboard(tx, { assigneeId: actorId, project: { members: { some: { userId: actorId, workspaceMember: { userId: actorId } } } } }, now), { isolationLevel: 'RepeatableRead' });
+    },
+    async dashboard(projectId: string, actorId: string, period: { periodStart: string; periodEnd: string }, now = new Date()) {
+      return client.$transaction(async (tx) => {
+        const { project } = await projectAccess(tx, projectId, actorId);
+        if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem Dashboard Project.');
+        const summary = await taskDashboard(tx, { projectId }, now);
+        const sprintGroups = await tx.sprint.groupBy({ by: ['status'], where: { projectId }, _count: { _all: true } });
+        const sprintCounts = { PLANNED: 0, ACTIVE: 0, COMPLETED: 0 }; for (const group of sprintGroups) sprintCounts[group.status] = group._count._all;
+        const activeSprint = await tx.sprint.findFirst({ where: { projectId, status: 'ACTIVE' }, select: { id: true, name: true, goal: true, startDate: true, endDate: true } });
+        const risk = await projectRisk(tx, project, period, now);
+        const load = await workload(tx, projectId, { ...period, page: 1 });
+        return { ...summary, projectStatus: project.status, memberCount: project._count.members, sprintCounts, activeSprint, risk,
+          workload: { ...load.summary, overloadedCount: risk.metrics.overloadedCount, missingCapacityCount: risk.metrics.missingCapacityCount, unavailableAssigneeCount: risk.metrics.unavailableAssigneeCount } };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
     async calendar(projectId: string, actorId: string, query: CalendarQuery) {
       return client.$transaction(async (tx) => {
         await projectAccess(tx, projectId, actorId);

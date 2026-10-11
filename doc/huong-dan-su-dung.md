@@ -2,6 +2,12 @@
 
 Mở http://127.0.0.1:5173 sau khi ứng dụng và PostgreSQL đã chạy theo README. Nhóm có thể dùng ba tài khoản riêng để thử Owner, Project Manager (PM) và Member. Mỗi người đăng ký tên, email và mật khẩu 15–128 ký tự; dùng cửa sổ riêng hoặc đăng xuất khi đổi tài khoản.
 
+## Xem Dashboard
+
+Vào **Tổng quan** để xem Dashboard cá nhân: Task được giao trong Project bạn còn là thành viên, tiến độ, quá hạn, BLOCKED và hạn 7 ngày tới. PM mở Project → **Mở Dashboard Project** để xem tiến độ toàn Project, Sprint/thành viên và Workload/Risk theo kỳ. Chọn kỳ chỉ thay Workload/Risk, không lọc tiến độ Project.
+
+Nhấn Task cần chú ý để xem/cập nhật theo quyền; trở về Dashboard tải lại số liệu. Nếu chỉnh ở nơi khác, dùng **Tải lại Dashboard**. Tiến độ tính theo số Task DONE, không theo Effort. Dữ liệu chưa có Task không được hiển thị là hoàn thành. Danh sách cần chú ý chỉ có tối đa 10 Task; dùng My Tasks/Task Project để xem đầy đủ.
+
 ## Xem đề xuất điều phối
 
 PM mở Project → **Mở Capacity & Workload**, chọn kỳ rồi **Mở đề xuất điều phối**. Xem lý do cần xử lý và tối đa ba người còn Capacity; dùng **Mở Task để xem xét** để tự điều chỉnh. Thiếu Effort/Capacity, Task đã bắt đầu hoặc dependency chưa DONE có thể khiến không có người gợi ý. Gợi ý dựa theo tải từng Task riêng, chưa xét kỹ năng và không tự phân công. Sau khi chỉnh Task, trở về hoặc tải lại đề xuất để đọc dữ liệu mới.
@@ -45,7 +51,7 @@ Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và 
 
 PM chọn Sprint PLANNED → **Bắt đầu Sprint** → xem cảnh báo → xác nhận. Cần có Goal, ít nhất một Task và chưa có Sprint ACTIVE trong Project. Bắt đầu tạo thông báo cho thành viên Project và mở trang theo dõi. Thành viên Project có thể chọn Sprint → **Theo dõi Sprint** để xem Goal, tiến độ, Task BLOCKED/quá hạn và Board/danh sách. Lọc theo trạng thái, priority, người phụ trách; số liệu tổng vẫn tính toàn Sprint. Bấm Task để mở chi tiết; **Về theo dõi Sprint** tải lại tiến độ sau khi sửa. Board phân trang 20, dùng nút trang để xem đủ Task. Khi có thay đổi từ người khác, bấm **Tải lại tiến độ Sprint**.
 
-Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload và Risk trong kế hoạch, bước bắt đầu và theo dõi Sprint. Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
+Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload và Risk trong kế hoạch, bước bắt đầu và theo dõi Sprint, cùng Dashboard Project. Dashboard cá nhân nằm ở Tổng quan. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
 
 Trong Project, chọn **Mở Calendar**, chọn tháng rồi nhấn ngày hoặc **Xem cả tháng**. Lịch hiển thị Task/Sprint giao với kỳ, kể cả DONE/COMPLETED. Task thiếu cả ngày bắt đầu và hạn được đếm riêng. Nhấn Task để xem chi tiết; **Về Calendar** tải lại lịch. Owner và thành viên Project đều xem được, kể cả Project đã đóng.
 

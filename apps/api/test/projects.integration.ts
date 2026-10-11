@@ -13,6 +13,41 @@ import { createProjectService } from '../src/services/projects.js';
 import { withHttp } from './helpers/http.js';
 
 const origin = 'http://127.0.0.1:5173';
+test('UC33–34: personal scope, PM dashboard, live progress, Vietnam deadlines and empty data', async () => fixture(async ({ base, client, workspaceId, otherWorkspaceId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const project = await create(base, workspaceId, owner.cookie); const repository = createProjectRepository(client);
+  await repository.assignManager(project.id, owner.id, pm.id, null); await repository.addMember(project.id, pm.id, member.id);
+  const period = { periodStart: '2026-10-11', periodEnd: '2026-10-25' }; const now = new Date('2026-10-10T17:00:00Z');
+  const read = () => repository.dashboard(project.id, pm.id, period, now);
+  const empty = await read(); assert.equal(empty.total, 0); assert.equal(empty.progressPercent, null);
+  assert.equal((await repository.personalDashboard(member.id, now)).total, 0);
+  const path = `/projects/${project.id}/dashboard?${new URLSearchParams(period)}`;
+  assert.equal((await request(base, path)).status, 401); assert.equal((await request(base, '/dashboard/mine')).status, 401);
+  for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, path, user.cookie)).status, 403);
+  assert.equal((await request(base, `${path}&extra=true`, pm.cookie)).status, 400);
+  assert.equal((await request(base, '/dashboard/mine?userId=other', member.cookie)).status, 400);
+  const task = await client.task.create({ data: { projectId: project.id, title: 'Mine today', assigneeId: member.id, effort: 5, dueDate: new Date('2026-10-11') } });
+  const blocked = await client.task.create({ data: { projectId: project.id, title: 'Blocked overdue', assigneeId: member.id, dueDate: new Date('2026-10-10') } });
+  await client.taskDependency.create({ data: { projectId: project.id, taskId: blocked.id, dependsOnTaskId: task.id } });
+  await client.task.create({ data: { projectId: project.id, title: 'Unassigned', status: 'REVIEW' } });
+  await client.task.create({ data: { projectId: project.id, title: 'Done overdue ignored', status: 'DONE', dueDate: new Date('2026-10-01'), assigneeId: member.id } });
+  await client.task.create({ data: { projectId: project.id, title: 'Week inclusive', dueDate: new Date('2026-10-18') } });
+  await client.task.create({ data: { projectId: project.id, title: 'Beyond week', dueDate: new Date('2026-10-19') } });
+  const foreign = await client.project.create({ data: { workspaceId: otherWorkspaceId, name: 'Foreign', tasks: { create: { title: 'Hidden stale assignment', assigneeId: member.id, dueDate: new Date('2026-10-01') } } } });
+  const personal = await repository.personalDashboard(member.id, now); assert.equal(personal.today, '2026-10-11'); assert.equal(personal.total, 3); assert.equal(personal.progressPercent, 33.33); assert.equal(personal.overdueCount, 1); assert.equal(personal.blockedCount, 1); assert.equal(personal.dueSoonCount, 1); assert.equal(personal.attention.length, 2);
+  assert.equal(personal.attention.some((item) => item.project.name === foreign.name), false);
+  await repository.saveCapacity(project.id, pm.id, { ...period, userId: member.id, capacityPoints: 4, expectedUpdatedAt: null });
+  const dashboard = await read(); assert.equal(dashboard.total, 6); assert.equal(dashboard.progressPercent, 16.67); assert.equal(dashboard.dueSoonCount, 2); assert.equal(dashboard.unassignedCount, 3); assert.equal(dashboard.workload.overloadedCount, 1); assert.equal(dashboard.memberCount, 2); assert.equal(dashboard.activeSprint, null);
+  for (const status of ['IN_PROGRESS', 'REVIEW', 'DONE'] as const) { await client.task.update({ where: { id: task.id }, data: { status } }); assert.equal((await read()).counts[status], status === 'REVIEW' ? 2 : status === 'DONE' ? 2 : 1); }
+  const after = await read(); assert.equal(after.progressPercent, 33.33); assert.equal(after.blockedCount, 0); assert.equal(after.workload.overloadedCount, 0);
+  assert.equal((await repository.personalDashboard(member.id, new Date('2026-10-11T17:00:00Z'))).overdueCount, 1);
+  await client.sprint.create({ data: { projectId: project.id, name: 'Active dashboard', goal: 'Live summary', status: 'ACTIVE', startDate: new Date('2026-10-11'), endDate: new Date('2026-10-25') } });
+  assert.equal((await read()).sprintCounts.ACTIVE, 1); assert.equal((await read()).activeSprint?.name, 'Active dashboard');
+  await client.task.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ projectId: project.id, title: `Overdue ${index}`, dueDate: new Date('2026-10-01'), assigneeId: member.id })) });
+  const many = await repository.personalDashboard(member.id, now); assert.equal(many.total, 24); assert.equal(many.overdueCount, 22); assert.equal(many.attention.length, 10);
+  await client.project.update({ where: { id: project.id }, data: { status: 'CLOSED' } }); assert.equal((await request(base, path, pm.cookie)).status, 200); assert.equal((await repository.personalDashboard(member.id, now)).total, 24);
+  await client.projectMember.delete({ where: { projectId_userId: { projectId: project.id, userId: member.id } } }); assert.equal((await repository.personalDashboard(member.id, now)).total, 0);
+}));
 test('UC30: Calendar scope, month/day overlap, undated tasks, history and pagination', async () => fixture(async ({ base, client, workspaceId, otherWorkspaceId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const project = await create(base, workspaceId, owner.cookie); const repository = createProjectRepository(client);

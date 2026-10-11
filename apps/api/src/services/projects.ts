@@ -5,9 +5,12 @@ import { idSchema } from './workspace-validation.js';
 import { createProjectSchema, updateProjectSchema, managerSchema, projectMemberSchema } from './project-validation.js';
 import { capacitySchema, capacityQuerySchema, workloadQuerySchema, riskQuerySchema } from './coordination-validation.js';
 import { calendarQuerySchema } from './calendar-validation.js';
+import { z } from 'zod';
 
 export function createProjectService(repository: ProjectRepository, auth: AuthService) {
   return {
+    async personalDashboard(token: string | undefined, query: unknown) { const user = await auth.me(token); validate(z.object({}).strict(), query); return repository.personalDashboard(user.id); },
+    async dashboard(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.dashboard(validate(idSchema, projectId), user.id, validate(riskQuerySchema, query)); },
     async calendar(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.calendar(validate(idSchema, projectId), user.id, validate(calendarQuerySchema, query)); },
     async recommendations(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.recommendations(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },
     async risk(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.risk(validate(idSchema, projectId), user.id, validate(riskQuerySchema, query)); },
