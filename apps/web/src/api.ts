@@ -181,7 +181,13 @@ export interface WorkloadPage {
   items: { user: ProjectMember['user']; taskCount: number; knownEffort: number; missingEffortCount: number; capacity: MemberCapacity | null; percent: number | null; overloaded: boolean; complete: boolean }[];
 }
 export interface CapacityPage { items: (MemberCapacity & { user: ProjectMember['user'] })[]; total: number; page: number; pageSize: number; }
+export interface RecommendationsPage {
+  periodStart: string; periodEnd: string; today: string; page: number; pageSize: number; total: number; projectStatus: 'ACTIVE' | 'CLOSED';
+  advice: { code: string; message: string }[];
+  items: { task: { id: string; title: string; status: TaskStatus; assignee: string | null }; reasons: { code: string; message: string }[]; blockingCount: number; blockingTasks: { id: string; title: string }[]; candidates: { userId: string; displayName: string; knownEffort: number; capacityPoints: number; projectedEffort: number; projectedPercent: number }[] }[];
+}
 export const projectApi = {
+  recommendations: (id: string, periodStart: string, periodEnd: string, page = 1) => request<RecommendationsPage>(`/projects/${id}/recommendations?${new URLSearchParams({ periodStart, periodEnd, page: String(page) })}`),
   risk: (id: string, periodStart: string, periodEnd: string) => request<ProjectRiskResult>(`/projects/${id}/risk?${new URLSearchParams({ periodStart, periodEnd })}`),
   workload: (id: string, periodStart: string, periodEnd: string, page = 1) => request<WorkloadPage>(`/projects/${id}/workload?${new URLSearchParams({ periodStart, periodEnd, page: String(page) })}`),
   capacities: (id: string, page = 1) => request<CapacityPage>(`/projects/${id}/capacities?page=${page}`),

@@ -50,7 +50,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC36 | Quản lý Task Dependency | PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang, BLOCKED; Risk tính lại khi tải điều phối/Sprint | 10 |
 | UC37 | Xem Workload thành viên | Đã có: PM chọn kỳ, tổng Effort Task chưa DONE giao với kỳ / Capacity, cảnh báo quá tải/thiếu dữ liệu, phân trang và lịch sử Capacity; tích hợp tải Sprint/tổng Project vào UC46–48 | 10 |
 | UC38 | Xem Project Risk | Đã có: PM, HIGH/MEDIUM/LOW/UNKNOWN theo Workload/blocked/overdue/tiến độ, nguyên nhân và độ đầy đủ dữ liệu; API/UI và tích hợp Sprint | 10 |
-| UC39 | Xem đề xuất điều phối | Chưa triển khai | 10 |
+| UC39 | Xem đề xuất điều phối | Đã có: PM xem lý do, gợi ý tối đa 3 người theo Capacity/Effort, mở Task; không tự phân công | 10 |
 | UC40 | Xem danh sách người dùng hệ thống | Chưa triển khai | 10 |
 | UC41 | Khóa / mở khóa tài khoản | Chưa triển khai API/giao diện quản trị; auth đã từ chối tài khoản LOCKED | 10 |
 | UC42 | Xem danh sách Workspace | Chưa triển khai | 10 |

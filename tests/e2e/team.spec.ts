@@ -99,6 +99,18 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await risk.getByText('Cách đánh giá Risk', { exact: true }).click();
   await expect(risk).toContainText('không phải dự đoán chắc chắn');
   await risk.screenshot({ path: testInfo.outputPath('project-risk.png') });
+  const recommendations = workload.getByRole('region', { name: 'Đề xuất điều phối', exact: true });
+  await recommendations.getByRole('button', { name: 'Mở đề xuất điều phối', exact: true }).click();
+  await expect(recommendations).toContainText('Cân nhắc chuyển Task chưa bắt đầu');
+  await expect(recommendations).toContainText('Ước lượng Effort trước');
+  await expect(recommendations).toContainText('Chưa có người gợi ý phù hợp');
+  await recommendations.screenshot({ path: testInfo.outputPath('recommendations.png') });
+  await recommendations.getByRole('listitem').filter({ has: page.locator('strong', { hasText: 'Task cần ước lượng' }) }).getByRole('button', { name: 'Mở Task để xem xét', exact: true }).click();
+  await expect(workload.getByRole('button', { name: '← Về đề xuất điều phối', exact: true })).toBeVisible();
+  await workload.getByRole('button', { name: '← Về đề xuất điều phối', exact: true }).click();
+  await expect(recommendations).toContainText('Ước lượng Effort trước');
+  expect(await client.task.count({ where: { projectId: project.id, assigneeId: user.id } })).toBe(1);
+  await recommendations.getByRole('button', { name: 'Thu gọn đề xuất', exact: true }).click();
   await workload.getByRole('button', { name: 'Thiết lập Capacity', exact: true }).click();
   await workload.getByLabel('Capacity (điểm)', { exact: true }).fill('10');
   await workload.getByRole('button', { name: 'Hủy sửa Capacity', exact: true }).click();

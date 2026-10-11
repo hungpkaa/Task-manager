@@ -24,7 +24,7 @@ Chỉ PM hiện tại đọc/ghi điều phối; Owner/Member/System Admin khôn
 
 Lựa chọn triển khai do đặc tả chưa định nghĩa chi tiết kỳ: tính Task TODO/IN_PROGRESS/REVIEW có khoảng ngày giao với kỳ (biên inclusive), ngày thiếu được xem là không giới hạn đầu/cuối. Task thiếu cả hai ngày được tính ở mọi kỳ. Không chia Effort theo ngày; Capacity phải khớp chính xác kỳ truy vấn, không cộng hoặc chia tỷ lệ các kỳ khác. Tỷ lệ = Effort đã biết / Capacity × 100, làm tròn hai chữ số thập phân; trên 100% là quá tải. Thiếu Capacity trả tỷ lệ null; thiếu Effort báo dữ liệu chưa đầy đủ. Task chưa phân công được báo riêng. Báo cáo đọc dữ liệu hiện tại, không phải snapshot lịch sử của Task.
 
-Migration thứ 15 `20261011160000_member_capacities` thêm bảng, FK Project/User, unique thành viên/kỳ và CHECK Capacity dương/ngày hợp lệ. API kiểm tra kỳ chồng nhau dưới khóa chung. Đề xuất điều phối chưa có.
+Migration thứ 15 `20261011160000_member_capacities` thêm bảng, FK Project/User, unique thành viên/kỳ và CHECK Capacity dương/ngày hợp lệ. API kiểm tra kỳ chồng nhau dưới khóa chung.
 
 ## Tích hợp Capacity/Workload vào UC46–48
 
@@ -53,6 +53,14 @@ Blocked, overdue, thiếu Effort/deadline/phân công và tiến độ tính to�
 
 UI hiển thị lý do, số lượng, ngày/kỳ và mục **Cách đánh giá Risk**. Lưu Capacity tải lại Risk; thay Task/dependency thì dùng tải lại điều phối/Sprint. Không realtime hoặc cache lịch sử Risk, không tự đổi assignee/trạng thái. Preview snapshot Sprint bao gồm kết quả Risk và ngày đánh giá; thay đổi làm cảnh báo khác (kể cả đổi ngày kết thúc Project hoặc qua ngày mới) buộc kiểm tra lại trước khi xác nhận. Không thêm migration.
 
+## UC39 — Đề xuất điều phối
+
+PM mở **Đề xuất điều phối** trong Capacity & Workload. `GET /projects/:id/recommendations?periodStart=YYYY-MM-DD&periodEnd=YYYY-MM-DD&page=1` đọc trong RepeatableRead, chỉ cho PM hiện tại; Project CLOSED vẫn được xem. Danh sách phân trang 20 Task chưa DONE, gồm thiếu Effort/deadline/phân công, overdue, blocked, assignee không khả dụng và quá tải trong kỳ. Lời khuyên tổng quan lấy từ Risk toàn Project. Không thêm migration, không tự sửa Task, phân công hay gửi notification.
+
+Task TODO giao với kỳ, có Effort, không có dependency chưa DONE và cần phân công/cân bằng tải được gợi ý tối đa 3 người. Người nhận phải là thành viên hiện tại ACTIVE, có Capacity khớp đúng kỳ, mọi Task chưa DONE giao kỳ đã có Effort và tổng Effort sau khi nhận không vượt Capacity. Sắp theo tỷ lệ tải dự kiến tăng dần. Task IN_PROGRESS/REVIEW chỉ có lời khuyên xem phạm vi/hỗ trợ và cân nhắc bàn giao. Thiếu dữ liệu thì không tạo gợi ý định lượng.
+
+Đây là quy tắc theo tải, chưa xét kỹ năng hay dự đoán thời gian. Mỗi Task tính riêng; không cộng nhiều đề xuất thành một kế hoạch đồng thời. PM mở Task để xem/sửa bằng quyền hiện có, trở về thì đề xuất tải lại. Nếu chỉnh Task ở nơi khác, dùng **Tải lại đề xuất** hoặc **Tải lại Workload**. Đề xuất chỉ xuất hiện trong điều phối Project, chưa có bảng riêng trong Sprint.
+
 ## Kiểm chứng
 
 Kiểm thử API bao gồm phân quyền, Task khác Project, dữ liệu sai, chu trình nhiều tầng, hai liên kết ngược chiều đồng thời, phân trang, BLOCKED và Project CLOSED. Luồng trình duyệt Sprint kiểm tra thêm/xóa/hủy xóa và BLOCKED trên desktop/mobile, kèm kiểm tra không tràn ngang.
@@ -63,4 +71,6 @@ Build và typecheck web/API thành công. `npm.cmd run test:db`: 50/50 kiểm th
 
 ## Phần còn lại
 
-UC39 đề xuất điều phối; UC30 Calendar, UC33–34 Dashboard và UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.
+Đợt UC39: build/typecheck thành công; 51/51 kiểm thử tích hợp và 2/2 luồng Sprint desktop/mobile qua. Test bổ sung kiểm tra quyền PM/query, người nhận đủ Capacity, thiếu Effort, quá tải, tài khoản khóa/rời Project, dependency, Task đã bắt đầu, phân trang, Project CLOSED và không thay Task/notification khi đọc. Luồng trình duyệt kiểm tra lý do, trường hợp không có người phù hợp, mở Task/trở về và giữ nguyên phân công. Đã xem ảnh `recommendations.png` trên mobile; không tràn ngang trong luồng kiểm thử. Không chạy lại toàn bộ bộ trình duyệt.
+
+UC30 Calendar, UC33–34 Dashboard và UC40–43 System Admin. Bước 10 chưa hoàn thành toàn bộ.

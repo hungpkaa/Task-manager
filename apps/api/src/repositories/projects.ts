@@ -4,6 +4,7 @@ import type { ProjectInput } from '../services/project-validation.js';
 import type { CapacityInput, WorkloadQuery } from '../services/coordination-validation.js';
 import { workload } from './workload.js';
 import { projectRisk } from './project-risk.js';
+import { recommendations } from './recommendations.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, email: true, displayName: true, status: true } as const;
@@ -57,6 +58,13 @@ export function createProjectRepository(client: PrismaClient) {
     await tx.notification.create({ data: { userId, type, title: 'Cập nhật Project', message: `${message} “${name}”.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
   }
   return {
+    async recommendations(projectId: string, actorId: string, query: WorkloadQuery, now = new Date()) {
+      return client.$transaction(async (tx) => {
+        const { project } = await projectAccess(tx, projectId, actorId);
+        if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem đề xuất điều phối.');
+        return recommendations(tx, project, query, now);
+      }, { isolationLevel: 'RepeatableRead' });
+    },
     async risk(projectId: string, actorId: string, period: { periodStart: string; periodEnd: string }, now = new Date()) {
       return client.$transaction(async (tx) => {
         const { project } = await projectAccess(tx, projectId, actorId);

@@ -7,6 +7,7 @@ import { capacitySchema, capacityQuerySchema, workloadQuerySchema, riskQuerySche
 
 export function createProjectService(repository: ProjectRepository, auth: AuthService) {
   return {
+    async recommendations(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.recommendations(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },
     async risk(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.risk(validate(idSchema, projectId), user.id, validate(riskQuerySchema, query)); },
     async workload(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.workload(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },
     async capacities(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.capacities(validate(idSchema, projectId), user.id, validate(capacityQuerySchema, query).page); },

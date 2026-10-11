@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, projectApi, type CapacityPage, type WorkloadPage } from '../api';
 import { ProjectRisk } from './ProjectRisk';
+import { Recommendations } from './Recommendations';
 
 function currentPeriod() {
   const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
@@ -39,6 +40,7 @@ export function Workload({ projectId, onExpired }: { projectId: string; onExpire
       {error && <p className="form-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{loading && <p role="status">Đang tải Workload…</p>}
       {data && <>
         <ProjectRisk data={data.risk} />
+        <Recommendations key={`${period.start}:${period.end}`} projectId={projectId} periodStart={period.start} periodEnd={period.end} refreshKey={revision} onExpired={onExpired} />
         <p>Kỳ đang xem: {data.periodStart} → {data.periodEnd}. {data.summary.taskCount} Task chưa DONE · {data.summary.knownEffort} Effort đã biết.</p>
         <p className="form-notice">{data.summary.missingEffortCount} Task thiếu Effort · {data.summary.unassignedCount} Task chưa phân công ({data.summary.unassignedEffort} Effort).</p>
         {!data.canEdit && <p>Project đã đóng; chỉ xem dữ liệu.</p>}

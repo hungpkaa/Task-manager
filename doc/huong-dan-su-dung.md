@@ -2,6 +2,10 @@
 
 Mở http://127.0.0.1:5173 sau khi ứng dụng và PostgreSQL đã chạy theo README. Nhóm có thể dùng ba tài khoản riêng để thử Owner, Project Manager (PM) và Member. Mỗi người đăng ký tên, email và mật khẩu 15–128 ký tự; dùng cửa sổ riêng hoặc đăng xuất khi đổi tài khoản.
 
+## Xem đề xuất điều phối
+
+PM mở Project → **Mở Capacity & Workload**, chọn kỳ rồi **Mở đề xuất điều phối**. Xem lý do cần xử lý và tối đa ba người còn Capacity; dùng **Mở Task để xem xét** để tự điều chỉnh. Thiếu Effort/Capacity, Task đã bắt đầu hoặc dependency chưa DONE có thể khiến không có người gợi ý. Gợi ý dựa theo tải từng Task riêng, chưa xét kỹ năng và không tự phân công. Sau khi chỉnh Task, trở về hoặc tải lại đề xuất để đọc dữ liệu mới.
+
 ## Tạo nhóm và dự án
 
 1. Owner vào **Workspace**, tạo không gian làm việc. Người tạo tự trở thành Owner.
