@@ -57,6 +57,40 @@ function upload(base: string, taskId: string, user: UserFixture | undefined, byt
   return fetch(`${base}/api/tasks/${taskId}/attachments`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename), ...(user ? { Cookie: user.cookie } : {}), ...extraHeaders }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(15_000) });
 }
 
+test('UC36: scope, cycles, concurrent additions, BLOCKED and dependency removal', async () => fixture(async ({ base, client, projectId, otherProjectId, users }) => {
+  const [owner, pm, assignee, member, outsider, admin] = users; assert.ok(owner && pm && assignee && member && outsider && admin);
+  const a = await create(base, projectId, pm); const b = await create(base, projectId, pm); const c = await create(base, projectId, pm);
+  const foreign = await client.task.create({ data: { projectId: otherProjectId, title: 'Foreign' } });
+  const path = `/tasks/${a.id}/dependencies`;
+  assert.equal((await request(base, path)).status, 401);
+  for (const user of [owner, member, assignee]) assert.equal((await request(base, path, user)).status, 200);
+  for (const user of [outsider, admin]) assert.equal((await request(base, path, user)).status, 403);
+  for (const user of [owner, member, assignee, outsider, admin]) assert.equal((await request(base, path, user, 'POST', { dependsOnTaskId: b.id })).status, 403);
+  for (const id of [a.id, foreign.id, randomUUID(), 'invalid']) assert.equal((await request(base, path, pm, 'POST', { dependsOnTaskId: id })).status, 400);
+  assert.equal((await request(base, path, pm, 'POST', { dependsOnTaskId: b.id })).status, 201);
+  assert.equal((await request(base, path, pm, 'POST', { dependsOnTaskId: b.id })).status, 409);
+  assert.equal((await request(base, `/tasks/${b.id}/dependencies`, pm, 'POST', { dependsOnTaskId: c.id })).status, 201);
+  assert.equal((await request(base, `/tasks/${c.id}/dependencies`, pm, 'POST', { dependsOnTaskId: a.id })).status, 409);
+  const blocked = await (await request(base, `/tasks/${a.id}`, member)).json() as { task: { blocked: boolean; status: string } };
+  assert.equal(blocked.task.blocked, true); assert.equal(blocked.task.status, 'TODO');
+  await client.task.update({ where: { id: b.id }, data: { status: 'DONE' } });
+  assert.equal((await (await request(base, `/tasks/${a.id}`, member)).json() as { task: { blocked: boolean } }).task.blocked, false);
+  assert.equal((await request(base, `${path}/${b.id}`, member, 'DELETE', {})).status, 403);
+  assert.equal((await request(base, `${path}/${b.id}`, pm, 'DELETE', {})).status, 204);
+  assert.equal((await request(base, `${path}/${b.id}`, pm, 'DELETE', {})).status, 404);
+  const race = await Promise.all([request(base, `/tasks/${a.id}/dependencies`, pm, 'POST', { dependsOnTaskId: c.id }), request(base, `/tasks/${c.id}/dependencies`, pm, 'POST', { dependsOnTaskId: a.id })]);
+  assert.deepEqual(race.map((item) => item.status).sort(), [201, 409]);
+  const extras = await Promise.all(Array.from({ length: 21 }, (_, index) => client.task.create({ data: { projectId, title: `Dependency ${index}` } })));
+  await client.taskDependency.createMany({ data: extras.map((task) => ({ taskId: b.id, dependsOnTaskId: task.id, projectId })) });
+  const page = await (await request(base, `/tasks/${b.id}/dependencies?page=2`, pm)).json() as { items: unknown[]; total: number };
+  assert.equal(page.total, 22); assert.equal(page.items.length, 2);
+  const version = await client.task.findUniqueOrThrow({ where: { id: a.id } });
+  await client.project.update({ where: { id: projectId }, data: { status: 'CLOSED' } });
+  assert.equal((await request(base, path, pm, 'POST', { dependsOnTaskId: b.id })).status, 409);
+  const history = await (await request(base, path, pm)).json() as { canEdit: boolean }; assert.equal(history.canEdit, false);
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: a.id } })).updatedAt.toISOString(), version.updatedAt.toISOString());
+}));
+
 test('UC19: create directly in planned/active Sprint, backlog default and invalid Sprint rejection', async () => fixture(async ({ base, client, projectId, otherProjectId, users }) => {
   const [owner, pm, assignee, member, outsider, admin] = users; assert.ok(owner && pm && assignee && member && outsider && admin);
   const fields = { name: 'Task Sprint', goal: 'Test creation', startDate: new Date('2026-10-11'), endDate: new Date('2026-10-25') };

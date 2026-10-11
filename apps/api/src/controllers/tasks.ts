@@ -23,6 +23,9 @@ export function taskRouter(options: TaskOptions) {
     res.attachment(attachment.filename).type('application/octet-stream').send(Buffer.from(attachment.data));
   });
   router.delete('/tasks/:id/attachments/:attachmentId', async (req, res) => { await options.service.removeAttachment(token(req.headers.cookie), req.params.id, req.params.attachmentId); res.status(204).end(); });
+  router.get('/tasks/:id/dependencies', async (req, res) => { res.json(await options.service.dependencies(token(req.headers.cookie), req.params.id, req.query)); });
+  router.post('/tasks/:id/dependencies', async (req, res) => { await options.service.addDependency(token(req.headers.cookie), req.params.id, req.body); res.status(201).json({ added: true }); });
+  router.delete('/tasks/:id/dependencies/:dependsOnTaskId', async (req, res) => { await options.service.removeDependency(token(req.headers.cookie), req.params.id, req.params.dependsOnTaskId); res.status(204).end(); });
   router.get('/tasks/:id/comments', async (req, res) => { res.json(await options.service.comments(token(req.headers.cookie), req.params.id, req.query)); });
   router.post('/tasks/:id/comments', async (req, res) => { res.status(201).json({ comment: await options.service.addComment(token(req.headers.cookie), req.params.id, req.body) }); });
   router.get('/projects/:projectId/tasks', async (req, res) => { res.json(await options.service.list(token(req.headers.cookie), req.params.projectId, req.query)); });

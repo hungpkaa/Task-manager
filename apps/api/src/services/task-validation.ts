@@ -10,6 +10,7 @@ export const createTaskSchema = z.object({ ...fields, description: description.d
   .refine((input) => !input.startDate || !input.dueDate || input.dueDate >= input.startDate, { path: ['dueDate'], message: 'Deadline không được trước ngày bắt đầu.' });
 export const updateTaskSchema = z.object(fields).partial().strict().refine((input) => Object.keys(input).length > 0, 'Cần có dữ liệu để cập nhật.');
 export const assignTaskSchema = z.object({ assigneeId: z.uuid().nullable() }).strict();
+export const dependencySchema = z.object({ dependsOnTaskId: z.uuid() }).strict();
 export const statusTaskSchema = z.object({ status: z.enum(taskStatuses), expectedStatus: z.enum(taskStatuses), acknowledgeBlocked: z.boolean().default(false) }).strict();
 export const taskQuerySchema = z.object({
   q: z.string().trim().max(200).optional(), status: z.enum(taskStatuses).optional(), priority: z.enum(taskPriorities).optional(),

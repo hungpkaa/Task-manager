@@ -187,8 +187,12 @@ export interface Task {
   canEdit: boolean; canChangeStatus: boolean; blocked: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[];
 }
 export interface TaskInput { title: string; description: string; priority: TaskPriority; startDate: string | null; dueDate: string | null; effort: number | null; }
+export interface DependencyPage { items: { dependsOnTaskId: string; dependsOnTask: { id: string; title: string; status: TaskStatus } }[]; total: number; pageSize: number; canEdit: boolean; }
 export interface TaskPage { tasks: Task[]; total: number; page: number; pageSize: number; }
 export const taskApi = {
+  dependencies: (id: string, page: number) => request<DependencyPage>(`/tasks/${id}/dependencies?page=${page}`),
+  addDependency: (id: string, dependsOnTaskId: string) => request(`/tasks/${id}/dependencies`, json('POST', { dependsOnTaskId })),
+  removeDependency: (id: string, dependsOnTaskId: string) => request<void>(`/tasks/${id}/dependencies/${dependsOnTaskId}`, json('DELETE', {})),
   attachments: (id: string, page = 1) => request<AttachmentPage>(`/tasks/${id}/attachments?page=${page}`),
   upload: (id: string, file: File) => request<{ attachment: Omit<TaskAttachment, 'canDelete'> }>(`/tasks/${id}/attachments`, { method: 'POST', body: file, headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(file.name) }, signal: AbortSignal.timeout(30_000) }),
   download: (id: string, attachmentId: string) => request<Blob>(`/tasks/${id}/attachments/${attachmentId}/download`, { signal: AbortSignal.timeout(30_000) }, true),

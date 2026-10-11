@@ -77,6 +77,33 @@ export function createTaskRepository(client: PrismaClient) {
     return { tasks: items.map((task) => view(task, actorId)), total, page: query.page, pageSize: query.pageSize };
   }
   return {
+    async dependencies(id: string, actorId: string, page: number) {
+      return client.$transaction(async (tx) => {
+        const task = await tx.task.findUnique({ where: { id } });
+        if (!task) throw new HttpError(404, 'Task không tồn tại.');
+        const { project } = await access(tx, task.projectId, actorId);
+        return { items: await tx.taskDependency.findMany({ where: { taskId: id }, include: { dependsOnTask: { select: { id: true, title: true, status: true } } }, orderBy: { dependsOnTaskId: 'asc' }, skip: (page - 1) * 20, take: 20 }), total: await tx.taskDependency.count({ where: { taskId: id } }), page, pageSize: 20, canEdit: project.status === 'ACTIVE' && project.managerUserId === actorId };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
+    addDependency: (id: string, actorId: string, dependsOnTaskId: string) => taskMutation(id, actorId, true, async (tx, task) => {
+      if (id === dependsOnTaskId) throw new HttpError(400, 'Task không được phụ thuộc chính nó.');
+      const dependency = await tx.task.findFirst({ where: { id: dependsOnTaskId, projectId: task.projectId } });
+      if (!dependency) throw new HttpError(400, 'Task phụ thuộc phải thuộc cùng Project.');
+      if (await tx.taskDependency.findUnique({ where: { taskId_dependsOnTaskId: { taskId: id, dependsOnTaskId } } })) throw new HttpError(409, 'Dependency đã tồn tại.');
+      const cycle = await tx.$queryRaw<{ id: string }[]>`WITH RECURSIVE reachable(id) AS (
+        SELECT "depends_on_task_id" FROM "task_dependencies" WHERE "task_id" = ${dependsOnTaskId}::uuid AND "project_id" = ${task.projectId}::uuid
+        UNION
+        SELECT d."depends_on_task_id" FROM "task_dependencies" d JOIN reachable r ON d."task_id" = r.id WHERE d."project_id" = ${task.projectId}::uuid
+      ) SELECT id FROM reachable WHERE id = ${id}::uuid LIMIT 1`;
+      if (cycle.length) throw new HttpError(409, 'Dependency này tạo chu trình. Hãy chọn Task khác.');
+      await tx.taskDependency.create({ data: { taskId: id, dependsOnTaskId, projectId: task.projectId } });
+      await tx.task.update({ where: { id }, data: { updatedAt: new Date(Math.max(Date.now(), task.updatedAt.getTime() + 1)) } });
+    }),
+    removeDependency: (id: string, actorId: string, dependsOnTaskId: string) => taskMutation(id, actorId, true, async (tx, task) => {
+      const result = await tx.taskDependency.deleteMany({ where: { taskId: id, dependsOnTaskId } });
+      if (!result.count) throw new HttpError(404, 'Dependency không tồn tại.');
+      await tx.task.update({ where: { id }, data: { updatedAt: new Date(Math.max(Date.now(), task.updatedAt.getTime() + 1)) } });
+    }),
     async attachmentAccess(id: string, actorId: string) {
       const { project, projectMember } = await access(client, await taskProject(id), actorId);
       if (!projectMember) throw new HttpError(403, 'Chỉ thành viên Project được tải lên tệp.');

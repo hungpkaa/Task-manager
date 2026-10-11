@@ -5,9 +5,12 @@ import { validate } from './auth-validation.js';
 import { idSchema } from './workspace-validation.js';
 import { commentSchema, commentQuerySchema } from './comment-validation.js';
 import { attachmentFilename, attachmentBytes } from './attachment-validation.js';
-import { createTaskSchema, updateTaskSchema, assignTaskSchema, statusTaskSchema, taskQuerySchema } from './task-validation.js';
+import { dependencySchema, createTaskSchema, updateTaskSchema, assignTaskSchema, statusTaskSchema, taskQuerySchema } from './task-validation.js';
 export function createTaskService(repository: TaskRepository, auth: AuthService) {
   return {
+    async dependencies(token: string | undefined, id: unknown, query: unknown) { const user = await auth.me(token); return repository.dependencies(validate(idSchema, id), user.id, validate(commentQuerySchema, query).page); },
+    async addDependency(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); return repository.addDependency(validate(idSchema, id), user.id, validate(dependencySchema, input).dependsOnTaskId); },
+    async removeDependency(token: string | undefined, id: unknown, dependsOnTaskId: unknown) { const user = await auth.me(token); return repository.removeDependency(validate(idSchema, id), user.id, validate(idSchema, dependsOnTaskId)); },
     async attachmentAccess(token: string | undefined, id: unknown, name: unknown) { const user = await auth.me(token); attachmentFilename(name); await repository.attachmentAccess(validate(idSchema, id), user.id); },
     async attachments(token: string | undefined, id: unknown, query: unknown) { const user = await auth.me(token); return repository.attachments(validate(idSchema, id), user.id, validate(commentQuerySchema, query).page); },
     async addAttachment(token: string | undefined, id: unknown, name: unknown, bytes: unknown) { const user = await auth.me(token); return repository.addAttachment(validate(idSchema, id), user.id, attachmentFilename(name), attachmentBytes(bytes)); },

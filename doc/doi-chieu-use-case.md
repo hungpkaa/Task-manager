@@ -43,11 +43,11 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC29 | Xem List/Table | Đã triển khai: danh sách thẻ công việc, dùng cùng dữ liệu/bộ lọc với Kanban | 6 |
 | UC30 | Xem Calendar | Chưa triển khai | 10 |
 | UC31 | Tìm kiếm, lọc và sắp xếp Task | Đã triển khai: tìm title/description, status/priority/assignee, sort và phân trang phía API | 6 |
-| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu Sprint; chưa sự kiện hoàn thành Sprint | 4, 5, 6, 8, 9 |
+| UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
 | UC35 | Thiết lập Effort và Capacity | Cơ bản: Task effort 1/2/3/5/8; chưa Capacity và Workload | 6, 10 |
-| UC36 | Quản lý Task Dependency | Chưa có API/UI quản lý; đã có bảng và kiểm tra BLOCKED, FK cùng Project, không tự phụ thuộc; kiểm tra chu trình khi tạo ở bước 10 | 10 |
+| UC36 | Quản lý Task Dependency | Cơ bản: PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang và cập nhật BLOCKED; chưa tích hợp Risk | 10 |
 | UC37 | Xem Workload thành viên | Chưa triển khai | 10 |
 | UC38 | Xem Project Risk | Chưa triển khai | 10 |
 | UC39 | Xem đề xuất điều phối | Chưa triển khai | 10 |

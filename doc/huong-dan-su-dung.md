@@ -62,3 +62,9 @@ PM chọn Sprint ACTIVE → **Kết thúc Sprint**, xem số Task DONE/chưa DON
 ## Chọn Sprint khi tạo Task
 
 PM mở Project → **+ Tạo Task** → **Sprint khi tạo Task**, chọn Sprint PLANNED/ACTIVE hoặc giữ mặc định **Product Backlog**. Dùng nút trang trước/sau để tìm Sprint và **Tải lại lựa chọn Sprint** để cập nhật danh sách. Kiểm tra Effort, assignee và deadline trước khi tạo. Nếu Sprint vừa hoàn thành, chọn Sprint khác hoặc Product Backlog rồi gửi lại. Task đã tạo sẽ xuất hiện trong Sprint Backlog được chọn; nhấn tải lại Sprint & Backlog nếu đang mở màn hình đó.
+
+## Task Dependency
+
+Mở chi tiết Task → **Task Dependency**. PM tìm Task cùng Project, chọn **Task phụ thuộc** rồi **Thêm dependency**. Task hiện tại sẽ BLOCKED khi Task được chọn chưa DONE. Hệ thống từ chối liên kết trùng, tự phụ thuộc và chu trình nhiều tầng. Trạng thái Task vẫn do người có quyền cập nhật.
+
+Chọn **Xóa dependency** rồi xác nhận hoặc hủy; thao tác chỉ xóa liên kết. Danh sách dependency và Task lựa chọn phân trang 20. Thành viên/Owner xem được; chỉ PM quản lý trong Project ACTIVE. Khi Task khác thay đổi, chọn **Tải lại dependency** để cập nhật cả BLOCKED. Risk sẽ được tích hợp ở phần tiếp theo của bước 10.
