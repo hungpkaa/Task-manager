@@ -26,6 +26,7 @@
     "check:projects": "npm run check:projects -w @task-manager/api",
     "check:tasks": "npm run check:tasks -w @task-manager/api",
     "check:fresh-db": "npm run check:fresh-db -w @task-manager/api",
+    "check:recovery": "npm run check:fresh-db -w @task-manager/api -- --recovery",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:local:start": "node scripts/local-database.mjs start",

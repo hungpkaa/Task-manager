@@ -71,9 +71,12 @@ test('Notification history supports pagination, unread filtering and reading the
   const user = await client.user.create({ data: { email, displayName: 'Notification QA', passwordHash: 'fixture-only', sessions: { create: { tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 900000) } } } });
   await client.notification.createMany({ data: Array.from({ length: 61 }, (_, index) => ({ userId: user.id, type: 'TASK_ASSIGNED' as const, title: `Lịch sử ${index}`, message: 'Thông báo kiểm thử', relatedEntityType: 'TASK' as const, relatedEntityId: randomUUID(), createdAt: new Date('2026-10-11T00:00:00Z'), readAt: index < 10 ? new Date() : null })) });
   await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
-  await observe(page); await page.goto(baseURL); await nav(page, 'Thông báo');
+  await observe(page); await page.goto(baseURL);
+  await page.getByRole('region', { name: 'Bắt đầu công việc', exact: true }).getByRole('button').filter({ hasText: 'Mở Thông báo' }).click();
   const panel = page.locator('.workspace-panel'); const items = panel.locator('.notification-list > li');
   await expect(items).toHaveCount(50); await expect(panel).toContainText('51 thông báo chưa đọc');
+  await expect(items.first().locator('.notification-state')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Thông báo trước', exact: true })).toBeDisabled();
   await panel.getByRole('button', { name: 'Thông báo sau', exact: true }).click(); await expect(items).toHaveCount(11);
   await expect(panel).toContainText('Trang 2/2');
   await panel.getByLabel('Lọc thông báo', { exact: true }).selectOption('unread'); await expect(items).toHaveCount(50);

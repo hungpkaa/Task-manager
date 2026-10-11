@@ -1,6 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 
 :root { font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: #263c35; background: #f6f7f3; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+.overview-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+.overview-shortcuts button { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 20px; border: 1px solid #d8e0d0; border-radius: 12px; background: white; color: #263c35; text-align: left; transition: border-color .15s, background .15s; }
+.overview-shortcuts button:hover { background: #f0f5e8; border-color: #829d70; }
+.overview-shortcuts strong { font-size: 15px; }
+.overview-shortcuts button > span:not(.shortcut-icon) { font-size: 12px; line-height: 1.7; }
+.shortcut-icon { display: grid; place-items: center; width: 34px; height: 34px; background: #eaf0df; border-radius: 9px; font-size: 20px; }
+.shortcut-link { color: #486142; font-weight: 600; margin-top: auto; }
+.notification-toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 18px; background: #edf2e6; border-radius: 10px; margin: 20px 0; }
+.notification-toolbar label { display: grid; gap: 8px; font-size: 12px; }
+.notification-toolbar select { font: inherit; padding: 10px 12px; border: 1px solid #cbd7bf; border-radius: 7px; background: white; min-width: 160px; }
+.notification-pagination p { font-size: 12px; margin: 0 0 10px; }
+.notifications-panel .notification-list { max-height: 65vh; overflow-y: auto; scrollbar-gutter: stable; padding: 3px 8px 8px 3px; }
+.notifications-panel .notification-list li { padding: 18px; margin: 0 0 12px; }
+.notification-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.notification-heading h2 { margin: 0; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+.notification-state { flex-shrink: 0; border-radius: 20px; padding: 4px 8px; background: #ddebc7; color: #39572d; font-size: 10px; }
+.notification-state.is-read { background: #edf0e8; color: #687761; }
+.notifications-panel time { font-size: 11px; color: #6b7d60; }
+@media (max-width: 760px) { .overview-shortcuts { grid-template-columns: 1fr; }.overview-shortcuts button { padding: 16px; }.notification-toolbar { padding: 14px; }.notification-toolbar label, .notification-pagination { width: 100%; }.notifications-panel .notification-list { max-height: 70vh; }.notification-heading { flex-wrap: wrap; } }
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, a { -webkit-tap-highlight-color: transparent; }

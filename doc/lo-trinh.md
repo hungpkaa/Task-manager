@@ -39,6 +39,7 @@ Chưa đưa vào phiên bản đầu: email mời và đặt lại mật khẩu,
 | 8 | Cộng tác và tài khoản mở rộng | Bình luận, mention, attachment, thông báo, email mời và đặt lại mật khẩu |
 | 9 | Agile/Scrum | Backlog, vòng đời Sprint, Daily Update, Review, Retrospective và xử lý Task chưa hoàn thành |
 | 10 | Điều phối, báo cáo và quản trị | Effort/Capacity, dependency không chu trình, Workload, Risk, Recommendation, Dashboard, Calendar và System Admin |
+| 11 | Kiểm chứng và bàn giao vận hành cục bộ | Migration trên database mới, sao lưu/khôi phục fixture, hướng dẫn vận hành và giới hạn trước production |
 
 Mỗi bước cập nhật trạng thái thực tế và hướng dẫn kiểm chứng. Chỉ đánh dấu hoàn thành khi đã có bằng chứng chạy hoặc kiểm tra phù hợp; không coi sơ đồ hay màn hình mẫu là tính năng đã triển khai.
 

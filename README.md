@@ -27,7 +27,9 @@ Các nhóm Scrum, cộng tác, Dashboard, điều phối và quản trị đã c
 - [Bước 6 — Task, My Tasks, List và Kanban](doc/buoc-6.md)
 - [Bước 7 — Nghiệm thu phiên bản đầu](doc/buoc-7.md)
 - [Bước 8 — Bình luận, mention và tiến độ cộng tác](doc/buoc-8.md)
+- [Bước 11 — Kiểm chứng sao lưu/khôi phục và bàn giao vận hành](doc/buoc-11.md)
 - [Hướng dẫn sử dụng cho nhóm](doc/huong-dan-su-dung.md)
+- [Các đợt hoàn thiện giao diện và thao tác](doc/hoan-thien-giao-dien.md)
 - [Đối chiếu tiến độ với 52 Use Case](doc/doi-chieu-use-case.md)
 
 ## Công nghệ đã chọn
@@ -86,6 +88,7 @@ npm.cmd run typecheck
 npm.cmd test
 npm.cmd run test:db
 npm.cmd run check:fresh-db
+npm.cmd run check:recovery
 npm.cmd run test:e2e
 ```
 

@@ -8,6 +8,8 @@ import { readConfig } from '../dist/config.js';
 import { createDatabase } from '../dist/repositories/database.js';
 import { createPasswordResetService } from '../dist/services/password-resets.js';
 import { tokenHash } from '../dist/services/auth.js';
+import { bootstrapAdmin } from '../dist/repositories/admin.js';
+import { checkRecovery } from './check-recovery.mjs';
 
 const config = readConfig();
 const name = `task_manager_migration_check_${randomUUID().replaceAll('-', '')}`;
@@ -71,6 +73,17 @@ try {
   await recovery.reset({ token: resetToken, password: 'fresh migration reset passphrase' });
   assert.equal(await fresh.passwordResetToken.count({ where: { userId: user.id } }), 0);
   await assert.rejects(fresh.task.update({ where: { id: task.id }, data: { dueDate: new Date('2026-10-01') } }));
+  const period = { periodStart: '2026-10-11', periodEnd: '2026-10-25' };
+  await database.projects.saveCapacity(project.id, user.id, { ...period, userId: user.id, capacityPoints: 5, expectedUpdatedAt: null });
+  assert.equal((await database.projects.capacities(project.id, user.id, 1)).total, 1);
+  assert.equal((await database.projects.dashboard(project.id, user.id, period)).total, 1);
+  assert.equal((await database.projects.calendar(project.id, user.id, { month: '2026-10', page: 1, sprintPage: 1 })).taskTotal, 1);
+  assert.equal((await bootstrapAdmin(fresh, user.email)).systemRole, 'MEMBER');
+  assert.equal((await fresh.user.findUniqueOrThrow({ where: { id: user.id } })).systemRole, 'MEMBER');
+  await bootstrapAdmin(fresh, user.email, true);
+  assert.equal((await database.admin.statistics(user.id)).activeAdminCount, 1);
+  await assert.rejects(bootstrapAdmin(fresh, user.email, true));
+  if (process.argv.includes('--recovery')) await checkRecovery(url.href, fresh);
   console.log('PASS: all migrations on a fresh PostgreSQL database; Workspace/Project/Task, Sprint planning, comments/mentions, attachment bytes, password reset, notifications and CHECK constraints.');
 } finally {
   try {

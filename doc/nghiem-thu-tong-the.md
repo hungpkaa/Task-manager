@@ -22,7 +22,7 @@ UC32 trước đây chỉ trả 50 thông báo mới nhất. Đã thêm lịch s
 - Email dùng hộp thư thử theo lựa chọn hiện tại. Cần cấu hình và kiểm chứng nhà cung cấp trước khi gửi thật.
 - Risk và gợi ý người nhận dùng quy tắc đã ghi trong tài liệu bước 10; PM quyết định giao việc.
 - Bootstrap System Admin là thao tác vận hành riêng. Chưa cấp quyền cho tài khoản thật trong đợt kiểm thử.
-- Nghiệm thu cục bộ chưa thay thế triển khai production, kiểm chứng sao lưu/khôi phục hay kiểm thử tải.
+- Nghiệm thu cục bộ chưa thay thế triển khai production hoặc kiểm thử tải. Sao lưu/khôi phục đã được kiểm chứng trên fixture tại [bước 11](buoc-11.md), chưa đo trên dung lượng dữ liệu thực tế.
 
 ## Kiểm chứng
 

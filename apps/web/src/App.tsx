@@ -108,6 +108,11 @@ export function App() {
           <div className="eyebrow">CÔNG VIỆC RÕ RÀNG. NHÓM VỮNG VÀNG.</div>
           <div className="heading-row"><div><h1>Chào {user.displayName},<br />cùng bắt đầu nhé.</h1><p className="intro">Nơi nhóm của bạn lên kế hoạch, phân công và cùng nhau<br className="desktop-break" /> đưa công việc đến đích.</p></div><div className="decor" aria-hidden="true"><span>✓</span><span>↗</span><span>▤</span></div></div>
 
+          <section className="overview-shortcuts" aria-label="Bắt đầu công việc">
+            <button onClick={() => navigate('tasks')}><span className="shortcut-icon" aria-hidden="true">✓</span><strong>Công việc của tôi</strong><span>Xem việc được giao và cập nhật tiến độ</span><span className="shortcut-link">Mở My Tasks →</span></button>
+            <button onClick={() => navigate('workspaces')}><span className="shortcut-icon" aria-hidden="true">▤</span><strong>Không gian nhóm</strong><span>Mở dự án, quản lý Task và Sprint</span><span className="shortcut-link">Mở Workspace →</span></button>
+            <button onClick={() => navigate('notifications')}><span className="shortcut-icon" aria-hidden="true">↗</span><strong>Cập nhật mới</strong><span>Xem thông báo giao việc và hoạt động nhóm</span><span className="shortcut-link">Mở Thông báo →</span></button>
+          </section>
           <Dashboard key={user.id} onExpired={expired} />
           <section className="connection-panel" aria-labelledby="connection-title">
             <div className="panel-heading"><div><span className="eyebrow">NỀN TẢNG ỨNG DỤNG</span><h2 id="connection-title">Trạng thái kết nối</h2></div><button type="button" className="refresh-button" onClick={() => setAttempt((value) => value + 1)} disabled={checking}>{checking ? 'Đang kiểm tra…' : 'Kiểm tra lại ↻'}</button></div>
