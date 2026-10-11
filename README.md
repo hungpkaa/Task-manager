@@ -4,7 +4,7 @@ Hệ thống quản lý công việc nhóm theo Workspace, Project, Task và Spr
 
 Bước 9 đã có Backlog/kế hoạch, bắt đầu/theo dõi/kết thúc Sprint, Daily Update, Review, Retrospective và chọn Sprint khi tạo Task. Tích hợp Capacity/Workload/Risk còn lại ở bước 10; xem [tiến độ bước 9](doc/buoc-9.md).
 
-Bước 10 đã có Task Dependency và Capacity/Workload theo kỳ: PM quản lý liên kết, chặn chu trình, cập nhật BLOCKED, thiết lập năng lực và xem tải thành viên. Tích hợp vào Sprint và Risk còn lại; xem [tiến độ bước 10](doc/buoc-10.md).
+Bước 10 đã có Task Dependency, Capacity/Workload theo kỳ và tích hợp tải vào kế hoạch/bắt đầu/theo dõi Sprint. Xác nhận Sprint kiểm tra lại dữ liệu đã xem để tránh dùng cảnh báo cũ. Risk và đề xuất điều phối còn lại; xem [tiến độ bước 10](doc/buoc-10.md).
 
 ## Trạng thái
 

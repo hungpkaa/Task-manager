@@ -6,7 +6,7 @@ export const reviewInput = z.object({ summary: z.string().trim().min(1).max(4000
 export type ReviewInput = z.infer<typeof reviewInput>;
 export const retrospectiveInput = z.object({ wentWell: z.string().trim().min(1).max(4000), needsImprovement: z.string().trim().min(1).max(4000), actionItems: z.string().trim().min(1).max(4000), expectedUpdatedAt: z.iso.datetime().nullable() }).strict();
 export type RetrospectiveInput = z.infer<typeof retrospectiveInput>;
-export const startInput = z.object({ expectedUpdatedAt: z.iso.datetime(), confirmed: z.boolean().default(false) }).strict();
+export const startInput = z.object({ expectedUpdatedAt: z.iso.datetime(), confirmed: z.boolean().default(false), expectedSnapshot: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
 export const finishInput = z.object({ expectedSnapshot: z.string().regex(/^[a-f0-9]{64}$/), destinationSprintId: z.uuid().nullable(), confirmed: z.boolean().default(false) }).strict();
 export type FinishInput = z.infer<typeof finishInput>;
 export const monitorQuery = z.object({
@@ -23,6 +23,7 @@ export const backlogQuery = z.object({ page: z.coerce.number().int().min(1).max(
 export const planningInput = z.object({
   tasks: z.array(z.object({ id: z.uuid(), updatedAt: z.iso.datetime() }).strict()).min(1).max(100),
   confirmed: z.boolean().default(false),
+  expectedSnapshot: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 }).strict().refine((value) => new Set(value.tasks.map((task) => task.id)).size === value.tasks.length, 'Không chọn trùng Task.');
 export const returnInput = z.object({ updatedAt: z.iso.datetime() }).strict();
 export type SprintInput = z.infer<typeof sprintInput>;

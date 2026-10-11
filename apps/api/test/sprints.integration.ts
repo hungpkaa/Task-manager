@@ -42,6 +42,89 @@ async function fixture(run: (context: { base: string; client: PrismaClient; data
 function request(base: string, path: string, cookie?: string, method = 'GET', body?: unknown, requestOrigin = origin) {
   return fetch(`${base}/api${path}`, { method, headers: { Origin: requestOrigin, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
+async function confirmStart(repository: ReturnType<typeof createSprintRepository>, projectId: string, actorId: string, sprint: { id: string; updatedAt: Date }) {
+  const preview = await repository.start(projectId, actorId, sprint.id, sprint.updatedAt.toISOString(), false);
+  return repository.start(projectId, actorId, sprint.id, sprint.updatedAt.toISOString(), true, preview.snapshot);
+}
+test('Sprint workload includes existing and selected commitments once; capacities, missing data and stale previews', async () => fixture(async ({ base, client, database, projectId, otherId, users }) => {
+  const [owner, pm, member] = users; assert.ok(owner && pm && member);
+  const target = await database.sprints.create(projectId, pm.id, input);
+  await client.task.create({ data: { projectId, sprintId: target.id, title: 'Existing commitment', effort: 3, assigneeId: pm.id } });
+  const selected = await client.task.create({ data: { projectId, title: 'Selected', effort: 5, assigneeId: pm.id } });
+  const outside = await client.task.create({ data: { projectId, title: 'Commitment outside dates', effort: 2, assigneeId: member.id, startDate: new Date('2026-11-01') } });
+  const unassigned = await client.task.create({ data: { projectId, title: 'Unassigned without effort' } });
+  const otherWork = await client.task.create({ data: { projectId, title: 'Other current work', effort: 5, assigneeId: pm.id } });
+  await client.task.createMany({ data: [
+    { projectId, title: 'DONE excluded', effort: 8, status: 'DONE', assigneeId: pm.id },
+    { projectId, title: 'Later excluded', effort: 8, startDate: new Date('2026-10-26'), assigneeId: pm.id },
+    { projectId: otherId, title: 'Foreign excluded', effort: 8, assigneeId: pm.id },
+  ] });
+  const capacity = await database.projects.saveCapacity(projectId, pm.id, { userId: pm.id, periodStart: input.startDate, periodEnd: input.endDate, capacityPoints: 8, expectedUpdatedAt: null });
+  await database.projects.saveCapacity(projectId, pm.id, { userId: member.id, periodStart: '2026-11-01', periodEnd: '2026-11-30', capacityPoints: 8, expectedUpdatedAt: null });
+  const tasks = [selected, outside, unassigned].map((task) => ({ id: task.id, updatedAt: task.updatedAt.toISOString() }));
+  const planning = { tasks, confirmed: false };
+  const preview = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  const row = preview.workload.rows.find((item) => item.user.id === pm.id); assert.ok(row);
+  assert.equal(row.sprintEffort, 8); assert.equal(row.sprintPercent, 100); assert.equal(row.sprintOverloaded, false);
+  assert.equal(row.projectEffort, 13); assert.equal(row.projectPercent, 162.5); assert.equal(row.projectOverloaded, true);
+  assert.equal(preview.workload.summary.knownEffort, 10); assert.equal(preview.workload.summary.missingEffortCount, 1); assert.equal(preview.workload.summary.unassignedCount, 1); assert.equal(preview.workload.summary.missingCapacityCount, 1); assert.equal(preview.capacityAvailable, false);
+  assert.equal(preview.workload.rows.find((item) => item.user.id === member.id)?.sprintEffort, 2);
+  assert.match(preview.warnings.join(' '), /ngày bắt đầu sau/);
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: selected.id } })).sprintId, null);
+  const path = `/projects/${projectId}/sprints/${target.id}/plan`;
+  assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true })).status, 409);
+  assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true, expectedSnapshot: 'invalid' })).status, 400);
+  await database.projects.saveCapacity(projectId, pm.id, { userId: pm.id, periodStart: input.startDate, periodEnd: input.endDate, capacityPoints: 5, expectedUpdatedAt: capacity.updatedAt.toISOString() });
+  await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: preview.snapshot }), /đã thay đổi/);
+  const afterCapacity = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  assert.equal(afterCapacity.workload.rows.find((item) => item.user.id === pm.id)?.sprintOverloaded, true);
+  await client.task.update({ where: { id: otherWork.id }, data: { effort: 8 } });
+  await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: afterCapacity.snapshot }), /đã thay đổi/);
+  const prerequisite = await client.task.create({ data: { projectId, title: 'Future dependency', startDate: new Date('2026-12-01') } });
+  await client.taskDependency.create({ data: { projectId, taskId: selected.id, dependsOnTaskId: prerequisite.id } });
+  const dependencyPreview = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  await client.task.update({ where: { id: prerequisite.id }, data: { status: 'DONE' } });
+  await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: dependencyPreview.snapshot }), /đã thay đổi/);
+  const datePreview = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  await client.sprint.update({ where: { id: target.id }, data: { endDate: new Date('2026-10-24') } });
+  await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: datePreview.snapshot }), /đã thay đổi/);
+  const latest = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  assert.equal(latest.workload.summary.missingCapacityCount, 2);
+  assert.equal((await database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: latest.snapshot })).applied, true);
+}));
+
+test('Sprint start rechecks capacity, backlog and dependency; monitor workload is PM-only and ignores Task filters', async () => fixture(async ({ base, client, database, projectId, users }) => {
+  const [owner, pm, member] = users; assert.ok(owner && pm && member);
+  const target = await database.sprints.create(projectId, pm.id, input);
+  const task = await client.task.create({ data: { projectId, sprintId: target.id, title: 'Start commitment', effort: 5, assigneeId: member.id } });
+  const prerequisite = await client.task.create({ data: { projectId, title: 'Dependency', startDate: new Date('2026-12-01') } });
+  await client.taskDependency.create({ data: { projectId, taskId: task.id, dependsOnTaskId: prerequisite.id } });
+  const read = () => database.sprints.start(projectId, pm.id, target.id, target.updatedAt.toISOString(), false);
+  const confirm = (snapshot?: string) => database.sprints.start(projectId, pm.id, target.id, target.updatedAt.toISOString(), true, snapshot);
+  const preview = await read(); assert.equal(preview.workload.summary.missingCapacityCount, 1);
+  await assert.rejects(confirm(), /thiếu bản kiểm tra/);
+  const cap = await database.projects.saveCapacity(projectId, pm.id, { userId: member.id, periodStart: input.startDate, periodEnd: input.endDate, capacityPoints: 3, expectedUpdatedAt: null });
+  await assert.rejects(confirm(preview.snapshot), /đã thay đổi/);
+  const afterCapacity = await read(); assert.equal(afterCapacity.workload.rows[0]?.sprintPercent, 166.67);
+  await client.task.update({ where: { id: prerequisite.id }, data: { status: 'DONE' } });
+  await assert.rejects(confirm(afterCapacity.snapshot), /đã thay đổi/);
+  const beforeTask = await read();
+  const second = await client.task.create({ data: { projectId, sprintId: target.id, title: 'Added after preview', effort: 3, assigneeId: member.id } });
+  await assert.rejects(confirm(beforeTask.snapshot), /đã thay đổi/);
+  assert.equal((await client.sprint.findUniqueOrThrow({ where: { id: target.id } })).status, 'PLANNED');
+  assert.equal(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: projectId } }), 0);
+  const latest = await read(); assert.equal((await confirm(latest.snapshot)).applied, true);
+  const pmMonitor = await database.sprints.monitor(projectId, pm.id, target.id, { page: 1, status: 'DONE' });
+  assert.equal(pmMonitor.items.length, 0); assert.equal(pmMonitor.workload?.summary.knownEffort, 8); assert.equal(pmMonitor.workload?.summary.sprintOverloadedCount, 1);
+  assert.equal((await database.sprints.monitor(projectId, member.id, target.id, { page: 1 })).workload, null);
+  await client.task.update({ where: { id: second.id }, data: { status: 'DONE' } });
+  await database.projects.saveCapacity(projectId, pm.id, { userId: member.id, periodStart: input.startDate, periodEnd: input.endDate, capacityPoints: 10, expectedUpdatedAt: cap.updatedAt.toISOString() });
+  const refreshed = await database.sprints.monitor(projectId, pm.id, target.id, { page: 1 });
+  assert.equal(refreshed.workload?.rows[0]?.sprintPercent, 50); assert.equal(refreshed.workload?.summary.sprintOverloadedCount, 0);
+  const http = await (await request(base, `/projects/${projectId}/sprints/${target.id}/monitor`, member.cookie)).json() as { workload: unknown };
+  assert.equal(http.workload, null);
+}));
+
 test('UC44–45: scope, PM permissions, required Goal, valid dates, PLANNED and pagination', async () => fixture(async ({ base, client, projectId, otherId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const path = `/projects/${projectId}/sprints`;
@@ -80,7 +163,8 @@ test('UC46: preview warnings, atomic batch assignment, stale/cross-project rejec
   assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true })).status, 409);
   assert.equal(await client.task.count({ where: { sprintId: sprint.id } }), 0);
   const changed = await client.task.findUniqueOrThrow({ where: { id: ready.id } }); tasks[1]!.updatedAt = changed.updatedAt.toISOString();
-  assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true })).status, 200);
+  const refreshed = await (await request(base, path, pm.cookie, 'POST', { tasks })).json() as { snapshot: string };
+  assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true, expectedSnapshot: refreshed.snapshot })).status, 200);
   assert.equal(await client.task.count({ where: { sprintId: sprint.id } }), 2);
   assert.equal((await request(base, path, pm.cookie, 'POST', { tasks, confirmed: true })).status, 409);
   const assigned = await client.task.findUniqueOrThrow({ where: { id: task.id } });
@@ -100,7 +184,8 @@ test('concurrent planning has one winner; DB protects same Project, dates and on
   const second = await database.sprints.create(projectId, pm.id, { ...input, name: 'Second' });
   const task = await client.task.create({ data: { projectId, title: 'Race task', effort: 3 } });
   const body = { tasks: [{ id: task.id, updatedAt: task.updatedAt.toISOString() }], confirmed: true };
-  const responses = await Promise.all([sprint, second].map((target) => request(base, `/projects/${projectId}/sprints/${target.id}/plan`, pm.cookie, 'POST', body)));
+  const previews = await Promise.all([sprint, second].map((target) => database.sprints.plan(projectId, pm.id, target.id, { ...body, confirmed: false })));
+  const responses = await Promise.all([sprint, second].map((target, index) => request(base, `/projects/${projectId}/sprints/${target.id}/plan`, pm.cookie, 'POST', { ...body, expectedSnapshot: previews[index]!.snapshot })));
   assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
   await assert.rejects(client.sprint.update({ where: { id: sprint.id }, data: { endDate: new Date('2026-10-01') } }));
   await assert.rejects(client.task.create({ data: { projectId: otherId, title: 'Cross Project', sprintId: sprint.id } }));
@@ -117,7 +202,7 @@ test('UC47: only current PM starts a nonempty PLANNED Sprint, preview is read on
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const sprint = await database.sprints.create(projectId, pm.id, input);
   const path = `/projects/${projectId}/sprints/${sprint.id}/start`;
-  const body = { expectedUpdatedAt: sprint.updatedAt.toISOString(), confirmed: true };
+  const body = { expectedUpdatedAt: sprint.updatedAt.toISOString(), confirmed: true, expectedSnapshot: '0'.repeat(64) };
   assert.equal((await request(base, path, undefined, 'POST', body)).status, 401);
   for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, path, user.cookie, 'POST', body)).status, 403);
   assert.equal((await request(base, path, pm.cookie, 'POST', body)).status, 409);
@@ -125,6 +210,7 @@ test('UC47: only current PM starts a nonempty PLANNED Sprint, preview is read on
   assert.equal((await request(base, path, pm.cookie, 'POST', { ...body, expectedUpdatedAt: 'invalid' })).status, 400);
   assert.equal((await request(base, path, pm.cookie, 'POST', body, 'https://foreign.invalid')).status, 403);
   const preview = await request(base, path, pm.cookie, 'POST', { ...body, confirmed: false }); assert.equal(preview.status, 200);
+  body.expectedSnapshot = (await preview.json() as { snapshot: string }).snapshot;
   assert.equal((await client.sprint.findUniqueOrThrow({ where: { id: sprint.id } })).status, 'PLANNED');
   assert.equal(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: projectId } }), 0);
   const started = await request(base, path, pm.cookie, 'POST', body); assert.equal(started.status, 200);
@@ -173,7 +259,7 @@ test('concurrent Sprint starts and Project closing are serialized; old PM cannot
   const [owner, pm, member] = users; assert.ok(owner && pm && member);
   const sprints = await Promise.all(['A', 'B'].map((name) => database.sprints.create(projectId, pm.id, { ...input, name })));
   for (const sprint of sprints) await client.task.create({ data: { projectId, sprintId: sprint.id, title: sprint.name, status: 'DONE' } });
-  const results = await Promise.allSettled(sprints.map((sprint) => database.sprints.start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), true)));
+  const results = await Promise.allSettled(sprints.map((sprint) => confirmStart(database.sprints, projectId, pm.id, sprint)));
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
   assert.equal(await client.sprint.count({ where: { projectId, status: 'ACTIVE' } }), 1);
   const active = await client.sprint.findFirstOrThrow({ where: { projectId, status: 'ACTIVE' } });
@@ -181,7 +267,8 @@ test('concurrent Sprint starts and Project closing are serialized; old PM cannot
   const planned = await client.sprint.findFirstOrThrow({ where: { projectId, status: 'PLANNED' } });
   await database.projects.assignManager(projectId, owner.id, member.id, pm.id);
   await assert.rejects(database.sprints.start(projectId, pm.id, planned.id, planned.updatedAt.toISOString(), true), /Chỉ PM hiện tại/);
-  const race = await Promise.allSettled([database.sprints.start(projectId, member.id, planned.id, planned.updatedAt.toISOString(), true), database.projects.close(projectId, member.id)]);
+  const preview = await database.sprints.start(projectId, member.id, planned.id, planned.updatedAt.toISOString(), false);
+  const race = await Promise.allSettled([database.sprints.start(projectId, member.id, planned.id, planned.updatedAt.toISOString(), true, preview.snapshot), database.projects.close(projectId, member.id)]);
   assert.equal(race.filter((result) => result.status === 'fulfilled').length, 1);
   const project = await client.project.findUniqueOrThrow({ where: { id: projectId } });
   assert.equal(await client.sprint.count({ where: { projectId, status: 'ACTIVE' } }), project.status === 'CLOSED' ? 0 : 1);
@@ -194,7 +281,8 @@ test('failed Sprint notification rolls back ACTIVE and startedAt together', asyn
     if (key === 'notification') return new Proxy(target.notification, { get(delegate, action) { if (action === 'create') return async () => { throw new Error('Injected notification failure'); }; return Reflect.get(delegate, action); } });
     return Reflect.get(target, key);
   } }))) } as unknown as PrismaClient;
-  await assert.rejects(createSprintRepository(wrapped).start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), true), /Injected/);
+  const preview = await database.sprints.start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), false);
+  await assert.rejects(createSprintRepository(wrapped).start(projectId, pm.id, sprint.id, sprint.updatedAt.toISOString(), true, preview.snapshot), /Injected/);
   const saved = await client.sprint.findUniqueOrThrow({ where: { id: sprint.id } }); assert.equal(saved.status, 'PLANNED'); assert.equal(saved.startedAt, null);
   assert.equal(await client.notification.count({ where: { relatedEntityId: projectId, type: 'SPRINT_STARTED' } }), 0);
 }));

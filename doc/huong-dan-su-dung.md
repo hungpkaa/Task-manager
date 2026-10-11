@@ -41,7 +41,7 @@ Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và 
 
 PM chọn Sprint PLANNED → **Bắt đầu Sprint** → xem cảnh báo → xác nhận. Cần có Goal, ít nhất một Task và chưa có Sprint ACTIVE trong Project. Bắt đầu tạo thông báo cho thành viên Project và mở trang theo dõi. Thành viên Project có thể chọn Sprint → **Theo dõi Sprint** để xem Goal, tiến độ, Task BLOCKED/quá hạn và Board/danh sách. Lọc theo trạng thái, priority, người phụ trách; số liệu tổng vẫn tính toàn Sprint. Bấm Task để mở chi tiết; **Về theo dõi Sprint** tải lại tiến độ sau khi sửa. Board phân trang 20, dùng nút trang để xem đủ Task. Khi có thay đổi từ người khác, bấm **Tải lại tiến độ Sprint**.
 
-Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. Phần kế hoạch/theo dõi chưa tính Capacity/Workload/Risk; cảnh báo ghi rõ để PM tự kiểm tra năng lực nhóm. Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 8](buoc-8.md) và [bước 9](buoc-9.md) để biết phạm vi hiện tại.
+Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload trong kế hoạch, bước bắt đầu và theo dõi Sprint; Risk còn chờ tích hợp. Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
 
 ## Daily Update trong Sprint
 
@@ -75,4 +75,10 @@ PM mở Project → **Mở Capacity & Workload**, nhập ngày bắt đầu/kế
 
 Workload dùng tổng Effort Task TODO/IN_PROGRESS/REVIEW có thời gian giao với kỳ, chia Capacity của đúng thành viên/Project/kỳ. Ngày thiếu được xem là đầu/cuối không giới hạn; Task thiếu cả hai ngày được tính vào mọi kỳ. Không chia Effort hoặc Capacity theo số ngày. Quá tải khi trên 100%; nếu thiếu Capacity thì chưa tính tỷ lệ, thiếu Effort thì tỷ lệ chỉ dựa trên phần đã biết. Task chưa phân công được báo riêng. Đặt Effort trong chi tiết Task rồi **Tải lại Workload**.
 
-Các kỳ Capacity của cùng thành viên không được chồng nhau (cả hai ngày biên thuộc kỳ). Kỳ mới cần bắt đầu sau kỳ trước. Capacity/lịch sử giữ lại khi thành viên rời Project; người đã rời không còn trong danh sách tải hiện tại. Project CLOSED chỉ xem. Chỉ PM có quyền mở điều phối; Owner cần được phân công PM. Phần này chưa tích hợp vào cảnh báo Sprint/Risk.
+Các kỳ Capacity của cùng thành viên không được chồng nhau (cả hai ngày biên thuộc kỳ). Kỳ mới cần bắt đầu sau kỳ trước. Capacity/lịch sử giữ lại khi thành viên rời Project; người đã rời không còn trong danh sách tải hiện tại. Project CLOSED chỉ xem. Chỉ PM có quyền mở điều phối; Owner cần được phân công PM. Risk còn chờ tích hợp.
+
+## Capacity/Workload trong Sprint
+
+Thiết lập Capacity với ngày bắt đầu/kết thúc khớp chính xác Sprint. Khi **Kiểm tra kế hoạch** hoặc **Bắt đầu Sprint**, PM đọc phần **Capacity/Workload Sprint**: tải Sprint gồm Task hiện có + Task đang chọn; tổng Project còn tính công việc khác trong kỳ, mỗi Task một lần. Task cam kết vào Sprint vẫn được tính tải dù ngày nằm ngoài kỳ. Thiếu Effort hoặc Capacity được báo rõ; cảnh báo quá tải không tự thay quyết định của PM.
+
+Nếu xác nhận báo dữ liệu đã thay đổi, chọn kiểm tra kế hoạch/bắt đầu lại và đọc cảnh báo mới. Capacity, dependency hoặc công việc khác trong Project thay đổi cũng có thể làm preview cũ hết hiệu lực. Trong **Theo dõi Sprint**, PM thấy tải toàn Sprint dù đang lọc Task; dùng **Tải lại tiến độ Sprint** để lấy dữ liệu mới. Danh sách người phụ trách phân trang 20. Thành viên vẫn xem tiến độ/Board, phần tổng tải Project chỉ hiển thị cho PM.

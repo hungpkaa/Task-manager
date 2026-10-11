@@ -15,7 +15,7 @@
 - Kế hoạch cập nhật toàn bộ nhóm Task trong một transaction; Task khác Project hoặc đã thuộc Sprint bị từ chối cả nhóm. So sánh `updatedAt` trước khi ghi để từ chối dữ liệu cũ. Dùng cùng khóa Workspace với Task/Project/thành viên: hai yêu cầu đưa cùng Task vào hai Sprint chỉ có một yêu cầu thành công.
 - Migration mới bổ sung Sprint, foreign key ghép `(sprint_id, project_id)` và kiểm tra khoảng ngày. Partial unique index bảo đảm tối đa một Sprint ACTIVE mỗi Project, chuẩn bị cho phần vòng đời.
 
-**UC46 mới ở mức cơ bản:** chưa có dữ liệu Capacity/Workload/Risk từ bước 10. Cả API và UI ghi rõ chưa thể kết luận quá tải; PM phải tự kiểm tra năng lực nhóm. Không giả định Capacity bằng 0 hoặc tự chọn thay PM. Quản lý dependency trên giao diện vẫn thuộc bước 10; cảnh báo hiện đọc dependency đã lưu.
+**Cập nhật từ bước 10:** UC46 đã có Capacity/Workload và quản lý dependency; xem [tiến độ bước 10](buoc-10.md). Tải Sprint gồm Task hiện có + Task đang chọn, tổng tải Project không cộng trùng Backlog. Capacity thiếu trả tỷ lệ chưa tính được; vẫn cần tích hợp Risk trước khi nghiệm thu đầy đủ.
 
 ## API và cách dùng
 
@@ -45,9 +45,9 @@ Mở Workspace → Project → **Mở Sprint & Backlog**. PM tạo Sprint, chọ
 - Dashboard hiển thị Goal, ngày, trạng thái, tổng Task theo TODO/IN_PROGRESS/REVIEW/DONE, tỷ lệ DONE, BLOCKED và quá hạn. Số liệu toàn Sprint độc lập với bộ lọc và phân trang, đọc trong cùng snapshot PostgreSQL.
 - Board/danh sách lọc theo status/priority/assignee, phân trang 20. Bấm Task để mở chi tiết, sửa/đổi trạng thái theo quyền sẵn có; **Về theo dõi Sprint** tải lại tiến độ. Board chỉ hiển thị Task của trang đang xem; tổng Dashboard dùng toàn Sprint.
 - Tiến độ = số Task DONE / tổng Task, làm tròn phần trăm; không phải Effort đã hoàn thành. Task DONE không tính BLOCKED/quá hạn. Task quá hạn khi dueDate trước ngày hiện tại tại Việt Nam; ngày đến hạn vẫn chưa quá hạn. Số ngày còn lại là chênh lệch ngày lịch tại Asia/Ho_Chi_Minh, tối thiểu 0. Sprint ACTIVE qua ngày kết thúc hiển thị quá hạn.
-- Dùng **Tải lại tiến độ Sprint** để lấy dữ liệu mới; chưa realtime/polling. Chưa có phân tích Workload/Capacity/Risk, cảnh báo ghi rõ giới hạn; UC47–48 ghi mức cơ bản cho tới khi tích hợp bước 10.
+- Dùng **Tải lại tiến độ Sprint** để lấy dữ liệu mới; chưa realtime/polling. Bước 10 đã tích hợp Capacity/Workload cho PM vào UC47–48; Risk còn lại.
 
-API bổ sung: `POST /api/projects/:projectId/sprints/:id/start` nhận `{expectedUpdatedAt, confirmed}`; `GET /api/projects/:projectId/sprints/:id/monitor` nhận `page/status/priority/assigneeId` (assigneeId có thể là `unassigned`). Các API giữ session/Origin/JSON và kiểm tra Project như phần 1.
+API bổ sung: `POST /api/projects/:projectId/sprints/:id/start` nhận `{expectedUpdatedAt, confirmed, expectedSnapshot?}`. Bước 10 yêu cầu snapshot từ preview khi confirmed true cho cả start và plan; thiếu hoặc cũ trả 409. `GET /api/projects/:projectId/sprints/:id/monitor` nhận `page/status/priority/assigneeId` (assigneeId có thể là `unassigned`). Các API giữ session/Origin/JSON và kiểm tra Project như phần 1.
 
 Migration thứ 10 bổ sung thời điểm bắt đầu. Build/typecheck và 17 unit + 38 integration test đã qua; kiểm tra cả 10 migration trên DB mới qua. Các test mới kiểm tra quyền PM/thành viên, Backlog rỗng, xác nhận cũ, một ACTIVE, thông báo không trùng/rollback, chuyển PM, đóng Project đồng thời, số liệu không đổi khi lọc/phân trang và ngày Việt Nam qua ranh giới UTC. 12 kiểm thử trình duyệt qua (6 luồng × máy tính/điện thoại), gồm bắt đầu/hủy xác nhận Sprint, PM mở Task và chuyển DONE, quay lại thấy tiến độ cập nhật, lọc danh sách rỗng vẫn giữ tổng 100%, thành viên xem tiến độ, cùng hồi quy tài khoản/Workspace/Project/Task/email. Ảnh cảnh báo và Dashboard tại `.local/e2e-results`; báo cáo mở bằng `npm.cmd run test:e2e:report`. Ứng dụng đang chạy cũng qua kiểm tra React/API/PostgreSQL/proxy.
 
@@ -111,4 +111,4 @@ Toàn bộ 12 kiểm thử trình duyệt desktop/mobile qua sau khi sửa chi�
 
 ## Phần còn lại
 
-Bước 9 đã có các luồng Scrum cơ bản, bao gồm chọn Sprint ngay khi tạo Task. **Chưa nghiệm thu đầy đủ UC46–48**: phải tích hợp và kiểm chứng lại Capacity/Workload/Risk ở bước 10. Các luồng UC49–52 đã có.
+Bước 9 đã có các luồng Scrum cơ bản, bao gồm chọn Sprint ngay khi tạo Task. Bước 10 đã tích hợp và kiểm chứng Capacity/Workload; **UC46–48 còn Risk** trước khi nghiệm thu đầy đủ. Các luồng UC49–52 đã có.

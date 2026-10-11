@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { createHash } from 'node:crypto';
 import { HttpError } from '../domain/errors.js';
 import type { FinishInput, RetrospectiveInput, ReviewInput, DailyInput, PlanningInput, SprintInput, MonitorQuery } from '../services/sprint-validation.js';
+import { sprintWorkload } from './sprint-workload.js';
 type Client = PrismaClient | Prisma.TransactionClient;
 async function access(client: Client, projectId: string, actorId: string, write = false) {
   const project = await client.project.findUnique({ where: { id: projectId } });
@@ -123,7 +124,7 @@ export function createSprintRepository(client: PrismaClient) {
       await access(client, projectId, actorId);
       return client.$transaction(async (tx) => ({ items: await tx.sprint.findMany({ where: { projectId }, include: { _count: { select: { tasks: true } } }, orderBy: [{ startDate: 'desc' }, { id: 'asc' }], skip: (page - 1) * 20, take: 20 }), total: await tx.sprint.count({ where: { projectId } }), page, pageSize: 20, canMonitor: Boolean(await tx.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: actorId } } })) }), { isolationLevel: 'RepeatableRead' });
     },
-    start: (projectId: string, actorId: string, id: string, expectedUpdatedAt: string, confirmed: boolean) => mutate(projectId, actorId, async (tx) => {
+    start: (projectId: string, actorId: string, id: string, expectedUpdatedAt: string, confirmed: boolean, expectedSnapshot?: string) => mutate(projectId, actorId, async (tx) => {
       const target = await sprint(tx, projectId, id);
       if (target.status !== 'PLANNED' || target.updatedAt.toISOString() !== expectedUpdatedAt) throw new HttpError(409, 'Sprint đã thay đổi hoặc không còn PLANNED. Hãy tải lại Sprint.');
       if (!target.goal.trim()) throw new HttpError(409, 'Sprint phải có Goal trước khi bắt đầu.');
@@ -132,18 +133,21 @@ export function createSprintRepository(client: PrismaClient) {
       if (!count) throw new HttpError(409, 'Sprint Backlog phải có ít nhất một Task trước khi bắt đầu.');
       const blocked = await tx.task.count({ where: { projectId, sprintId: id, status: { not: 'DONE' }, dependencies: { some: { dependsOnTask: { status: { not: 'DONE' } } } } } });
       const missingEffort = await tx.task.count({ where: { projectId, sprintId: id, effort: null } });
-      const warnings = ['Chưa có dữ liệu Capacity/Workload/Risk để đánh giá năng lực nhóm. PM cần kiểm tra trước khi bắt đầu.'];
+      const coordination = await sprintWorkload(tx, target);
+      const warnings = [...coordination.warnings];
       if (blocked) warnings.push(`${blocked} Task có dependency chưa DONE.`);
       if (missingEffort) warnings.push(`${missingEffort} Task chưa ước lượng Effort.`);
-      if (!confirmed) return { applied: false, sprint: target, taskCount: count, warnings };
+      const assessment = { taskCount: count, warnings, snapshot: coordination.snapshot, workload: coordination.workload };
+      if (!confirmed) return { ...assessment, applied: false, sprint: target };
+      if (expectedSnapshot !== coordination.snapshot) throw new HttpError(409, 'Dữ liệu Sprint/Task/Capacity đã thay đổi hoặc thiếu bản kiểm tra. Hãy kiểm tra bắt đầu Sprint lại.');
       const updated = await tx.sprint.update({ where: { id }, data: { status: 'ACTIVE', startedAt: new Date() } });
       const members = await tx.projectMember.findMany({ where: { projectId } });
       for (const member of members) await tx.notification.create({ data: { userId: member.userId, type: 'SPRINT_STARTED', title: 'Sprint đã bắt đầu', message: `Sprint “${target.name}” đã bắt đầu. Mở Project để theo dõi Sprint.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
-      return { applied: true, sprint: updated, taskCount: count, warnings };
+      return { ...assessment, applied: true, sprint: updated };
     }),
     async monitor(projectId: string, actorId: string, id: string, query: MonitorQuery, now = new Date()) {
       return client.$transaction(async (tx) => {
-        await access(tx, projectId, actorId);
+        const project = await access(tx, projectId, actorId);
         if (!await tx.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: actorId } } })) throw new HttpError(403, 'Chỉ thành viên Project được theo dõi Sprint.');
         const target = await sprint(tx, projectId, id);
         const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -162,7 +166,8 @@ export function createSprintRepository(client: PrismaClient) {
           return { ...task, blockingTasks, blocked: task.status !== 'DONE' && blockingTasks.length > 0, overdue: task.status !== 'DONE' && Boolean(task.dueDate && task.dueDate < todayDate) };
         });
         const assignees = await tx.task.findMany({ where: { ...base, assigneeId: { not: null } }, distinct: ['assigneeId'], select: { assignee: { select: { id: true, displayName: true } } } });
-        return { sprint: target, summary: { total: all, counts, progressPercent: all ? Math.round(counts.DONE / all * 100) : 0, blocked, overdue, daysRemaining: Math.max(0, Math.round((target.endDate.getTime() - todayDate.getTime()) / 86400000)), today, sprintOverdue: target.status === 'ACTIVE' && target.endDate < todayDate }, items, total: await tx.task.count({ where }), page: query.page, pageSize: 20, assignees: assignees.flatMap((item) => item.assignee ? [item.assignee] : []), warnings: ['Chưa có phân tích Capacity/Workload/Risk. Các số liệu dưới đây phản ánh Task hiện tại.'] };
+        const coordination = project.managerUserId === actorId ? await sprintWorkload(tx, target) : null;
+        return { sprint: target, summary: { total: all, counts, progressPercent: all ? Math.round(counts.DONE / all * 100) : 0, blocked, overdue, daysRemaining: Math.max(0, Math.round((target.endDate.getTime() - todayDate.getTime()) / 86400000)), today, sprintOverdue: target.status === 'ACTIVE' && target.endDate < todayDate }, items, total: await tx.task.count({ where }), page: query.page, pageSize: 20, assignees: assignees.flatMap((item) => item.assignee ? [item.assignee] : []), workload: coordination?.workload ?? null, warnings: coordination?.warnings ?? ['Capacity/Workload tổng Project chỉ dành cho PM. Phân tích Risk chưa được tích hợp.'] };
       }, { isolationLevel: 'RepeatableRead' });
     },
     async backlog(projectId: string, actorId: string, page: number, sprintId?: string) {
@@ -178,17 +183,20 @@ export function createSprintRepository(client: PrismaClient) {
       const tasks = await tx.task.findMany({ where: { projectId, id: { in: input.tasks.map((task) => task.id) } }, include: { dependencies: { include: { dependsOnTask: { select: { id: true, title: true, status: true } } } } } });
       if (tasks.length !== input.tasks.length) throw new HttpError(400, 'Mọi Task được chọn phải thuộc Project này.');
       if (tasks.some((task) => task.sprintId !== null || task.updatedAt.toISOString() !== input.tasks.find((item) => item.id === task.id)!.updatedAt)) throw new HttpError(409, 'Task đã thay đổi hoặc đã thuộc Sprint. Hãy tải lại Backlog và kiểm tra lại.');
-      const warnings = ['Chưa có dữ liệu Capacity/Workload để kết luận quá tải. PM cần kiểm tra năng lực của nhóm trước khi xác nhận.'];
+      const coordination = await sprintWorkload(tx, target, tasks.map((task) => task.id));
+      const warnings = [...coordination.warnings];
       for (const task of tasks) {
         if (task.effort === null) warnings.push(`“${task.title}”: chưa ước lượng Effort.`);
         if (!task.assigneeId) warnings.push(`“${task.title}”: chưa có người phụ trách.`);
         const blocked = task.dependencies.filter((dependency) => dependency.dependsOnTask.status !== 'DONE');
         if (blocked.length) warnings.push(`“${task.title}”: phụ thuộc chưa DONE: ${blocked.map((dependency) => dependency.dependsOnTask.title).join(', ')}.`);
         if (task.dueDate && task.dueDate > target.endDate) warnings.push(`“${task.title}”: hạn hoàn thành sau ngày kết thúc Sprint.`);
+        if (task.startDate && task.startDate > target.endDate) warnings.push(`“${task.title}”: ngày bắt đầu sau ngày kết thúc Sprint.`);
         if (task.status === 'DONE') warnings.push(`“${task.title}”: Task đã DONE.`);
       }
-      const assessment = { warnings, totalEffort: tasks.reduce((sum, task) => sum + (task.effort ?? 0), 0), missingEffort: tasks.filter((task) => task.effort === null).length, taskCount: tasks.length, capacityAvailable: false };
+      const assessment = { warnings, totalEffort: tasks.reduce((sum, task) => sum + (task.effort ?? 0), 0), missingEffort: tasks.filter((task) => task.effort === null).length, taskCount: tasks.length, capacityAvailable: coordination.capacityAvailable, snapshot: coordination.snapshot, workload: coordination.workload };
       if (!input.confirmed) return { ...assessment, applied: false };
+      if (input.expectedSnapshot !== coordination.snapshot) throw new HttpError(409, 'Dữ liệu Sprint/Task/Capacity đã thay đổi hoặc thiếu bản kiểm tra. Hãy kiểm tra kế hoạch lại.');
       await tx.task.updateMany({ where: { projectId, id: { in: tasks.map((task) => task.id) } }, data: { sprintId: id } });
       return { ...assessment, applied: true };
     }),

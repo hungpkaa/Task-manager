@@ -35,10 +35,13 @@ try {
   assert.equal(task.status, 'TODO'); assert.equal(task.sprintId, null);
   const sprint = await database.sprints.create(project.id, user.id, { name: 'Fresh Sprint', goal: 'Validate planning', startDate: '2026-10-11', endDate: '2026-10-25' });
   assert.equal(sprint.status, 'PLANNED');
-  const planned = await database.sprints.plan(project.id, user.id, sprint.id, { tasks: [{ id: task.id, updatedAt: task.updatedAt.toISOString() }], confirmed: true });
+  const planning = { tasks: [{ id: task.id, updatedAt: task.updatedAt.toISOString() }], confirmed: false };
+  const planningPreview = await database.sprints.plan(project.id, user.id, sprint.id, planning);
+  const planned = await database.sprints.plan(project.id, user.id, sprint.id, { ...planning, confirmed: true, expectedSnapshot: planningPreview.snapshot });
   assert.equal(planned.applied, true);
   assert.equal((await fresh.task.findUniqueOrThrow({ where: { id: task.id } })).sprintId, sprint.id);
-  const started = await database.sprints.start(project.id, user.id, sprint.id, sprint.updatedAt.toISOString(), true);
+  const startPreview = await database.sprints.start(project.id, user.id, sprint.id, sprint.updatedAt.toISOString(), false);
+  const started = await database.sprints.start(project.id, user.id, sprint.id, sprint.updatedAt.toISOString(), true, startPreview.snapshot);
   assert.equal(started.sprint.status, 'ACTIVE'); assert.ok(started.sprint.startedAt);
   assert.equal((await database.sprints.monitor(project.id, user.id, sprint.id, { page: 1 })).summary.total, 1);
   await database.sprints.addDaily(project.id, user.id, sprint.id, { progress: 'Fresh progress', nextPlan: 'Fresh plan', blockers: '' });

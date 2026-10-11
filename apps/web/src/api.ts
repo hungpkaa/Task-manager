@@ -48,14 +48,19 @@ export class ApiError extends Error {
 }
 
 export interface Sprint { id: string; name: string; goal: string; startDate: string; endDate: string; updatedAt: string; startedAt: string | null; completedAt?: string | null; completion?: { doneCount: number; incompleteCount: number; tasks: { id: string; title: string; status: string; destinationSprintId: string | null }[] } | null; status: 'PLANNED' | 'ACTIVE' | 'COMPLETED'; _count?: { tasks: number }; }
-export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; }
+export interface SprintWorkloadResult {
+  periodStart: string; periodEnd: string;
+  summary: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number; missingCapacityCount: number; sprintOverloadedCount: number; projectOverloadedCount: number };
+  rows: { user: { id: string; displayName: string; status: 'ACTIVE' | 'LOCKED' }; currentMember: boolean; capacityPoints: number | null; sprintTaskCount: number; sprintEffort: number; projectEffort: number; sprintMissingEffort: number; projectMissingEffort: number; sprintPercent: number | null; projectPercent: number | null; sprintOverloaded: boolean; projectOverloaded: boolean }[];
+}
+export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; snapshot: string; workload: SprintWorkloadResult; }
 export interface SprintMonitorResult {
   sprint: Sprint; summary: { total: number; counts: Record<TaskStatus, number>; progressPercent: number; blocked: number; overdue: number; daysRemaining: number; today: string; sprintOverdue: boolean };
   items: (BacklogTask & { assigneeId: string | null; dueDate: string | null; blocked: boolean; overdue: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[] })[];
-  total: number; page: number; pageSize: number; assignees: { id: string; displayName: string }[]; warnings: string[];
+  total: number; page: number; pageSize: number; assignees: { id: string; displayName: string }[]; warnings: string[]; workload: SprintWorkloadResult | null;
 }
 export interface BacklogTask { id: string; title: string; status: string; priority: string; effort: number | null; updatedAt: string; assignee: { displayName: string } | null; }
-export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; }
+export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; snapshot: string; workload: SprintWorkloadResult; }
 export interface SprintInput { name: string; goal: string; startDate: string; endDate: string; }
 export interface DailyResult { items: { id: string; progress: string; nextPlan: string; blockers: string; createdAt: string; author: { id: string; displayName: string } }[]; total: number; pageSize: number; canCreate: boolean; }
 export const sprintApi = {
@@ -68,11 +73,11 @@ export const sprintApi = {
   daily: (projectId: string, id: string, page: number) => request<DailyResult>(`/projects/${projectId}/sprints/${id}/daily?page=${page}`),
   addDaily: (projectId: string, id: string, input: { progress: string; nextPlan: string; blockers: string }) => request(`/projects/${projectId}/sprints/${id}/daily`, { method: 'POST', body: JSON.stringify(input) }),
   list: (projectId: string, page: number) => request<{ items: Sprint[]; total: number; pageSize: number; canMonitor: boolean }>(`/projects/${projectId}/sprints?page=${page}`),
-  start: (projectId: string, sprint: Sprint, confirmed: boolean) => request<SprintStart>(`/projects/${projectId}/sprints/${sprint.id}/start`, { method: 'POST', body: JSON.stringify({ expectedUpdatedAt: sprint.updatedAt, confirmed }) }),
+  start: (projectId: string, sprint: Sprint, confirmed: boolean, expectedSnapshot?: string) => request<SprintStart>(`/projects/${projectId}/sprints/${sprint.id}/start`, { method: 'POST', body: JSON.stringify({ expectedUpdatedAt: sprint.updatedAt, confirmed, expectedSnapshot }) }),
   monitor: (projectId: string, sprintId: string, query: URLSearchParams) => request<SprintMonitorResult>(`/projects/${projectId}/sprints/${sprintId}/monitor?${query}`),
   backlog: (projectId: string, page: number, sprintId = '') => request<{ items: BacklogTask[]; total: number; pageSize: number }>(`/projects/${projectId}/backlog?page=${page}${sprintId ? `&sprintId=${sprintId}` : ''}`),
   create: (projectId: string, input: SprintInput) => request<{ sprint: Sprint }>(`/projects/${projectId}/sprints`, { method: 'POST', body: JSON.stringify(input) }),
-  plan: (projectId: string, sprintId: string, tasks: { id: string; updatedAt: string }[], confirmed: boolean) => request<PlanningAssessment>(`/projects/${projectId}/sprints/${sprintId}/plan`, { method: 'POST', body: JSON.stringify({ tasks, confirmed }) }),
+  plan: (projectId: string, sprintId: string, tasks: { id: string; updatedAt: string }[], confirmed: boolean, expectedSnapshot?: string) => request<PlanningAssessment>(`/projects/${projectId}/sprints/${sprintId}/plan`, { method: 'POST', body: JSON.stringify({ tasks, confirmed, expectedSnapshot }) }),
   returnTask: (projectId: string, sprintId: string, task: BacklogTask) => request<void>(`/projects/${projectId}/sprints/${sprintId}/tasks/${task.id}/return`, { method: 'POST', body: JSON.stringify({ updatedAt: task.updatedAt }) }),
 };
 
