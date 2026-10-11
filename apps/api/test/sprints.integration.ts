@@ -88,8 +88,12 @@ test('Sprint workload includes existing and selected commitments once; capacitie
   const datePreview = await database.sprints.plan(projectId, pm.id, target.id, planning);
   await client.sprint.update({ where: { id: target.id }, data: { endDate: new Date('2026-10-24') } });
   await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: datePreview.snapshot }), /đã thay đổi/);
-  const latest = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  let latest = await database.sprints.plan(projectId, pm.id, target.id, planning);
   assert.equal(latest.workload.summary.missingCapacityCount, 2);
+  await client.project.update({ where: { id: projectId }, data: { endDate: new Date('2000-01-01') } });
+  await assert.rejects(database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: latest.snapshot }), /đã thay đổi/);
+  latest = await database.sprints.plan(projectId, pm.id, target.id, planning);
+  assert.equal(latest.risk.metrics.projectOverdue, true); assert.equal(latest.risk.level, 'HIGH');
   assert.equal((await database.sprints.plan(projectId, pm.id, target.id, { ...planning, confirmed: true, expectedSnapshot: latest.snapshot })).applied, true);
 }));
 
@@ -116,7 +120,9 @@ test('Sprint start rechecks capacity, backlog and dependency; monitor workload i
   const latest = await read(); assert.equal((await confirm(latest.snapshot)).applied, true);
   const pmMonitor = await database.sprints.monitor(projectId, pm.id, target.id, { page: 1, status: 'DONE' });
   assert.equal(pmMonitor.items.length, 0); assert.equal(pmMonitor.workload?.summary.knownEffort, 8); assert.equal(pmMonitor.workload?.summary.sprintOverloadedCount, 1);
+  assert.equal(pmMonitor.risk?.metrics.overloadedCount, 1); assert.equal(pmMonitor.risk?.level, 'HIGH');
   assert.equal((await database.sprints.monitor(projectId, member.id, target.id, { page: 1 })).workload, null);
+  assert.equal((await database.sprints.monitor(projectId, member.id, target.id, { page: 1 })).risk, null);
   await client.task.update({ where: { id: second.id }, data: { status: 'DONE' } });
   await database.projects.saveCapacity(projectId, pm.id, { userId: member.id, periodStart: input.startDate, periodEnd: input.endDate, capacityPoints: 10, expectedUpdatedAt: cap.updatedAt.toISOString() });
   const refreshed = await database.sprints.monitor(projectId, pm.id, target.id, { page: 1 });

@@ -41,7 +41,7 @@ Trong Project, bấm **Mở Sprint & Backlog**. PM nhập tên, Sprint Goal và 
 
 PM chọn Sprint PLANNED → **Bắt đầu Sprint** → xem cảnh báo → xác nhận. Cần có Goal, ít nhất một Task và chưa có Sprint ACTIVE trong Project. Bắt đầu tạo thông báo cho thành viên Project và mở trang theo dõi. Thành viên Project có thể chọn Sprint → **Theo dõi Sprint** để xem Goal, tiến độ, Task BLOCKED/quá hạn và Board/danh sách. Lọc theo trạng thái, priority, người phụ trách; số liệu tổng vẫn tính toàn Sprint. Bấm Task để mở chi tiết; **Về theo dõi Sprint** tải lại tiến độ sau khi sửa. Board phân trang 20, dùng nút trang để xem đủ Task. Khi có thay đổi từ người khác, bấm **Tải lại tiến độ Sprint**.
 
-Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload trong kế hoạch, bước bắt đầu và theo dõi Sprint; Risk còn chờ tích hợp. Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
+Owner chưa được thêm vào Project xem Backlog, nhưng cần membership Project để mở Dashboard Sprint. PM xem được Capacity/Workload và Risk trong kế hoạch, bước bắt đầu và theo dõi Sprint. Calendar và Dashboard phân tích chưa hoàn thiện. Xem [bảng Use Case](doi-chieu-use-case.md), [bước 9](buoc-9.md) và [bước 10](buoc-10.md) để biết phạm vi hiện tại.
 
 ## Daily Update trong Sprint
 
@@ -67,7 +67,7 @@ PM mở Project → **+ Tạo Task** → **Sprint khi tạo Task**, chọn Sprin
 
 Mở chi tiết Task → **Task Dependency**. PM tìm Task cùng Project, chọn **Task phụ thuộc** rồi **Thêm dependency**. Task hiện tại sẽ BLOCKED khi Task được chọn chưa DONE. Hệ thống từ chối liên kết trùng, tự phụ thuộc và chu trình nhiều tầng. Trạng thái Task vẫn do người có quyền cập nhật.
 
-Chọn **Xóa dependency** rồi xác nhận hoặc hủy; thao tác chỉ xóa liên kết. Danh sách dependency và Task lựa chọn phân trang 20. Thành viên/Owner xem được; chỉ PM quản lý trong Project ACTIVE. Khi Task khác thay đổi, chọn **Tải lại dependency** để cập nhật cả BLOCKED. Risk sẽ được tích hợp ở phần tiếp theo của bước 10.
+Chọn **Xóa dependency** rồi xác nhận hoặc hủy; thao tác chỉ xóa liên kết. Danh sách dependency và Task lựa chọn phân trang 20. Thành viên/Owner xem được; chỉ PM quản lý trong Project ACTIVE. Khi Task khác thay đổi, chọn **Tải lại dependency** để cập nhật cả BLOCKED. PM tải lại điều phối/Sprint để xem Project Risk sau khi thay đổi dependency.
 
 ## Capacity và Workload
 
@@ -75,7 +75,13 @@ PM mở Project → **Mở Capacity & Workload**, nhập ngày bắt đầu/kế
 
 Workload dùng tổng Effort Task TODO/IN_PROGRESS/REVIEW có thời gian giao với kỳ, chia Capacity của đúng thành viên/Project/kỳ. Ngày thiếu được xem là đầu/cuối không giới hạn; Task thiếu cả hai ngày được tính vào mọi kỳ. Không chia Effort hoặc Capacity theo số ngày. Quá tải khi trên 100%; nếu thiếu Capacity thì chưa tính tỷ lệ, thiếu Effort thì tỷ lệ chỉ dựa trên phần đã biết. Task chưa phân công được báo riêng. Đặt Effort trong chi tiết Task rồi **Tải lại Workload**.
 
-Các kỳ Capacity của cùng thành viên không được chồng nhau (cả hai ngày biên thuộc kỳ). Kỳ mới cần bắt đầu sau kỳ trước. Capacity/lịch sử giữ lại khi thành viên rời Project; người đã rời không còn trong danh sách tải hiện tại. Project CLOSED chỉ xem. Chỉ PM có quyền mở điều phối; Owner cần được phân công PM. Risk còn chờ tích hợp.
+Các kỳ Capacity của cùng thành viên không được chồng nhau (cả hai ngày biên thuộc kỳ). Kỳ mới cần bắt đầu sau kỳ trước. Capacity/lịch sử giữ lại khi thành viên rời Project; người đã rời không còn trong danh sách tải hiện tại. Project CLOSED chỉ xem. Chỉ PM có quyền mở điều phối; Owner cần được phân công PM.
+
+## Project Risk
+
+PM mở **Capacity & Workload**, chọn kỳ để xem **Project Risk**, hoặc xem Risk trong preview/theo dõi Sprint. Đọc cả mức cảnh báo, độ đầy đủ dữ liệu và từng lý do. Mở **Cách đánh giá Risk** để xem quy tắc: cao khi quá hạn/quá tải; trung bình khi BLOCKED hoặc Sprint ACTIVE chậm theo tỷ lệ thời gian. Chưa đủ dữ liệu thì không kết luận thấp. Mức thấp chỉ có nghĩa chưa phát hiện tín hiệu theo quy tắc hiện tại.
+
+Risk tính từ dữ liệu hiện tại, không tự sửa Task hoặc phân công lại. Sau khi cập nhật Task/dependency, chọn **Tải lại Workload** hoặc **Tải lại tiến độ Sprint**. Sửa Capacity sẽ tải lại Risk sau khi lưu. Risk chỉ dành cho PM; số liệu blocked/quá hạn/tiến độ toàn Project và tải theo kỳ không phụ thuộc trang/bộ lọc Task. Khi cảnh báo thay đổi sau preview, phải kiểm tra kế hoạch/bắt đầu Sprint lại rồi xác nhận.
 
 ## Capacity/Workload trong Sprint
 

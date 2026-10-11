@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { Prisma, Sprint } from '../generated/prisma/client.js';
+import { projectRisk } from './project-risk.js';
 
-export async function sprintWorkload(tx: Prisma.TransactionClient, target: Sprint, selectedIds: string[] = []) {
+export async function sprintWorkload(tx: Prisma.TransactionClient, target: Sprint, selectedIds: string[] = [], now = new Date()) {
   const selected = [...selectedIds].sort();
   // Backlog is already part of Project load. Read each Task once, including commitments
   // outside the dates so moving a Task into a Sprint cannot hide its effort.
@@ -54,8 +55,10 @@ export async function sprintWorkload(tx: Prisma.TransactionClient, target: Sprin
   if (rows.some((row) => row.projectMissingEffort)) warnings.push('Capacity/Workload: tổng tải Project của người tham gia Sprint còn Task thiếu Effort; tỷ lệ chỉ phản ánh phần đã biết.');
   if (summary.unassignedCount) warnings.push(`Capacity/Workload: ${summary.unassignedCount} Task chưa DONE trong Sprint chưa có người phụ trách.`);
   if (rows.some((row) => !row.currentMember || row.user.status !== 'ACTIVE')) warnings.push('Capacity/Workload: có người phụ trách không còn là thành viên hoặc tài khoản đang khóa.');
-  warnings.push('Phân tích Risk chưa được tích hợp; PM cần xem cả dependency, deadline và tiến độ.');
-  return { snapshot: createHash('sha256').update(JSON.stringify({ target, tasks, capacities, members, selected })).digest('hex'), warnings,
+  const project = await tx.project.findUniqueOrThrow({ where: { id: target.projectId }, select: { id: true, endDate: true } });
+  const risk = await projectRisk(tx, project, { periodStart: target.startDate.toISOString().slice(0, 10), periodEnd: target.endDate.toISOString().slice(0, 10) }, now, { sprintId: target.id, taskIds: selected });
+  warnings.push(`Project Risk: ${risk.level}${risk.confidence === 'INCOMPLETE' ? ' · Dữ liệu chưa đầy đủ' : ''}.`);
+  return { snapshot: createHash('sha256').update(JSON.stringify({ target, tasks, capacities, members, selected, risk })).digest('hex'), warnings, risk,
     workload: { periodStart: target.startDate.toISOString().slice(0, 10), periodEnd: target.endDate.toISOString().slice(0, 10), summary, rows },
     capacityAvailable: summary.missingCapacityCount === 0 && summary.unassignedCount === 0,
   };

@@ -137,7 +137,7 @@ export function createSprintRepository(client: PrismaClient) {
       const warnings = [...coordination.warnings];
       if (blocked) warnings.push(`${blocked} Task có dependency chưa DONE.`);
       if (missingEffort) warnings.push(`${missingEffort} Task chưa ước lượng Effort.`);
-      const assessment = { taskCount: count, warnings, snapshot: coordination.snapshot, workload: coordination.workload };
+      const assessment = { taskCount: count, warnings, snapshot: coordination.snapshot, workload: coordination.workload, risk: coordination.risk };
       if (!confirmed) return { ...assessment, applied: false, sprint: target };
       if (expectedSnapshot !== coordination.snapshot) throw new HttpError(409, 'Dữ liệu Sprint/Task/Capacity đã thay đổi hoặc thiếu bản kiểm tra. Hãy kiểm tra bắt đầu Sprint lại.');
       const updated = await tx.sprint.update({ where: { id }, data: { status: 'ACTIVE', startedAt: new Date() } });
@@ -166,8 +166,8 @@ export function createSprintRepository(client: PrismaClient) {
           return { ...task, blockingTasks, blocked: task.status !== 'DONE' && blockingTasks.length > 0, overdue: task.status !== 'DONE' && Boolean(task.dueDate && task.dueDate < todayDate) };
         });
         const assignees = await tx.task.findMany({ where: { ...base, assigneeId: { not: null } }, distinct: ['assigneeId'], select: { assignee: { select: { id: true, displayName: true } } } });
-        const coordination = project.managerUserId === actorId ? await sprintWorkload(tx, target) : null;
-        return { sprint: target, summary: { total: all, counts, progressPercent: all ? Math.round(counts.DONE / all * 100) : 0, blocked, overdue, daysRemaining: Math.max(0, Math.round((target.endDate.getTime() - todayDate.getTime()) / 86400000)), today, sprintOverdue: target.status === 'ACTIVE' && target.endDate < todayDate }, items, total: await tx.task.count({ where }), page: query.page, pageSize: 20, assignees: assignees.flatMap((item) => item.assignee ? [item.assignee] : []), workload: coordination?.workload ?? null, warnings: coordination?.warnings ?? ['Capacity/Workload tổng Project chỉ dành cho PM. Phân tích Risk chưa được tích hợp.'] };
+        const coordination = project.managerUserId === actorId ? await sprintWorkload(tx, target, [], now) : null;
+        return { sprint: target, summary: { total: all, counts, progressPercent: all ? Math.round(counts.DONE / all * 100) : 0, blocked, overdue, daysRemaining: Math.max(0, Math.round((target.endDate.getTime() - todayDate.getTime()) / 86400000)), today, sprintOverdue: target.status === 'ACTIVE' && target.endDate < todayDate }, items, total: await tx.task.count({ where }), page: query.page, pageSize: 20, assignees: assignees.flatMap((item) => item.assignee ? [item.assignee] : []), workload: coordination?.workload ?? null, risk: coordination?.risk ?? null, warnings: coordination?.warnings ?? ['Phân tích Capacity/Workload và Project Risk chỉ dành cho PM.'] };
       }, { isolationLevel: 'RepeatableRead' });
     },
     async backlog(projectId: string, actorId: string, page: number, sprintId?: string) {
@@ -194,7 +194,7 @@ export function createSprintRepository(client: PrismaClient) {
         if (task.startDate && task.startDate > target.endDate) warnings.push(`“${task.title}”: ngày bắt đầu sau ngày kết thúc Sprint.`);
         if (task.status === 'DONE') warnings.push(`“${task.title}”: Task đã DONE.`);
       }
-      const assessment = { warnings, totalEffort: tasks.reduce((sum, task) => sum + (task.effort ?? 0), 0), missingEffort: tasks.filter((task) => task.effort === null).length, taskCount: tasks.length, capacityAvailable: coordination.capacityAvailable, snapshot: coordination.snapshot, workload: coordination.workload };
+      const assessment = { warnings, totalEffort: tasks.reduce((sum, task) => sum + (task.effort ?? 0), 0), missingEffort: tasks.filter((task) => task.effort === null).length, taskCount: tasks.length, capacityAvailable: coordination.capacityAvailable, snapshot: coordination.snapshot, workload: coordination.workload, risk: coordination.risk };
       if (!input.confirmed) return { ...assessment, applied: false };
       if (input.expectedSnapshot !== coordination.snapshot) throw new HttpError(409, 'Dữ liệu Sprint/Task/Capacity đã thay đổi hoặc thiếu bản kiểm tra. Hãy kiểm tra kế hoạch lại.');
       await tx.task.updateMany({ where: { projectId, id: { in: tasks.map((task) => task.id) } }, data: { sprintId: id } });

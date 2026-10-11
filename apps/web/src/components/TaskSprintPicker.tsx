@@ -23,6 +23,6 @@ export function TaskSprintPicker({ projectId, value, onChange, disabled, onExpir
     {loading && <p role="status">Đang tải Sprint để chọn…</p>}{error && <p role="alert" className="form-error">{error}</p>}
     <div className="inline-fields sprint-picker-pagination"><button type="button" className="refresh-button" disabled={disabled || loading || page <= 1} onClick={() => setPage(page - 1)}>Trang Sprint trước</button><button type="button" className="refresh-button" disabled={disabled || loading || page * 20 >= total} onClick={() => setPage(page + 1)}>Trang Sprint sau</button><button type="button" className="refresh-button" disabled={disabled || loading} onClick={() => setRevision((value) => value + 1)}>Tải lại lựa chọn Sprint</button></div>
     <p>Trang {page}/{Math.max(1, Math.ceil(total / 20))}. Chỉ chọn Sprint PLANNED/ACTIVE; không chọn thì Task ở Product Backlog.</p>
-    {value && <p className="form-notice">Kiểm tra Effort, người phụ trách và deadline trước khi tạo trong Sprint. Chưa có phân tích Capacity/Workload/Risk để đánh giá năng lực nhóm.</p>}
+    {value && <p className="form-notice">Kiểm tra Effort, người phụ trách và deadline trước khi tạo trong Sprint. Sau khi tạo, tải lại theo dõi Sprint để xem Capacity/Workload và Project Risk mới.</p>}
   </div>;
 }

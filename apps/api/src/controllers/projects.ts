@@ -5,6 +5,7 @@ export interface ProjectOptions extends SessionOptions { service: ProjectService
 export function projectRouter(options: ProjectOptions) {
   const router = sessionRouter(options);
   const token = (cookie?: string) => readSessionToken(cookie, options.secureCookies);
+  router.get('/projects/:id/risk', async (req, res) => { res.json(await options.service.risk(token(req.headers.cookie), req.params.id, req.query)); });
   router.get('/projects/:id/workload', async (req, res) => { res.json(await options.service.workload(token(req.headers.cookie), req.params.id, req.query)); });
   router.get('/projects/:id/capacities', async (req, res) => { res.json(await options.service.capacities(token(req.headers.cookie), req.params.id, req.query)); });
   router.put('/projects/:id/capacities', async (req, res) => { res.json({ capacity: await options.service.saveCapacity(token(req.headers.cookie), req.params.id, req.body) }); });

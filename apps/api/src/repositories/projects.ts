@@ -3,6 +3,7 @@ import { HttpError } from '../domain/errors.js';
 import type { ProjectInput } from '../services/project-validation.js';
 import type { CapacityInput, WorkloadQuery } from '../services/coordination-validation.js';
 import { workload } from './workload.js';
+import { projectRisk } from './project-risk.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, email: true, displayName: true, status: true } as const;
@@ -56,11 +57,18 @@ export function createProjectRepository(client: PrismaClient) {
     await tx.notification.create({ data: { userId, type, title: 'Cập nhật Project', message: `${message} “${name}”.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
   }
   return {
+    async risk(projectId: string, actorId: string, period: { periodStart: string; periodEnd: string }, now = new Date()) {
+      return client.$transaction(async (tx) => {
+        const { project } = await projectAccess(tx, projectId, actorId);
+        if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem Risk của Project.');
+        return projectRisk(tx, project, period, now);
+      }, { isolationLevel: 'RepeatableRead' });
+    },
     async workload(projectId: string, actorId: string, query: WorkloadQuery) {
       return client.$transaction(async (tx) => {
         const { project } = await projectAccess(tx, projectId, actorId);
         if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem điều phối Project.');
-        return { ...await workload(tx, projectId, query), canEdit: project.status === 'ACTIVE' };
+        return { ...await workload(tx, projectId, query), risk: await projectRisk(tx, project, query), canEdit: project.status === 'ACTIVE' };
       }, { isolationLevel: 'RepeatableRead' });
     },
     async capacities(projectId: string, actorId: string, page: number) {

@@ -43,7 +43,7 @@ export function TaskDependencies({ taskId, projectId, onExpired, onChanged }: { 
   function find(event: FormEvent) { event.preventDefault(); setCandidatePage(1); setQuery(search.trim()); }
   return <section aria-label="Task Dependency" aria-busy={loading || busy}>
     <div className="panel-heading"><h3>Task Dependency</h3><button className="refresh-button" disabled={busy || loading} onClick={() => { setRevision((value) => value + 1); onChanged(); }}>Tải lại dependency</button></div>
-    <p>Task này phụ thuộc vào các Task bên dưới. Dependency chưa DONE tạo cảnh báo BLOCKED; trạng thái công việc không tự thay đổi. Phân tích Risk chưa được tích hợp.</p>
+    <p>Task này phụ thuộc vào các Task bên dưới. Dependency chưa DONE tạo cảnh báo BLOCKED; trạng thái công việc không tự thay đổi. PM tải lại điều phối hoặc theo dõi Sprint để xem Project Risk sau khi thay đổi dependency.</p>
     {error && <p role="alert" className="form-error">{error}</p>}{notice && <p role="status">{notice}</p>}{loading && <p role="status">Đang tải dependency…</p>}
     {data && <>
       {!data.items.length && <p>Chưa có dependency.</p>}

@@ -93,6 +93,12 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await workload.getByLabel('Capacity (điểm)', { exact: true }).fill('4');
   await workload.getByRole('button', { name: 'Lưu Capacity', exact: true }).click();
   await expect(workload).toContainText('Workload: 125% · Quá tải');
+  const risk = workload.getByRole('region', { name: 'Project Risk', exact: true });
+  await expect(risk).toContainText('Project Risk: Cao');
+  await expect(risk).toContainText('Chưa đầy đủ');
+  await risk.getByText('Cách đánh giá Risk', { exact: true }).click();
+  await expect(risk).toContainText('không phải dự đoán chắc chắn');
+  await risk.screenshot({ path: testInfo.outputPath('project-risk.png') });
   await workload.getByRole('button', { name: 'Thiết lập Capacity', exact: true }).click();
   await workload.getByLabel('Capacity (điểm)', { exact: true }).fill('10');
   await workload.getByRole('button', { name: 'Hủy sửa Capacity', exact: true }).click();
@@ -121,6 +127,7 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   const planningWorkload = confirm.getByRole('region', { name: 'Capacity/Workload Sprint', exact: true });
   await expect(planningWorkload).toContainText('Tải Sprint: 5 Effort · 50%');
   await expect(planningWorkload).toContainText('Tổng tải Project: 5 Effort · 50%');
+  await expect(confirm.getByRole('region', { name: 'Project Risk', exact: true })).toContainText('Project Risk: Chưa đủ dữ liệu');
   const savedCapacity = await client.memberCapacity.findFirstOrThrow({ where: { projectId: project.id } });
   await client.memberCapacity.update({ where: { id: savedCapacity.id }, data: { capacityPoints: 8, updatedAt: new Date(savedCapacity.updatedAt.getTime() + 1000) } });
   await confirm.getByRole('button', { name: 'Xác nhận đưa vào Sprint', exact: true }).click();
@@ -164,6 +171,7 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   expect(await client.sprint.count({ where: { projectId: project.id, status: 'ACTIVE' } })).toBe(0);
   await panel.getByRole('button', { name: 'Bắt đầu Sprint', exact: true }).click();
   await expect(startConfirm.getByRole('region', { name: 'Capacity/Workload Sprint', exact: true })).toContainText('Tổng tải Project: 10 Effort · 125% · Quá tải');
+  await expect(startConfirm.getByRole('region', { name: 'Project Risk', exact: true })).toContainText('Project Risk: Cao');
   await startConfirm.getByRole('button', { name: 'Hủy bắt đầu Sprint', exact: true }).click();
   expect((await client.sprint.findFirstOrThrow({ where: { projectId: project.id } })).status).toBe('PLANNED');
   await panel.getByRole('button', { name: 'Bắt đầu Sprint', exact: true }).click();
@@ -224,6 +232,7 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await memberPage.getByRole('button', { name: 'Theo dõi Sprint', exact: true }).click();
   await expect(memberPage.getByRole('region', { name: 'Theo dõi Sprint', exact: true })).toContainText('1/1 Task DONE');
   await expect(memberPage.getByRole('region', { name: 'Capacity/Workload Sprint', exact: true })).toHaveCount(0);
+  await expect(memberPage.getByRole('region', { name: 'Project Risk', exact: true })).toHaveCount(0);
   await expect(memberPage.getByRole('button', { name: 'Bắt đầu Sprint', exact: true })).toHaveCount(0);
   const daily = memberPage.getByRole('region', { name: 'Daily Update', exact: true });
   await daily.getByLabel('Tiến độ đã thực hiện', { exact: true }).fill('Đã hoàn thành API Daily');
@@ -289,7 +298,7 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   const picker = taskPanel.getByLabel('Sprint khi tạo Task', { exact: true });
   await expect(picker.locator('option', { hasText: 'COMPLETED' })).toHaveCount(0);
   await picker.selectOption(plannedForTask.id);
-  await expect(taskPanel).toContainText('Chưa có phân tích Capacity/Workload/Risk');
+  await expect(taskPanel).toContainText('Project Risk mới');
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath('task-sprint-picker.png'), fullPage: true });
   await taskPanel.getByRole('button', { name: 'Tạo Task', exact: true }).click();

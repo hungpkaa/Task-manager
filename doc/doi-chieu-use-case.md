@@ -47,9 +47,9 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
 | UC35 | Thiết lập Effort và Capacity | Đã có: Task Effort 1/2/3/5/8, PM lưu/cập nhật Capacity dương theo thành viên/kỳ, chống ghi đè bản cũ và tính lại Workload | 6, 10 |
-| UC36 | Quản lý Task Dependency | Cơ bản: PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang và cập nhật BLOCKED; chưa tích hợp Risk | 10 |
+| UC36 | Quản lý Task Dependency | PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang, BLOCKED; Risk tính lại khi tải điều phối/Sprint | 10 |
 | UC37 | Xem Workload thành viên | Đã có: PM chọn kỳ, tổng Effort Task chưa DONE giao với kỳ / Capacity, cảnh báo quá tải/thiếu dữ liệu, phân trang và lịch sử Capacity; tích hợp tải Sprint/tổng Project vào UC46–48 | 10 |
-| UC38 | Xem Project Risk | Chưa triển khai | 10 |
+| UC38 | Xem Project Risk | Đã có: PM, HIGH/MEDIUM/LOW/UNKNOWN theo Workload/blocked/overdue/tiến độ, nguyên nhân và độ đầy đủ dữ liệu; API/UI và tích hợp Sprint | 10 |
 | UC39 | Xem đề xuất điều phối | Chưa triển khai | 10 |
 | UC40 | Xem danh sách người dùng hệ thống | Chưa triển khai | 10 |
 | UC41 | Khóa / mở khóa tài khoản | Chưa triển khai API/giao diện quản trị; auth đã từ chối tài khoản LOCKED | 10 |
@@ -57,9 +57,9 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC43 | Xem thống kê hệ thống | Chưa triển khai | 10 |
 | UC44 | Xem Product Backlog | Đã triển khai: Task cùng Project có sprintId null, phân quyền và phân trang | 9 |
 | UC45 | Tạo Sprint | Đã triển khai: PM, PLANNED, tên/Goal/ngày bắt buộc, kiểm tra khoảng ngày | 9 |
-| UC46 | Lập Sprint Backlog | Có preview Effort/dependency/Capacity/Workload, tải Sprint gồm Task hiện có + đang chọn, snapshot chống cảnh báo cũ, xác nhận và return khi PLANNED; còn Risk | 9, 10 |
-| UC47 | Bắt đầu Sprint | PM, PLANNED, Goal/Backlog, tối đa một ACTIVE, Capacity/Workload/xác nhận snapshot và thông báo atomic; còn Risk | 9, 10 |
-| UC48 | Theo dõi Sprint | Thành viên xem Dashboard/Board, Task BLOCKED/overdue, Daily Update; PM xem thêm tải Sprint/tổng Project độc lập bộ lọc và phân trang Task; còn Risk | 9, 10 |
+| UC46 | Lập Sprint Backlog | Preview Effort/dependency/Capacity/Workload/Risk, tải Sprint gồm Task hiện có + đang chọn, snapshot chống cảnh báo cũ, xác nhận và return khi PLANNED | 9, 10 |
+| UC47 | Bắt đầu Sprint | PM, PLANNED, Goal/Backlog, tối đa một ACTIVE, Capacity/Workload/Risk, xác nhận snapshot và thông báo atomic | 9, 10 |
+| UC48 | Theo dõi Sprint | Thành viên xem Dashboard/Board, Task BLOCKED/overdue, Daily Update; PM xem tải Sprint/tổng Project và Risk độc lập bộ lọc/trang Task | 9, 10 |
 | UC49 | Cập nhật Daily Update | Đã có: thành viên Project gửi progress/next plan/blocker trong Sprint ACTIVE; lưu riêng từng lần, lịch sử phân trang và thời gian Việt Nam | 9 |
 | UC50 | Thực hiện Sprint Review | Đã có: PM lưu/sửa summary và feedback trước COMPLETED; một bản ghi/Sprint, snapshot DONE/chưa DONE, chống ghi đè dữ liệu cũ; thành viên xem | 9 |
 | UC51 | Thực hiện Sprint Retrospective | Đã có: thành viên/PM cập nhật bản chung trước COMPLETED, went well/needs improvement/action items, chống ghi đè bản cũ và giữ nội dung sau khi đóng | 9 |

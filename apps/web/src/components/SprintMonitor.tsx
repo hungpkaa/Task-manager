@@ -5,6 +5,7 @@ import { SprintReview } from './SprintReview';
 import { SprintRetrospective } from './SprintRetrospective';
 import { Tasks, statusLabels } from './Tasks';
 import { SprintWorkload } from './SprintWorkload';
+import { ProjectRisk } from './ProjectRisk';
 export function SprintMonitor({ projectId, sprintId, onExpired }: { projectId: string; sprintId: string; onExpired: () => void }) {
   const [data, setData] = useState<SprintMonitorResult | null>(null);
   const [query, setQuery] = useState({ status: '', priority: '', assigneeId: '' });
@@ -35,6 +36,7 @@ export function SprintMonitor({ projectId, sprintId, onExpired }: { projectId: s
       <div className="sprint-summary"><p><strong>Tiến độ: {data.summary.progressPercent}%</strong> · {data.summary.counts.DONE}/{data.summary.total} Task DONE</p><progress aria-label="Tiến độ Sprint" max={100} value={data.summary.progressPercent} /><p>{taskStatuses.map((status) => `${statusLabels[status]}: ${data.summary.counts[status]}`).join(' · ')}</p><p>BLOCKED: {data.summary.blocked} · Quá hạn: {data.summary.overdue}</p><p>Số liệu toàn Sprint; danh sách bên dưới được lọc và phân trang. Ngày tính: {data.summary.today} (Việt Nam).</p></div>
       {data.warnings.map((warning) => <p className="form-notice" key={warning}>{warning}</p>)}
       {data.workload && <SprintWorkload key={sprintId} data={data.workload} />}
+      {data.risk && <ProjectRisk data={data.risk} />}
       {data.sprint.completion && <details><summary>Kết quả khi kết thúc Sprint</summary><p>DONE {data.sprint.completion.doneCount} · Chuyển tiếp {data.sprint.completion.incompleteCount}</p><p>Kết thúc: {data.sprint.completedAt ? new Date(data.sprint.completedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : ''} (Việt Nam)</p><ul>{data.sprint.completion.tasks.map((task) => <li key={task.id}>{task.title} · {task.status} · {task.status === 'DONE' ? 'Giữ trong Sprint' : task.destinationSprintId ? `Chuyển Sprint ${task.destinationSprintId}` : 'Về Product Backlog'}</li>)}</ul><p>Đây là lịch sử tại thời điểm kết thúc; số liệu hiện tại có thể khác.</p></details>}
       <DailyUpdates key={sprintId} projectId={projectId} sprintId={sprintId} onExpired={onExpired} />
       <SprintReview key={`review-${sprintId}`} projectId={projectId} sprintId={sprintId} onExpired={onExpired} />

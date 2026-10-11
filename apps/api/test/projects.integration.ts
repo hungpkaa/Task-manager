@@ -47,6 +47,62 @@ async function create(base: string, workspaceId: string, cookie: string) {
   const response = await request(base, `/workspaces/${workspaceId}/projects`, cookie, 'POST', { name: ' Project ', description: ' Mô tả ', startDate: '2026-10-10', endDate: '2026-11-10' });
   assert.equal(response.status, 201); return (await response.json() as { project: { id: string; managerUserId: string | null; status: string } }).project;
 }
+test('UC38: permissions, data quality, dependency, capacity and Vietnam deadline boundaries', async () => fixture(async ({ base, client, workspaceId, otherWorkspaceId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const project = await create(base, workspaceId, owner.cookie); const path = `/projects/${project.id}`;
+  const repository = createProjectRepository(client);
+  await repository.assignManager(project.id, owner.id, pm.id, null); await repository.addMember(project.id, pm.id, member.id);
+  const period = { periodStart: '2026-10-11', periodEnd: '2026-10-25' };
+  const read = (now = new Date('2026-10-10T17:00:00Z')) => repository.risk(project.id, pm.id, period, now);
+  assert.equal((await read()).level, 'UNKNOWN'); assert.equal((await read()).confidence, 'INCOMPLETE');
+  const query = `${path}/risk?${new URLSearchParams(period)}`;
+  assert.equal((await request(base, query)).status, 401);
+  for (const user of [owner, member, outsider, admin]) assert.equal((await request(base, query, user.cookie)).status, 403);
+  assert.equal((await request(base, query, pm.cookie)).status, 200);
+  for (const suffix of ['periodStart=bad&periodEnd=2026-10-25', 'periodStart=2026-10-25&periodEnd=2026-10-11', 'periodStart=2026-10-11&periodEnd=2026-10-25&page=2']) assert.equal((await request(base, `${path}/risk?${suffix}`, pm.cookie)).status, 400);
+  const done = await client.task.create({ data: { projectId: project.id, title: 'DONE ignored', status: 'DONE', dueDate: new Date('2026-10-01') } });
+  assert.equal((await read()).level, 'LOW');
+  const task = await client.task.create({ data: { projectId: project.id, title: 'Risk target', effort: 5, assigneeId: pm.id, startDate: new Date(period.periodStart), dueDate: new Date(period.periodEnd) } });
+  const foreign = await client.project.create({ data: { workspaceId: otherWorkspaceId, name: 'Foreign Risk' } });
+  await client.task.create({ data: { projectId: foreign.id, title: 'Foreign overdue', dueDate: new Date('2020-01-01') } });
+  let cap = await repository.saveCapacity(project.id, pm.id, { ...period, userId: pm.id, capacityPoints: 10, expectedUpdatedAt: null });
+  assert.equal((await read()).level, 'LOW');
+  await client.taskDependency.create({ data: { projectId: project.id, taskId: task.id, dependsOnTaskId: done.id } });
+  assert.equal((await read()).metrics.blockedCount, 0);
+  await client.task.update({ where: { id: done.id }, data: { status: 'TODO', effort: 1, assigneeId: pm.id, dueDate: new Date(period.periodEnd) } });
+  assert.equal((await read()).level, 'MEDIUM'); assert.equal((await read()).metrics.blockedCount, 1);
+  await client.taskDependency.deleteMany({ where: { taskId: task.id } }); assert.equal((await read()).level, 'LOW');
+  cap = await repository.saveCapacity(project.id, pm.id, { ...period, userId: pm.id, capacityPoints: 4, expectedUpdatedAt: cap.updatedAt.toISOString() });
+  assert.equal((await read()).level, 'HIGH'); assert.equal((await read()).metrics.overloadedCount, 1);
+  await repository.saveCapacity(project.id, pm.id, { ...period, userId: pm.id, capacityPoints: 10, expectedUpdatedAt: cap.updatedAt.toISOString() });
+  await client.task.update({ where: { id: task.id }, data: { dueDate: new Date('2026-10-11') } });
+  assert.equal((await read(new Date('2026-10-11T16:59:59Z'))).metrics.overdueCount, 0);
+  const boundary = await read(new Date('2026-10-11T17:00:00Z')); assert.equal(boundary.today, '2026-10-12'); assert.equal(boundary.metrics.overdueCount, 1); assert.equal(boundary.level, 'HIGH');
+  await client.task.update({ where: { id: task.id }, data: { status: 'DONE' } }); assert.equal((await read(new Date('2026-10-11T17:00:00Z'))).level, 'LOW');
+  await client.task.update({ where: { id: done.id }, data: { effort: null, dueDate: null, assigneeId: null } });
+  const incomplete = await read(); assert.equal(incomplete.level, 'UNKNOWN'); assert.equal(incomplete.confidence, 'INCOMPLETE'); assert.equal(incomplete.metrics.missingEffortCount, 1); assert.equal(incomplete.metrics.missingDeadlineCount, 1); assert.equal(incomplete.metrics.unassignedCount, 1);
+  const version = (await client.task.findUniqueOrThrow({ where: { id: done.id } })).updatedAt;
+  await read(); assert.equal((await client.task.findUniqueOrThrow({ where: { id: done.id } })).updatedAt.toISOString(), version.toISOString());
+  await client.project.update({ where: { id: project.id }, data: { status: 'CLOSED' } }); assert.equal((await request(base, query, pm.cookie)).status, 200);
+}));
+
+test('Risk compares exact Sprint progress ratios and Project end dates', async () => fixture(async ({ base, client, workspaceId, users }) => {
+  const [owner, pm] = users; assert.ok(owner && pm);
+  const project = await create(base, workspaceId, owner.cookie); const repository = createProjectRepository(client);
+  await repository.assignManager(project.id, owner.id, pm.id, null);
+  const period = { periodStart: '2026-10-11', periodEnd: '2026-10-25' };
+  await repository.saveCapacity(project.id, pm.id, { ...period, userId: pm.id, capacityPoints: 10, expectedUpdatedAt: null });
+  const sprint = await client.sprint.create({ data: { projectId: project.id, name: 'Progress', goal: 'Risk boundary', startDate: new Date('2026-10-11'), endDate: new Date('2026-10-14'), status: 'ACTIVE' } });
+  await client.task.createMany({ data: Array.from({ length: 4 }, (_, index) => ({ projectId: project.id, sprintId: sprint.id, title: `Progress ${index}`, status: index === 0 ? 'DONE' as const : 'TODO' as const, effort: 1, assigneeId: pm.id, startDate: new Date('2026-10-11'), dueDate: new Date('2026-10-14') })) });
+  const read = (day: string) => repository.risk(project.id, pm.id, period, new Date(`${day}T00:00:00Z`));
+  assert.equal((await read('2026-10-11')).level, 'LOW'); assert.equal((await read('2026-10-11')).metrics.behindSprintCount, 0);
+  assert.equal((await read('2026-10-12')).level, 'MEDIUM'); assert.equal((await read('2026-10-12')).metrics.behindSprintCount, 1);
+  const overdue = await read('2026-10-15'); assert.equal(overdue.level, 'HIGH'); assert.equal(overdue.metrics.lateActiveSprintCount, 1); assert.equal(overdue.metrics.overdueCount, 3);
+  await client.project.update({ where: { id: project.id }, data: { endDate: new Date('2026-10-14') } }); assert.equal((await read('2026-10-15')).metrics.projectOverdue, true);
+  await client.task.updateMany({ where: { projectId: project.id }, data: { status: 'DONE' } });
+  const completed = await read('2026-10-15'); assert.equal(completed.level, 'LOW'); assert.equal(completed.metrics.projectOverdue, false); assert.equal(completed.metrics.lateActiveSprintCount, 0);
+}));
+
 test('UC35–37: capacity permissions, exact periods, active effort, missing data and retained history', async () => fixture(async ({ base, client, workspaceId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const project = await create(base, workspaceId, owner.cookie); const path = `/projects/${project.id}`;
@@ -125,6 +181,11 @@ test('capacity concurrent creation and stale PM writes are serialized; DB enforc
   }
   const secondPage = await (await request(base, `${path}/workload?periodStart=2026-10-01&periodEnd=2026-10-31&page=2`, member.cookie)).json() as { total: number; items: unknown[] };
   assert.equal(secondPage.total, 22); assert.equal(secondPage.items.length, 2);
+  const last = users.at(-1)!;
+  await client.task.create({ data: { projectId: project.id, title: 'Risk beyond first member page', effort: 8, assigneeId: last.id, dueDate: new Date('2026-10-31') } });
+  await client.memberCapacity.create({ data: { projectId: project.id, userId: last.id, periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31'), capacityPoints: 1 } });
+  const risk = await createProjectRepository(client).risk(project.id, member.id, { periodStart: '2026-10-01', periodEnd: '2026-10-31' }, new Date('2026-10-11T00:00:00Z'));
+  assert.equal(risk.level, 'HIGH'); assert.equal(risk.metrics.overloadedCount, 1);
   for (const query of ['periodStart=invalid&periodEnd=2026-11-30', 'periodStart=2026-12-01&periodEnd=2026-11-30', 'periodStart=2026-11-01&periodEnd=2026-11-30&page=0', 'periodStart=2026-11-01&periodEnd=2026-11-30&extra=1']) assert.equal((await request(base, `${path}/workload?${query}`, member.cookie)).status, 400);
 }));
 

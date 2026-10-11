@@ -53,14 +53,19 @@ export interface SprintWorkloadResult {
   summary: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number; missingCapacityCount: number; sprintOverloadedCount: number; projectOverloadedCount: number };
   rows: { user: { id: string; displayName: string; status: 'ACTIVE' | 'LOCKED' }; currentMember: boolean; capacityPoints: number | null; sprintTaskCount: number; sprintEffort: number; projectEffort: number; sprintMissingEffort: number; projectMissingEffort: number; sprintPercent: number | null; projectPercent: number | null; sprintOverloaded: boolean; projectOverloaded: boolean }[];
 }
-export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; snapshot: string; workload: SprintWorkloadResult; }
+export interface ProjectRiskResult {
+  level: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'; confidence: 'COMPLETE' | 'INCOMPLETE'; today: string; periodStart: string; periodEnd: string; includesSprintCommitments: boolean;
+  signals: { code: string; severity: 'HIGH' | 'MEDIUM' | 'DATA'; count: number; message: string }[];
+  metrics: { totalTaskCount: number; doneCount: number; activeCount: number; progressPercent: number; blockedCount: number; overdueCount: number; periodActiveTaskCount: number; missingEffortCount: number; missingDeadlineCount: number; unassignedCount: number; missingCapacityCount: number; unavailableAssigneeCount: number; overloadedCount: number; lateActiveSprintCount: number; behindSprintCount: number; projectOverdue: boolean };
+}
+export interface SprintStart { applied: boolean; sprint: Sprint; warnings: string[]; taskCount: number; snapshot: string; workload: SprintWorkloadResult; risk: ProjectRiskResult; }
 export interface SprintMonitorResult {
   sprint: Sprint; summary: { total: number; counts: Record<TaskStatus, number>; progressPercent: number; blocked: number; overdue: number; daysRemaining: number; today: string; sprintOverdue: boolean };
   items: (BacklogTask & { assigneeId: string | null; dueDate: string | null; blocked: boolean; overdue: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[] })[];
-  total: number; page: number; pageSize: number; assignees: { id: string; displayName: string }[]; warnings: string[]; workload: SprintWorkloadResult | null;
+  total: number; page: number; pageSize: number; assignees: { id: string; displayName: string }[]; warnings: string[]; workload: SprintWorkloadResult | null; risk: ProjectRiskResult | null;
 }
 export interface BacklogTask { id: string; title: string; status: string; priority: string; effort: number | null; updatedAt: string; assignee: { displayName: string } | null; }
-export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; snapshot: string; workload: SprintWorkloadResult; }
+export interface PlanningAssessment { applied: boolean; warnings: string[]; totalEffort: number; missingEffort: number; taskCount: number; capacityAvailable: boolean; snapshot: string; workload: SprintWorkloadResult; risk: ProjectRiskResult; }
 export interface SprintInput { name: string; goal: string; startDate: string; endDate: string; }
 export interface DailyResult { items: { id: string; progress: string; nextPlan: string; blockers: string; createdAt: string; author: { id: string; displayName: string } }[]; total: number; pageSize: number; canCreate: boolean; }
 export const sprintApi = {
@@ -170,12 +175,14 @@ export interface ProjectMember { projectId: string; userId: string; user: Worksp
 export interface ProjectInput { name: string; description: string; startDate: string | null; endDate: string | null; }
 export interface MemberCapacity { id: string; userId: string; periodStart: string; periodEnd: string; capacityPoints: number; updatedAt: string; }
 export interface WorkloadPage {
+  risk: ProjectRiskResult;
   periodStart: string; periodEnd: string; page: number; pageSize: number; total: number; canEdit: boolean;
   summary: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number; unassignedEffort: number };
   items: { user: ProjectMember['user']; taskCount: number; knownEffort: number; missingEffortCount: number; capacity: MemberCapacity | null; percent: number | null; overloaded: boolean; complete: boolean }[];
 }
 export interface CapacityPage { items: (MemberCapacity & { user: ProjectMember['user'] })[]; total: number; page: number; pageSize: number; }
 export const projectApi = {
+  risk: (id: string, periodStart: string, periodEnd: string) => request<ProjectRiskResult>(`/projects/${id}/risk?${new URLSearchParams({ periodStart, periodEnd })}`),
   workload: (id: string, periodStart: string, periodEnd: string, page = 1) => request<WorkloadPage>(`/projects/${id}/workload?${new URLSearchParams({ periodStart, periodEnd, page: String(page) })}`),
   capacities: (id: string, page = 1) => request<CapacityPage>(`/projects/${id}/capacities?page=${page}`),
   saveCapacity: (id: string, input: { userId: string; periodStart: string; periodEnd: string; capacityPoints: number; expectedUpdatedAt: string | null }) => request<{ capacity: MemberCapacity }>(`/projects/${id}/capacities`, json('PUT', input)),
