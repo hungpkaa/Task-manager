@@ -46,9 +46,9 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC32 | Xem và quản lý thông báo | Cơ bản: riêng tư, đếm/đánh dấu đọc, sự kiện Workspace/Project/giao Task/mention/bắt đầu và hoàn thành Sprint | 4, 5, 6, 8, 9 |
 | UC33 | Xem Dashboard cá nhân | Chưa triển khai; trang hiện tại chưa có chỉ số công việc | 10 |
 | UC34 | Xem Dashboard Project | Chưa triển khai | 10 |
-| UC35 | Thiết lập Effort và Capacity | Cơ bản: Task effort 1/2/3/5/8; chưa Capacity và Workload | 6, 10 |
+| UC35 | Thiết lập Effort và Capacity | Đã có: Task Effort 1/2/3/5/8, PM lưu/cập nhật Capacity dương theo thành viên/kỳ, chống ghi đè bản cũ và tính lại Workload | 6, 10 |
 | UC36 | Quản lý Task Dependency | Cơ bản: PM thêm/xóa, cùng Project, không tự phụ thuộc/chu trình kể cả khi thêm đồng thời, phân trang và cập nhật BLOCKED; chưa tích hợp Risk | 10 |
-| UC37 | Xem Workload thành viên | Chưa triển khai | 10 |
+| UC37 | Xem Workload thành viên | Đã có: PM chọn kỳ, tổng Effort Task chưa DONE giao với kỳ / Capacity, cảnh báo quá tải/thiếu dữ liệu, phân trang và lịch sử Capacity; chưa tích hợp vào Sprint | 10 |
 | UC38 | Xem Project Risk | Chưa triển khai | 10 |
 | UC39 | Xem đề xuất điều phối | Chưa triển khai | 10 |
 | UC40 | Xem danh sách người dùng hệ thống | Chưa triển khai | 10 |

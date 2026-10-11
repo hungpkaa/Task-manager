@@ -47,6 +47,87 @@ async function create(base: string, workspaceId: string, cookie: string) {
   const response = await request(base, `/workspaces/${workspaceId}/projects`, cookie, 'POST', { name: ' Project ', description: ' Mô tả ', startDate: '2026-10-10', endDate: '2026-11-10' });
   assert.equal(response.status, 201); return (await response.json() as { project: { id: string; managerUserId: string | null; status: string } }).project;
 }
+test('UC35–37: capacity permissions, exact periods, active effort, missing data and retained history', async () => fixture(async ({ base, client, workspaceId, users }) => {
+  const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
+  const project = await create(base, workspaceId, owner.cookie); const path = `/projects/${project.id}`;
+  assert.equal((await request(base, `${path}/manager`, owner.cookie, 'PATCH', { managerUserId: pm.id, expectedManagerUserId: null })).status, 200);
+  assert.equal((await request(base, `${path}/members`, pm.cookie, 'POST', { userId: member.id })).status, 201);
+  const period = { periodStart: '2026-10-11', periodEnd: '2026-10-25' };
+  const input = { ...period, userId: member.id, capacityPoints: 5, expectedUpdatedAt: null };
+  const query = `${path}/workload?${new URLSearchParams(period)}`;
+  assert.equal((await request(base, query)).status, 401);
+  const foreignOrigin = await fetch(`${base}/api${path}/capacities`, { method: 'PUT', headers: { Origin: 'https://foreign.invalid', Cookie: pm.cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  assert.equal(foreignOrigin.status, 403);
+  for (const user of [owner, member, outsider, admin]) {
+    assert.equal((await request(base, query, user.cookie)).status, 403);
+    assert.equal((await request(base, `${path}/capacities`, user.cookie)).status, 403);
+    assert.equal((await request(base, `${path}/capacities`, user.cookie, 'PUT', input)).status, 403);
+  }
+  for (const invalid of [{ ...input, capacityPoints: 0 }, { ...input, capacityPoints: -1 }, { ...input, capacityPoints: 1.5 }, { ...input, capacityPoints: '5' }, { ...input, periodEnd: '2026-10-10' }, { ...input, periodStart: '2026-02-30' }, { ...input, userId: outsider.id }, { ...input, extra: true }]) assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', invalid)).status, 400);
+  await client.user.update({ where: { id: member.id }, data: { status: 'LOCKED' } });
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', input)).status, 409);
+  await client.user.update({ where: { id: member.id }, data: { status: 'ACTIVE' } });
+  await client.task.createMany({ data: [
+    { projectId: project.id, title: 'Undated', assigneeId: member.id, effort: 3 },
+    { projectId: project.id, title: 'Start boundary', assigneeId: member.id, effort: 5, startDate: new Date('2026-10-25'), status: 'IN_PROGRESS' },
+    { projectId: project.id, title: 'End boundary', assigneeId: member.id, dueDate: new Date('2026-10-11'), status: 'REVIEW' },
+    { projectId: project.id, title: 'DONE excluded', assigneeId: member.id, effort: 8, status: 'DONE' },
+    { projectId: project.id, title: 'Before excluded', assigneeId: member.id, effort: 8, dueDate: new Date('2026-10-10') },
+    { projectId: project.id, title: 'After excluded', assigneeId: member.id, effort: 8, startDate: new Date('2026-10-26') },
+    { projectId: project.id, title: 'Unassigned', effort: 2 },
+  ] });
+  type Report = { canEdit: boolean; summary: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number }; items: { user: { id: string }; taskCount: number; knownEffort: number; missingEffortCount: number; percent: number | null; overloaded: boolean; complete: boolean }[] };
+  const before = await (await request(base, query, pm.cookie)).json() as Report;
+  assert.equal(before.items.find((item) => item.user.id === member.id)?.percent, null);
+  const saved = await request(base, `${path}/capacities`, pm.cookie, 'PUT', input); assert.equal(saved.status, 200);
+  const capacity = (await saved.json() as { capacity: { updatedAt: string } }).capacity;
+  const report = await (await request(base, query, pm.cookie)).json() as Report;
+  assert.equal(report.summary.taskCount, 4); assert.equal(report.summary.knownEffort, 10); assert.equal(report.summary.missingEffortCount, 1); assert.equal(report.summary.unassignedCount, 1);
+  const row = report.items.find((item) => item.user.id === member.id); assert.ok(row);
+  assert.equal(row.taskCount, 3); assert.equal(row.knownEffort, 8); assert.equal(row.percent, 160); assert.equal(row.overloaded, true); assert.equal(row.complete, false);
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', input)).status, 409);
+  const changed = await request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, capacityPoints: 10, expectedUpdatedAt: capacity.updatedAt }); assert.equal(changed.status, 200);
+  assert.equal((await (await request(base, query, pm.cookie)).json() as Report).items.find((item) => item.user.id === member.id)?.percent, 80);
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, periodEnd: '2026-10-26' })).status, 409);
+  const nextQuery = `${path}/workload?periodStart=2026-10-26&periodEnd=2026-11-01`;
+  assert.equal((await (await request(base, nextQuery, pm.cookie)).json() as Report).items.find((item) => item.user.id === member.id)?.percent, null);
+  await client.task.updateMany({ where: { projectId: project.id }, data: { status: 'DONE' } });
+  assert.equal((await (await request(base, query, pm.cookie)).json() as Report).items.find((item) => item.user.id === member.id)?.percent, 0);
+  assert.equal((await request(base, `${path}/members/${member.id}`, pm.cookie, 'DELETE', {})).status, 204);
+  assert.equal((await (await request(base, `${path}/capacities`, pm.cookie)).json() as { total: number }).total, 1);
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, periodStart: '2026-11-01', periodEnd: '2026-11-30' })).status, 400);
+  assert.equal((await request(base, `${path}/close`, pm.cookie, 'POST', {})).status, 200);
+  assert.equal((await (await request(base, query, pm.cookie)).json() as Report).canEdit, false);
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, userId: pm.id })).status, 409);
+}));
+
+test('capacity concurrent creation and stale PM writes are serialized; DB enforces capacity constraints', async () => fixture(async ({ base, client, workspaceId, users }) => {
+  const [owner, pm, member] = users; assert.ok(owner && pm && member);
+  const project = await create(base, workspaceId, owner.cookie); const path = `/projects/${project.id}`;
+  await request(base, `${path}/manager`, owner.cookie, 'PATCH', { managerUserId: pm.id, expectedManagerUserId: null });
+  const input = { userId: pm.id, periodStart: '2026-10-01', periodEnd: '2026-10-31', capacityPoints: 8, expectedUpdatedAt: null };
+  const race = await Promise.all([request(base, `${path}/capacities`, pm.cookie, 'PUT', input), request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, periodStart: '2026-10-15' })]);
+  assert.deepEqual(race.map((item) => item.status).sort(), [200, 409]);
+  assert.equal(await client.memberCapacity.count({ where: { projectId: project.id } }), 1);
+  await request(base, `${path}/manager`, owner.cookie, 'PATCH', { managerUserId: member.id, expectedManagerUserId: pm.id });
+  assert.equal((await request(base, `${path}/capacities`, pm.cookie, 'PUT', { ...input, periodStart: '2026-11-01', periodEnd: '2026-11-30' })).status, 403);
+  const raw = { projectId: project.id, userId: member.id, periodStart: new Date('2026-12-01'), periodEnd: new Date('2026-12-31'), capacityPoints: 1 };
+  await assert.rejects(client.memberCapacity.create({ data: { ...raw, capacityPoints: 0 } }));
+  await assert.rejects(client.memberCapacity.create({ data: { ...raw, periodEnd: new Date('2026-11-30') } }));
+  await client.memberCapacity.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ ...raw, periodStart: new Date(Date.UTC(2027, index, 1)), periodEnd: new Date(Date.UTC(2027, index + 1, 0)) })) });
+  const history = await (await request(base, `${path}/capacities?page=2`, member.cookie)).json() as { total: number; items: unknown[] };
+  assert.equal(history.total, 22); assert.equal(history.items.length, 2);
+  for (let index = 0; index < 20; index++) {
+    const extra = await client.user.create({ data: { email: `capacity-${randomUUID()}@example.invalid`, displayName: 'Extra member', passwordHash: 'fixture-only' } });
+    users.push({ id: extra.id, cookie: '' });
+    await client.workspaceMember.create({ data: { workspaceId, userId: extra.id } });
+    await client.projectMember.create({ data: { projectId: project.id, workspaceId, userId: extra.id } });
+  }
+  const secondPage = await (await request(base, `${path}/workload?periodStart=2026-10-01&periodEnd=2026-10-31&page=2`, member.cookie)).json() as { total: number; items: unknown[] };
+  assert.equal(secondPage.total, 22); assert.equal(secondPage.items.length, 2);
+  for (const query of ['periodStart=invalid&periodEnd=2026-11-30', 'periodStart=2026-12-01&periodEnd=2026-11-30', 'periodStart=2026-11-01&periodEnd=2026-11-30&page=0', 'periodStart=2026-11-01&periodEnd=2026-11-30&extra=1']) assert.equal((await request(base, `${path}/workload?${query}`, member.cookie)).status, 400);
+}));
+
 test('UC12–17: Owner creates/assigns; only current PM edits, manages members and closes; history persists', async () => fixture(async ({ base, client, workspaceId, users }) => {
   const [owner, pm, member, outsider, admin] = users; assert.ok(owner && pm && member && outsider && admin);
   const list = `/workspaces/${workspaceId}/projects`;

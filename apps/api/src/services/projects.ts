@@ -3,9 +3,13 @@ import type { AuthService } from './auth.js';
 import { validate } from './auth-validation.js';
 import { idSchema } from './workspace-validation.js';
 import { createProjectSchema, updateProjectSchema, managerSchema, projectMemberSchema } from './project-validation.js';
+import { capacitySchema, capacityQuerySchema, workloadQuerySchema } from './coordination-validation.js';
 
 export function createProjectService(repository: ProjectRepository, auth: AuthService) {
   return {
+    async workload(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.workload(validate(idSchema, projectId), user.id, validate(workloadQuerySchema, query)); },
+    async capacities(token: string | undefined, projectId: unknown, query: unknown) { const user = await auth.me(token); return repository.capacities(validate(idSchema, projectId), user.id, validate(capacityQuerySchema, query).page); },
+    async saveCapacity(token: string | undefined, projectId: unknown, input: unknown) { const user = await auth.me(token); return repository.saveCapacity(validate(idSchema, projectId), user.id, validate(capacitySchema, input)); },
     async list(token: string | undefined, workspaceId: unknown) { const user = await auth.me(token); return repository.list(validate(idSchema, workspaceId), user.id); },
     async create(token: string | undefined, workspaceId: unknown, input: unknown) { const user = await auth.me(token); return repository.create(validate(idSchema, workspaceId), user.id, validate(createProjectSchema, input)); },
     async detail(token: string | undefined, projectId: unknown) { const user = await auth.me(token); return repository.detail(validate(idSchema, projectId), user.id); },

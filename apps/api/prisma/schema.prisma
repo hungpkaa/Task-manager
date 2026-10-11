@@ -68,6 +68,7 @@ model User {
   comments Comment[]
   commentMentions CommentMention[]
   attachments Attachment[]
+  capacities MemberCapacity[]
 
   @@map("users")
 }
@@ -145,10 +146,27 @@ model Project {
   members       ProjectMember[]
   tasks         Task[]
   sprints       Sprint[]
+  capacities    MemberCapacity[]
 
   @@unique([id, workspaceId])
   @@index([workspaceId, managerUserId])
   @@map("projects")
+}
+
+model MemberCapacity {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @map("project_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd DateTime @map("period_end") @db.Date
+  capacityPoints Int @map("capacity_points")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([projectId, userId, periodStart, periodEnd])
+  @@index([projectId, periodStart, periodEnd])
+  @@map("member_capacities")
 }
 
 model Task {

@@ -1,6 +1,8 @@
 import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../domain/errors.js';
 import type { ProjectInput } from '../services/project-validation.js';
+import type { CapacityInput, WorkloadQuery } from '../services/coordination-validation.js';
+import { workload } from './workload.js';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, email: true, displayName: true, status: true } as const;
@@ -54,6 +56,35 @@ export function createProjectRepository(client: PrismaClient) {
     await tx.notification.create({ data: { userId, type, title: 'Cập nhật Project', message: `${message} “${name}”.`, relatedEntityType: 'PROJECT', relatedEntityId: projectId } });
   }
   return {
+    async workload(projectId: string, actorId: string, query: WorkloadQuery) {
+      return client.$transaction(async (tx) => {
+        const { project } = await projectAccess(tx, projectId, actorId);
+        if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem điều phối Project.');
+        return { ...await workload(tx, projectId, query), canEdit: project.status === 'ACTIVE' };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
+    async capacities(projectId: string, actorId: string, page: number) {
+      return client.$transaction(async (tx) => {
+        const { project } = await projectAccess(tx, projectId, actorId);
+        if (project.managerUserId !== actorId) throw new HttpError(403, 'Chỉ PM được xem điều phối Project.');
+        return { items: await tx.memberCapacity.findMany({ where: { projectId }, include: { user: { select: userSelect } }, orderBy: [{ periodStart: 'desc' }, { id: 'asc' }], skip: (page - 1) * 20, take: 20 }), total: await tx.memberCapacity.count({ where: { projectId } }), page, pageSize: 20 };
+      }, { isolationLevel: 'RepeatableRead' });
+    },
+    saveCapacity: (projectId: string, actorId: string, input: CapacityInput) => mutate(projectId, actorId, 'MANAGER', async (tx, project) => {
+      active(project.status);
+      const member = await tx.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: input.userId } } });
+      if (!member) throw new HttpError(400, 'Capacity chỉ dành cho thành viên Project hiện tại.');
+      await candidate(tx, project.workspaceId, input.userId);
+      const periodStart = new Date(input.periodStart); const periodEnd = new Date(input.periodEnd);
+      const existing = await tx.memberCapacity.findUnique({ where: { projectId_userId_periodStart_periodEnd: { projectId, userId: input.userId, periodStart, periodEnd } } });
+      if ((existing?.updatedAt.toISOString() ?? null) !== input.expectedUpdatedAt) throw new HttpError(409, 'Capacity đã thay đổi. Tải lại Workload trước khi lưu.');
+      const overlap = await tx.memberCapacity.findFirst({ where: { projectId, userId: input.userId, periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart }, ...(existing ? { id: { not: existing.id } } : {}) } });
+      if (overlap) throw new HttpError(409, 'Kỳ Capacity chồng với kỳ đã lưu. Chọn đúng kỳ để cập nhật hoặc chọn kỳ không chồng nhau.');
+      const capacity = existing
+        ? await tx.memberCapacity.update({ where: { id: existing.id }, data: { capacityPoints: input.capacityPoints, updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) } })
+        : await tx.memberCapacity.create({ data: { projectId, userId: input.userId, periodStart, periodEnd, capacityPoints: input.capacityPoints } });
+      return capacity;
+    }),
     async list(workspaceId: string, actorId: string) {
       const membership = await workspaceAccess(client, workspaceId, actorId);
       const projects = await client.project.findMany({ where: { workspaceId, ...(membership.role === 'OWNER' ? {} : { members: { some: { userId: actorId } } }) }, include: projectInclude, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] });

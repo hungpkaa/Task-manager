@@ -156,6 +156,8 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 .task-filters select { width: 100%; }
 .dependency-list { padding-left: 20px; overflow-wrap: anywhere; }
 .dependency-list li { margin: 12px 0; }
+.workload-list li { flex-wrap: wrap; }
+.workload-list li > div { min-width: 0; overflow-wrap: anywhere; }
 
 .daily-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .daily-form textarea { width: 100%; box-sizing: border-box; min-height: 80px; resize: vertical; font: inherit; padding: 10px; border: 1px solid #d8e0d0; border-radius: 7px; }

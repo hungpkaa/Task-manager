@@ -163,7 +163,17 @@ export interface Project {
 }
 export interface ProjectMember { projectId: string; userId: string; user: WorkspaceMember['user']; joinedAt: string; }
 export interface ProjectInput { name: string; description: string; startDate: string | null; endDate: string | null; }
+export interface MemberCapacity { id: string; userId: string; periodStart: string; periodEnd: string; capacityPoints: number; updatedAt: string; }
+export interface WorkloadPage {
+  periodStart: string; periodEnd: string; page: number; pageSize: number; total: number; canEdit: boolean;
+  summary: { taskCount: number; knownEffort: number; missingEffortCount: number; unassignedCount: number; unassignedEffort: number };
+  items: { user: ProjectMember['user']; taskCount: number; knownEffort: number; missingEffortCount: number; capacity: MemberCapacity | null; percent: number | null; overloaded: boolean; complete: boolean }[];
+}
+export interface CapacityPage { items: (MemberCapacity & { user: ProjectMember['user'] })[]; total: number; page: number; pageSize: number; }
 export const projectApi = {
+  workload: (id: string, periodStart: string, periodEnd: string, page = 1) => request<WorkloadPage>(`/projects/${id}/workload?${new URLSearchParams({ periodStart, periodEnd, page: String(page) })}`),
+  capacities: (id: string, page = 1) => request<CapacityPage>(`/projects/${id}/capacities?page=${page}`),
+  saveCapacity: (id: string, input: { userId: string; periodStart: string; periodEnd: string; capacityPoints: number; expectedUpdatedAt: string | null }) => request<{ capacity: MemberCapacity }>(`/projects/${id}/capacities`, json('PUT', input)),
   list: (workspaceId: string) => request<{ projects: Project[] }>(`/workspaces/${workspaceId}/projects`),
   create: (workspaceId: string, data: ProjectInput) => request<{ project: Project }>(`/workspaces/${workspaceId}/projects`, json('POST', data)),
   detail: (id: string) => request<{ project: Project }>(`/projects/${id}`),

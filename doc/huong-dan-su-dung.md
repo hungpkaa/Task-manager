@@ -68,3 +68,11 @@ PM mở Project → **+ Tạo Task** → **Sprint khi tạo Task**, chọn Sprin
 Mở chi tiết Task → **Task Dependency**. PM tìm Task cùng Project, chọn **Task phụ thuộc** rồi **Thêm dependency**. Task hiện tại sẽ BLOCKED khi Task được chọn chưa DONE. Hệ thống từ chối liên kết trùng, tự phụ thuộc và chu trình nhiều tầng. Trạng thái Task vẫn do người có quyền cập nhật.
 
 Chọn **Xóa dependency** rồi xác nhận hoặc hủy; thao tác chỉ xóa liên kết. Danh sách dependency và Task lựa chọn phân trang 20. Thành viên/Owner xem được; chỉ PM quản lý trong Project ACTIVE. Khi Task khác thay đổi, chọn **Tải lại dependency** để cập nhật cả BLOCKED. Risk sẽ được tích hợp ở phần tiếp theo của bước 10.
+
+## Capacity và Workload
+
+PM mở Project → **Mở Capacity & Workload**, nhập ngày bắt đầu/kết thúc kỳ rồi **Xem Workload**. Chọn **Thiết lập Capacity** ở thành viên, nhập điểm nguyên dương → **Lưu Capacity**; có thể hủy sửa. Kết quả được tính lại sau khi lưu. Chọn **Xem kỳ này** trong lịch sử để mở đúng kỳ và sửa Capacity đã có. Nếu có người vừa thay đổi, tải lại Workload rồi nhập lại.
+
+Workload dùng tổng Effort Task TODO/IN_PROGRESS/REVIEW có thời gian giao với kỳ, chia Capacity của đúng thành viên/Project/kỳ. Ngày thiếu được xem là đầu/cuối không giới hạn; Task thiếu cả hai ngày được tính vào mọi kỳ. Không chia Effort hoặc Capacity theo số ngày. Quá tải khi trên 100%; nếu thiếu Capacity thì chưa tính tỷ lệ, thiếu Effort thì tỷ lệ chỉ dựa trên phần đã biết. Task chưa phân công được báo riêng. Đặt Effort trong chi tiết Task rồi **Tải lại Workload**.
+
+Các kỳ Capacity của cùng thành viên không được chồng nhau (cả hai ngày biên thuộc kỳ). Kỳ mới cần bắt đầu sau kỳ trước. Capacity/lịch sử giữ lại khi thành viên rời Project; người đã rời không còn trong danh sách tải hiện tại. Project CLOSED chỉ xem. Chỉ PM có quyền mở điều phối; Owner cần được phân công PM. Phần này chưa tích hợp vào cảnh báo Sprint/Risk.
