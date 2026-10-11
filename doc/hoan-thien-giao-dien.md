@@ -8,3 +8,13 @@
 - Kiểm chứng bằng build/typecheck và các luồng E2E desktop/mobile; bài kiểm tra lịch sử thông báo sử dụng lối vào nhanh mới.
 
 Các cải tiến tiếp theo nên tập trung vào thao tác Task/Project và chuẩn bị dữ liệu demo theo nhu cầu sử dụng, dựa trên luồng đã triển khai trong bảng đối chiếu Use Case.
+
+## Đợt 2 — Hệ giao diện xanh lá
+
+Hệ màu, bo góc, bóng đổ và cỡ chữ dùng chung được khai báo trong `theme.css`, áp dụng sau các kiểu bố cục hiện có. Dashboard, Workspace, Project, Sprint, hồ sơ và cộng tác dùng cùng kiểu thẻ/biểu mẫu; điều hướng và nút có kích thước dễ đọc, dễ chạm hơn.
+
+Task có nhãn chữ và màu cho trạng thái/ưu tiên, cùng Effort trên thẻ danh sách và Kanban. Form chia thành thông tin chung, lịch trình, ưu tiên/ước lượng; thang điểm vẫn là 1, 2, 3, 5, 8 hoặc chưa đặt. Không đổi API, schema hay quy tắc nghiệp vụ.
+
+Kiểm tra giao diện gồm ảnh Tổng quan, form Task, danh sách, Kanban và thông báo trên desktop/mobile, xác nhận Effort và nhãn màu trong luồng E2E. Hiệu ứng tôn trọng tùy chọn giảm chuyển động; nhãn màu luôn có chữ và focus bàn phím rõ.
+
+Đã sửa khóa React trùng giữa bình luận và attachment, tránh khối bình luận bị lặp khi quay về danh sách Task. Kiểm thử luồng nhóm xác nhận Kanban không còn khối bình luận ở ngoài chi tiết.

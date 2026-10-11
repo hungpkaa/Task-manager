@@ -1,0 +1,86 @@
+:root {
+  --canvas: #f4f7f5;
+  --surface: #fff;
+  --ink: #203d32;
+  --muted: #586f63;
+  --accent: #246348;
+  --accent-soft: #e8f3ec;
+  --border: #dce6df;
+  --radius: 14px;
+  --shadow: 0 4px 20px #193e2d08;
+  color: var(--ink);
+  background: var(--canvas);
+}
+body { font-size: 14px; line-height: 1.65; }
+button, input, select, textarea { font: inherit; }
+button { transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+button:disabled { cursor: default; opacity: .55; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #89b89e; outline-offset: 3px; }
+.sidebar { background: #183e30; }
+.account-nav button { font-size: 14px; min-height: 46px; }
+.account-nav button.nav-active { background: #2b5542; border-color: #47745c; }
+.topbar { background: #ffffffb8; font-size: 13px; }
+.content { padding: 36px 40px; }
+.intro, .profile-description { font-size: 14px; color: var(--muted); }
+.eyebrow { font-size: 11px; letter-spacing: 1.2px; }
+.panel-heading { flex-wrap: wrap; margin-bottom: 20px; }
+.panel-heading h2 { font-size: 23px; }
+.panel-heading h3 { font-size: 19px; }
+.primary-button, .refresh-button, .danger-button { font-size: 13px; border-radius: 9px; min-height: 42px; padding: 10px 16px; }
+.primary-button { background: var(--accent); border-color: var(--accent); color: white; }
+.primary-button:hover { background: #194e37; }
+.refresh-button { background: var(--surface); border-color: var(--border); color: var(--ink); }
+.refresh-button:hover { background: var(--accent-soft); }
+.workspace-card, .task-card, .profile-panel, .connection-panel, .comment-card, .attachment-card, .task-detail, .overview-shortcuts button { border-color: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); background: var(--surface); }
+.workspace-card:hover, .task-card:hover, .overview-shortcuts button:hover { border-color: #8bb39a; box-shadow: 0 6px 20px #193e2d12; }
+.workspace-card p, .workspace-card span, .task-card span, .task-card small, .next-panel p { font-size: 13px; color: var(--muted); }
+.task-card { gap: 12px; padding: 20px; }
+.task-card strong { font-size: 16px; line-height: 1.5; }
+.task-card .task-badges { display: flex; flex-wrap: wrap; gap: 7px; }
+.task-card .task-badge { display: inline-flex; align-items: center; border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 600; }
+.status-todo, .priority-low { color: #465762 !important; background: #edf1f4; }
+.status-in_progress, .priority-medium { color: #245482 !important; background: #e7f0fb; }
+.status-review { color: #795508 !important; background: #fff4d5; }
+.status-done { color: #226241 !important; background: #e1f3e7; }
+.priority-high { color: #904810 !important; background: #fff0df; }
+.priority-urgent { color: #a0363f !important; background: #fce8eb; }
+.effort-badge { color: #536059 !important; background: #f2f5f2; }
+.kanban-column { background: #ecf1ed; border: 1px solid var(--border); border-top: 4px solid #91a0ab; padding: 14px; border-radius: var(--radius); }
+.column-in_progress { border-top-color: #669cd0; }.column-review { border-top-color: #d6af48; }.column-done { border-top-color: #5a9b76; }
+.kanban-column h3 { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin: 2px 0 18px; }
+.kanban-column h3 span { padding: 2px 9px; border-radius: 7px; background: white; }
+.task-filters { background: #edf3ee; border: 1px solid var(--border); border-radius: 12px; padding: 16px; gap: 16px; }
+.task-filters label, .form-field label, .workspace-form label, .daily-form label { font-size: 13px; font-weight: 500; }
+.form-field input, .form-field select, .form-field textarea, .task-filters input, .task-filters select, .workspace-form input, .workspace-form select, .workspace-form textarea { font-size: 14px; border-color: var(--border); border-radius: 9px; min-height: 44px; }
+.workspace-form { background: #fbfdfb; border-radius: var(--radius); border-color: var(--border); }
+.form-section-title { font-size: 14px; color: var(--accent); margin: 24px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.field-help, .field-error { font-size: 12px; color: var(--muted); }
+.field-error { color: #a0363f; }
+.form-error, .form-success, .form-notice { font-size: 14px; border-radius: 10px; }
+.dashboard-metrics > div { background: var(--surface); border-color: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.dashboard-metrics strong { color: var(--accent); font-size: 30px; letter-spacing: -1px; }
+.dashboard-metrics span { font-size: 13px; color: var(--muted); }
+.sprints-panel > p, .sprints-panel > div > p { color: var(--muted); }
+.dashboard-statuses { padding: 0; list-style: none; gap: 10px; }
+.dashboard-statuses li { padding: 8px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+progress { width: 100%; height: 12px; accent-color: var(--accent); }
+.sprints-panel section { border-color: var(--border); background: var(--surface); border-radius: var(--radius); }
+.notification-toolbar, .sprint-summary, .next-panel { background: var(--accent-soft); }
+.notification-heading h2 { font-size: 16px; }
+.notification-state, .notification-pagination p, .notification-toolbar label, .notifications-panel time { font-size: 12px; }
+.page-footer { font-size: 11px; color: var(--muted); }
+@media (max-width: 760px) {
+  .content { padding: 24px 18px; }
+  .topbar { padding: 16px 18px; font-size: 12px; }
+  .account-nav button { font-size: 13px; padding: 10px 12px; }
+  .panel-heading { gap: 14px; }
+  .primary-button, .refresh-button, .danger-button { min-height: 44px; }
+  .workspace-form, .profile-panel, .task-detail { padding: 18px; }
+  .task-card { padding: 16px; }
+  .task-filters { padding: 14px; }
+  .task-filters label { flex-basis: 100%; }
+  .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-metrics > div { padding: 14px; }
+  .dashboard-metrics strong { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

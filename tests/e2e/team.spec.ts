@@ -72,6 +72,8 @@ test('Notification history supports pagination, unread filtering and reading the
   await client.notification.createMany({ data: Array.from({ length: 61 }, (_, index) => ({ userId: user.id, type: 'TASK_ASSIGNED' as const, title: `Lịch sử ${index}`, message: 'Thông báo kiểm thử', relatedEntityType: 'TASK' as const, relatedEntityId: randomUUID(), createdAt: new Date('2026-10-11T00:00:00Z'), readAt: index < 10 ? new Date() : null })) });
   await context.addCookies([{ name: 'task_manager_session', value: token, url: baseURL, httpOnly: true, sameSite: 'Lax' }]);
   await observe(page); await page.goto(baseURL);
+  await expect(page.getByRole('region', { name: 'Dashboard cá nhân', exact: true }).getByRole('button', { name: 'Tải lại Dashboard', exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('overview-theme.png'), fullPage: true });
   await page.getByRole('region', { name: 'Bắt đầu công việc', exact: true }).getByRole('button').filter({ hasText: 'Mở Thông báo' }).click();
   const panel = page.locator('.workspace-panel'); const items = panel.locator('.notification-list > li');
   await expect(items).toHaveCount(50); await expect(panel).toContainText('51 thông báo chưa đọc');
@@ -473,6 +475,9 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await pmTasks.getByLabel('Mô tả', { exact: true }).fill('Nghiệm thu phân quyền và lưu dữ liệu.');
   await pmTasks.getByLabel('Ngày bắt đầu', { exact: true }).fill('2026-10-10');
   await pmTasks.getByLabel('Deadline', { exact: true }).fill('2026-10-20');
+  await pmTasks.getByLabel('Effort', { exact: true }).selectOption('5');
+  await pmTasks.getByLabel('Ưu tiên', { exact: true }).selectOption('HIGH');
+  await noOverflow(pm); await pmTasks.screenshot({ path: testInfo.outputPath('task-form-theme.png') });
   await pmTasks.getByRole('combobox', { name: 'Người phụ trách', exact: true }).selectOption({ label: `Member QA · ${memberEmail}` });
   await pmTasks.getByRole('button', { name: 'Tạo Task', exact: true }).click();
   await expect(pmTasks.getByRole('heading', { name: taskName, exact: true })).toBeVisible();
@@ -528,10 +533,17 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await expect(member.locator('.sidebar')).toBeVisible();
   await nav(member, 'My Tasks');
   await expect(member.locator('.task-card').filter({ hasText: taskName })).toContainText('Hoàn thành');
+  const themedCard = member.locator('.task-card').filter({ hasText: taskName });
+  await expect(themedCard.locator('.status-done')).toHaveText('Hoàn thành');
+  await expect(themedCard.locator('.priority-high')).toHaveText('Cao');
+  await expect(themedCard.locator('.effort-badge')).toHaveText('Effort: 5');
+  await member.locator('.tasks-panel').screenshot({ path: testInfo.outputPath('task-list-theme.png') });
   await noOverflow(member);
   await pmTasks.getByRole('button', { name: '← Danh sách', exact: true }).click();
   await pmTasks.getByRole('button', { name: 'Kanban', exact: true }).click();
   await expect(pmTasks.locator('.kanban-column')).toHaveCount(4);
+  await expect(pmTasks.locator('.comments-panel')).toHaveCount(0);
+  await pmTasks.screenshot({ path: testInfo.outputPath('kanban-theme.png') });
   await expect(pmTasks.locator('.kanban-column').filter({ has: pm.getByRole('heading', { name: /^Hoàn thành/ }) })).toContainText(taskName);
   await noOverflow(pm);
   await pmTasks.getByLabel('Tìm kiếm', { exact: true }).fill('khong-tim-thay');
