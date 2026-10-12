@@ -6,7 +6,7 @@ import { taskStatuses, type CreateTaskInput, type UpdateTaskInput, type TaskQuer
 type Client = PrismaClient | Prisma.TransactionClient;
 const userSelect = { id: true, displayName: true, email: true } as const;
 const attachmentSelect = { id: true, taskId: true, uploadedBy: true, filename: true, sizeBytes: true, createdAt: true, uploader: { select: userSelect } } as const;
-const include = { assignee: { select: userSelect }, project: { select: { id: true, name: true, workspaceId: true, managerUserId: true, status: true } }, dependencies: { include: { dependsOnTask: { select: { id: true, title: true, status: true } } } } } as const;
+const include = { assignee: { select: userSelect }, assignees: { include: { user: { select: userSelect } }, orderBy: { assignedAt: 'asc' } }, project: { select: { id: true, name: true, workspaceId: true, managerUserId: true, status: true, startDate: true, endDate: true } }, dependencies: { include: { dependsOnTask: { select: { id: true, title: true, status: true } } } } } as const;
 async function access(client: Client, projectId: string, actorId: string) {
   const project = await client.project.findUnique({ where: { id: projectId } });
   if (!project) throw new HttpError(404, 'Project không tồn tại.');
@@ -16,11 +16,24 @@ async function access(client: Client, projectId: string, actorId: string) {
   return { project, projectMember };
 }
 function view(task: Prisma.TaskGetPayload<{ include: typeof include }>, actorId: string, isMember = true) {
-  const { dependencies, ...data } = task;
+  const { dependencies, assignees, ...data } = task;
   const blockingTasks = dependencies.map((dependency) => dependency.dependsOnTask).filter((dependency) => dependency.status !== 'DONE');
   const canEdit = task.project.status === 'ACTIVE' && task.project.managerUserId === actorId;
-  return { ...data, blockingTasks, blocked: blockingTasks.length > 0, canEdit,
-    canChangeStatus: task.project.status === 'ACTIVE' && (canEdit || isMember && task.assigneeId === actorId) };
+  const assignedUsers = assignees.map((item) => item.user);
+  const isAssigned = (data.assigneeId ? data.assigneeId === actorId : false) || assignedUsers.some((u) => u.id === actorId);
+  return { ...data, assignees: assignedUsers, assigneeIds: assignedUsers.map((u) => u.id), blockingTasks, blocked: blockingTasks.length > 0, canEdit,
+    canChangeStatus: task.project.status === 'ACTIVE' && (canEdit || isMember && isAssigned) };
+}
+function validateTaskDates(start: Date | null, due: Date | null, project: { startDate: Date | null; endDate: Date | null }) {
+  if (start && due && due < start) throw new HttpError(400, 'Deadline không được trước ngày bắt đầu.', { dueDate: 'Kiểm tra khoảng thời gian công việc.' });
+  if (project.startDate) {
+    if (start && start < project.startDate) throw new HttpError(400, `Ngày bắt đầu công việc không được trước ngày bắt đầu của Project (${project.startDate.toISOString().slice(0, 10)}).`, { startDate: 'Thời gian công việc phải nằm trong thời gian của Project.' });
+    if (due && due < project.startDate) throw new HttpError(400, `Deadline không được trước ngày bắt đầu của Project (${project.startDate.toISOString().slice(0, 10)}).`, { dueDate: 'Thời gian công việc phải nằm trong thời gian của Project.' });
+  }
+  if (project.endDate) {
+    if (start && start > project.endDate) throw new HttpError(400, `Ngày bắt đầu công việc không được sau ngày kết thúc của Project (${project.endDate.toISOString().slice(0, 10)}).`, { startDate: 'Thời gian công việc phải nằm trong thời gian của Project.' });
+    if (due && due > project.endDate) throw new HttpError(400, `Deadline không được sau ngày kết thúc của Project (${project.endDate.toISOString().slice(0, 10)}).`, { dueDate: 'Thời gian công việc phải nằm trong thời gian của Project.' });
+  }
 }
 function dateData(input: UpdateTaskInput) {
   return { ...input,
@@ -31,15 +44,26 @@ function dateData(input: UpdateTaskInput) {
 function whereQuery(query: TaskQuery): Prisma.TaskWhereInput {
   return { ...(query.q ? { OR: [{ title: { contains: query.q, mode: 'insensitive' } }, { description: { contains: query.q, mode: 'insensitive' } }] } : {}),
     ...(query.status ? { status: query.status } : {}), ...(query.priority ? { priority: query.priority } : {}),
-    ...(query.assigneeId ? { assigneeId: query.assigneeId === 'unassigned' ? null : query.assigneeId } : {}) };
+    ...(query.assigneeId
+      ? query.assigneeId === 'unassigned'
+        ? { assigneeId: null, assignees: { none: {} } }
+        : { OR: [{ assigneeId: query.assigneeId }, { assignees: { some: { userId: query.assigneeId } } }] }
+      : {}) };
 }
 export function createTaskRepository(client: PrismaClient) {
   async function result(tx: Client, id: string, actorId: string) { return view(await tx.task.findUniqueOrThrow({ where: { id }, include }), actorId); }
-  async function assignee(tx: Client, projectId: string, assigneeId: string | null) {
-    if (!assigneeId) return;
-    const member = await tx.projectMember.findUnique({ where: { projectId_userId: { projectId, userId: assigneeId } }, include: { workspaceMember: { include: { user: { select: { status: true } } } } } });
-    if (!member) throw new HttpError(400, 'Người phụ trách phải thuộc Project.', { assigneeId: 'Chọn thành viên Project.' });
-    if (member.workspaceMember.user.status !== 'ACTIVE') throw new HttpError(409, 'Người phụ trách đang bị khóa.');
+  async function validateAssignees(tx: Client, projectId: string, userIds: string[]) {
+    if (!userIds.length) return;
+    const members = await tx.projectMember.findMany({ where: { projectId, userId: { in: userIds } }, include: { workspaceMember: { include: { user: { select: { status: true } } } } } });
+    if (members.length !== userIds.length) throw new HttpError(400, 'Tất cả người phụ trách phải thuộc Project.', { assigneeId: 'Chọn thành viên Project.' });
+    for (const member of members) {
+      if (member.workspaceMember.user.status !== 'ACTIVE') throw new HttpError(409, 'Người phụ trách đang bị khóa.');
+    }
+  }
+  function toAssigneeIds(input: string | null | string[] | undefined): string[] {
+    if (Array.isArray(input)) return [...new Set(input.filter(Boolean))];
+    if (typeof input === 'string' && input) return [input];
+    return [];
   }
   async function notify(tx: Prisma.TransactionClient, userId: string, taskId: string, title: string) {
     await tx.notification.create({ data: { userId, type: 'TASK_ASSIGNED', title: 'Bạn được giao công việc', message: `Bạn được phân công công việc “${title}”.`, relatedEntityType: 'TASK', relatedEntityId: taskId } });
@@ -158,45 +182,79 @@ export function createTaskRepository(client: PrismaClient) {
       return comment;
     }),
     async list(projectId: string, actorId: string, query: TaskQuery) { await access(client, projectId, actorId); return list({ ...whereQuery(query), projectId }, actorId, query); },
-    myTasks: (actorId: string, query: TaskQuery) => list({ ...whereQuery(query), assigneeId: actorId, project: { members: { some: { userId: actorId, workspaceMember: { userId: actorId } } } } }, actorId, query),
+    myTasks: (actorId: string, query: TaskQuery) => list({ ...whereQuery(query), OR: [{ assigneeId: actorId }, { assignees: { some: { userId: actorId } } }], project: { members: { some: { userId: actorId, workspaceMember: { userId: actorId } } } } }, actorId, query),
     async detail(id: string, actorId: string) {
       const { projectMember } = await access(client, await taskProject(id), actorId);
       const task = await client.task.findUnique({ where: { id }, include });
       if (!task) throw new HttpError(404, 'Task không tồn tại.');
       return view(task, actorId, Boolean(projectMember));
     },
-    create: (projectId: string, actorId: string, input: CreateTaskInput) => mutate(projectId, actorId, true, async (tx) => {
-      await assignee(tx, projectId, input.assigneeId);
+    create: (projectId: string, actorId: string, input: CreateTaskInput) => mutate(projectId, actorId, true, async (tx, project) => {
+      const userIds = input.assigneeIds !== undefined ? toAssigneeIds(input.assigneeIds) : toAssigneeIds(input.assigneeId);
+      await validateAssignees(tx, projectId, userIds);
       if (input.sprintId) {
         const sprint = await tx.sprint.findFirst({ where: { id: input.sprintId, projectId } });
         if (!sprint) throw new HttpError(400, 'Sprint được chọn phải thuộc Project này.', { sprintId: 'Chọn Sprint trong Project.' });
         if (sprint.status === 'COMPLETED') throw new HttpError(409, 'Sprint đã hoàn thành. Chọn Sprint khác hoặc Product Backlog.');
       }
-      const task = await tx.task.create({ data: { ...dateData(input), title: input.title, projectId, assigneeId: input.assigneeId, sprintId: input.sprintId ?? null } });
-      if (task.assigneeId) await notify(tx, task.assigneeId, task.id, task.title);
+      const start = input.startDate ? new Date(`${input.startDate}T00:00:00Z`) : null;
+      const due = input.dueDate ? new Date(`${input.dueDate}T00:00:00Z`) : null;
+      validateTaskDates(start, due, project);
+      const { assigneeId: _, assigneeIds: __, ...taskData } = input;
+      const primaryAssigneeId = userIds[0] ?? null;
+      const task = await tx.task.create({
+        data: {
+          ...dateData(taskData),
+          title: input.title,
+          projectId,
+          assigneeId: primaryAssigneeId,
+          sprintId: input.sprintId ?? null,
+          assignees: { create: userIds.map((userId) => ({ userId })) },
+        },
+      });
+      for (const uid of userIds) await notify(tx, uid, task.id, task.title);
       return result(tx, task.id, actorId);
     }),
-    update: (id: string, actorId: string, input: UpdateTaskInput) => taskMutation(id, actorId, true, async (tx, task) => {
-      const start = input.startDate === undefined ? task.startDate : input.startDate ? new Date(input.startDate) : null;
-      const due = input.dueDate === undefined ? task.dueDate : input.dueDate ? new Date(input.dueDate) : null;
-      if (start && due && due < start) throw new HttpError(400, 'Deadline không được trước ngày bắt đầu.', { dueDate: 'Kiểm tra khoảng thời gian công việc.' });
+    update: (id: string, actorId: string, input: UpdateTaskInput) => taskMutation(id, actorId, true, async (tx, task, project) => {
+      const start = input.startDate === undefined ? task.startDate : input.startDate ? new Date(`${input.startDate}T00:00:00Z`) : null;
+      const due = input.dueDate === undefined ? task.dueDate : input.dueDate ? new Date(`${input.dueDate}T00:00:00Z`) : null;
+      validateTaskDates(start, due, project);
       await tx.task.update({ where: { id }, data: dateData(input) }); return result(tx, id, actorId);
     }),
-    assign: (id: string, actorId: string, assigneeId: string | null) => taskMutation(id, actorId, true, async (tx, task) => {
-      await assignee(tx, task.projectId, assigneeId);
-      if (task.assigneeId !== assigneeId) {
-        await tx.task.update({ where: { id }, data: { assigneeId } });
-        if (assigneeId) await notify(tx, assigneeId, id, task.title);
+    assign: (id: string, actorId: string, assigneeInput: string | null | string[]) => taskMutation(id, actorId, true, async (tx, task) => {
+      const userIds = toAssigneeIds(assigneeInput);
+      await validateAssignees(tx, task.projectId, userIds);
+      const currentAssignees = await tx.taskAssignee.findMany({ where: { taskId: id }, select: { userId: true } });
+      const currentUserIds = new Set(currentAssignees.map((item) => item.userId));
+      if (task.assigneeId) currentUserIds.add(task.assigneeId);
+
+      await tx.taskAssignee.deleteMany({ where: { taskId: id, userId: { notIn: userIds } } });
+      const toAdd = userIds.filter((uid) => !currentUserIds.has(uid));
+      const missingInTable = userIds.filter((uid) => !currentAssignees.some((item) => item.userId === uid));
+      if (missingInTable.length) {
+        await tx.taskAssignee.createMany({
+          data: missingInTable.map((uid) => ({ taskId: id, userId: uid })),
+          skipDuplicates: true,
+        });
+      }
+      const primaryAssigneeId = userIds[0] ?? null;
+      await tx.task.update({ where: { id }, data: { assigneeId: primaryAssigneeId } });
+      for (const uid of toAdd) {
+        await notify(tx, uid, id, task.title);
       }
       return result(tx, id, actorId);
     }),
     status: (id: string, actorId: string, input: StatusTaskInput) => taskMutation(id, actorId, false, async (tx, task, project) => {
       const member = await tx.projectMember.findUnique({ where: { projectId_userId: { projectId: project.id, userId: actorId } } });
-      if (project.managerUserId !== actorId && (!member || task.assigneeId !== actorId)) throw new HttpError(403, 'Chỉ PM hoặc người được giao Task được cập nhật trạng thái.');
+      const isAssigned = task.assigneeId === actorId || (await tx.taskAssignee.count({ where: { taskId: id, userId: actorId } })) > 0;
+      if (project.managerUserId !== actorId && (!member || !isAssigned)) throw new HttpError(403, 'Chỉ PM hoặc người được giao Task được cập nhật trạng thái.');
       if (task.status !== input.expectedStatus) throw new HttpError(409, 'Trạng thái đã thay đổi. Tải lại Task trước khi cập nhật.');
-      if (input.status !== task.status && taskStatuses.indexOf(input.status) !== taskStatuses.indexOf(task.status) + 1) throw new HttpError(409, 'Chuyển lần lượt TODO → IN_PROGRESS → REVIEW → DONE.');
+      const currentIndex = taskStatuses.indexOf(task.status);
+      const targetIndex = taskStatuses.indexOf(input.status);
+      const step = targetIndex - currentIndex;
+      if (input.status !== task.status && step !== 1 && step !== -1) throw new HttpError(409, 'Chỉ được chuyển trạng thái tăng hoặc giảm 1 bậc (TODO ↔ IN_PROGRESS ↔ REVIEW ↔ DONE).');
       const current = await result(tx, id, actorId);
-      if (input.status !== task.status && current.blocked && !input.acknowledgeBlocked) throw new HttpError(409, 'Task đang BLOCKED vì còn dependency chưa DONE. Xem cảnh báo và xác nhận trước khi tiếp tục.');
+      if (input.status !== task.status && step > 0 && current.blocked && !input.acknowledgeBlocked) throw new HttpError(409, 'Task đang BLOCKED vì còn dependency chưa DONE. Xem cảnh báo và xác nhận trước khi tiếp tục.');
       if (input.status !== task.status) await tx.task.update({ where: { id }, data: { status: input.status } });
       return { task: await result(tx, id, actorId), warning: current.blocked ? 'Task còn dependency chưa hoàn thành.' : null };
     }),

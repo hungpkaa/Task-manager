@@ -147,7 +147,9 @@ export const accountApi = {
 
 export interface Workspace {
   id: string; name: string; description: string; createdBy: string;
-  myRole: 'OWNER' | 'MEMBER'; memberCount: number; createdAt: string; updatedAt: string;
+  myRole: 'OWNER' | 'MEMBER'; memberCount: number;
+  status: 'ACTIVE' | 'CLOSED'; closedAt?: string | null;
+  createdAt: string; updatedAt: string;
 }
 export interface WorkspaceMember {
   emailDelivery?: 'LOCAL' | 'SENT' | 'FAILED' | 'DISABLED';
@@ -158,15 +160,36 @@ export interface Notification {
   id: string; title: string; message: string; relatedEntityType: string; relatedEntityId: string;
   readAt: string | null; createdAt: string;
 }
+export interface WorkspaceInvitation {
+  id: string;
+  workspaceId: string;
+  inviterId: string;
+  inviteeId: string;
+  role: 'OWNER' | 'MEMBER';
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELED';
+  createdAt: string;
+  updatedAt: string;
+  workspace?: { id: string; name: string; description: string };
+  inviter?: { id: string; displayName: string; email: string };
+  invitee?: { id: string; displayName: string; email: string; status: 'ACTIVE' | 'LOCKED' };
+  emailDelivery?: 'LOCAL' | 'SENT' | 'FAILED' | 'DISABLED';
+}
 const json = (method: string, data: unknown) => ({ method, body: JSON.stringify(data) });
 export const workspaceApi = {
-  resendInvitation: (id: string, userId: string) => request<{ delivery: NonNullable<WorkspaceMember['emailDelivery']> }>(`/workspaces/${id}/members/${userId}/email`, json('POST', {})),
+  resendInvitation: (id: string, targetId: string) => request<{ delivery: NonNullable<WorkspaceMember['emailDelivery']> }>(`/workspaces/${id}/invitations/${targetId}/resend`, json('POST', {})),
+  cancelInvitation: (id: string, invitationId: string) => request<void>(`/workspaces/${id}/invitations/${invitationId}`, json('DELETE', {})),
+  pendingInvitations: (id: string) => request<{ invitations: WorkspaceInvitation[] }>(`/workspaces/${id}/invitations`),
+  myInvitations: () => request<{ invitations: (WorkspaceInvitation & { workspace: { id: string; name: string; description: string }; inviter: { id: string; displayName: string; email: string } })[] }>('/workspaces/invitations/me'),
+  acceptInvitation: (id: string) => request<{ workspace: Workspace }>(`/workspaces/invitations/${id}/accept`, json('POST', {})),
+  declineInvitation: (id: string) => request<{ success: boolean }>(`/workspaces/invitations/${id}/decline`, json('POST', {})),
   list: () => request<{ workspaces: Workspace[] }>('/workspaces'),
   detail: (id: string) => request<{ workspace: Workspace }>(`/workspaces/${id}`),
   create: (data: { name: string; description: string }) => request<{ workspace: Workspace }>('/workspaces', json('POST', data)),
   update: (id: string, data: { name: string; description: string }) => request<{ workspace: Workspace }>(`/workspaces/${id}`, json('PATCH', data)),
+  close: (id: string) => request<{ workspace: Workspace }>(`/workspaces/${id}/close`, json('POST', {})),
+  reopen: (id: string) => request<{ workspace: Workspace }>(`/workspaces/${id}/reopen`, json('POST', {})),
   members: (id: string) => request<{ members: WorkspaceMember[] }>(`/workspaces/${id}/members`),
-  invite: (id: string, email: string) => request<{ member: WorkspaceMember }>(`/workspaces/${id}/members`, json('POST', { email })),
+  invite: (id: string, email: string) => request<{ member: WorkspaceMember; invitation?: WorkspaceInvitation }>(`/workspaces/${id}/members`, json('POST', { email })),
   role: (id: string, userId: string, role: WorkspaceMember['role']) => request<{ member: WorkspaceMember }>(`/workspaces/${id}/members/${userId}`, json('PATCH', { role })),
   remove: (id: string, userId: string) => request<void>(`/workspaces/${id}/members/${userId}`, json('DELETE', {})),
 };
@@ -237,8 +260,10 @@ export type TaskPriority = typeof taskPriorities[number];
 export interface Task {
   id: string; projectId: string; title: string; description: string; status: TaskStatus; priority: TaskPriority;
   assigneeId: string | null; assignee: { id: string; displayName: string; email: string } | null;
+  assignees?: { id: string; displayName: string; email: string }[];
+  assigneeIds?: string[];
   sprintId: string | null; startDate: string | null; dueDate: string | null; effort: number | null;
-  updatedAt: string; project: { id: string; name: string; workspaceId: string; managerUserId: string | null; status: 'ACTIVE' | 'CLOSED' };
+  updatedAt: string; project: { id: string; name: string; workspaceId: string; managerUserId: string | null; status: 'ACTIVE' | 'CLOSED'; startDate?: string | null; endDate?: string | null };
   canEdit: boolean; canChangeStatus: boolean; blocked: boolean; blockingTasks: { id: string; title: string; status: TaskStatus }[];
 }
 export interface TaskInput { title: string; description: string; priority: TaskPriority; startDate: string | null; dueDate: string | null; effort: number | null; }
@@ -257,9 +282,9 @@ export const taskApi = {
   list: (projectId: string, query: URLSearchParams) => request<TaskPage>(`/projects/${projectId}/tasks?${query}`),
   mine: (query: URLSearchParams) => request<TaskPage>(`/tasks/mine?${query}`),
   detail: (id: string) => request<{ task: Task }>(`/tasks/${id}`),
-  create: (projectId: string, data: TaskInput & { assigneeId: string | null; sprintId?: string | null }) => request<{ task: Task }>(`/projects/${projectId}/tasks`, json('POST', data)),
+  create: (projectId: string, data: TaskInput & { assigneeId?: string | null; assigneeIds?: string[]; sprintId?: string | null }) => request<{ task: Task }>(`/projects/${projectId}/tasks`, json('POST', data)),
   update: (id: string, data: TaskInput) => request<{ task: Task }>(`/tasks/${id}`, json('PATCH', data)),
-  assign: (id: string, assigneeId: string | null) => request<{ task: Task }>(`/tasks/${id}/assignee`, json('PATCH', { assigneeId })),
+  assign: (id: string, assignees: string[] | string | null) => request<{ task: Task }>(`/tasks/${id}/assignee`, json('PATCH', Array.isArray(assignees) ? { assigneeIds: assignees } : { assigneeId: assignees })),
   status: (id: string, status: TaskStatus, expectedStatus: TaskStatus, acknowledgeBlocked = false) => request<{ task: Task; warning: string | null }>(`/tasks/${id}/status`, json('PATCH', { status, expectedStatus, acknowledgeBlocked })),
   remove: (id: string) => request<void>(`/tasks/${id}`, json('DELETE', {})),
 };

@@ -244,6 +244,10 @@ test('Task CRUD, assignment notifications, sequential status and persisted My Ta
   assert.equal((await (await request(base, '/tasks/mine', member)).json() as { total: number }).total, 0);
   for (const [expectedStatus, status] of [['TODO', 'IN_PROGRESS'], ['IN_PROGRESS', 'REVIEW'], ['REVIEW', 'DONE']]) assert.equal((await request(base, `${path}/status`, assignee, 'PATCH', { expectedStatus, status })).status, 200);
   assert.equal((await client.task.findUniqueOrThrow({ where: { id: task.id } })).status, 'DONE');
+  for (const [expectedStatus, status] of [['DONE', 'REVIEW'], ['REVIEW', 'IN_PROGRESS'], ['IN_PROGRESS', 'TODO']]) assert.equal((await request(base, `${path}/status`, pm, 'PATCH', { expectedStatus, status })).status, 200);
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: task.id } })).status, 'TODO');
+  for (const [expectedStatus, status] of [['TODO', 'IN_PROGRESS'], ['IN_PROGRESS', 'REVIEW'], ['REVIEW', 'DONE']]) assert.equal((await request(base, `${path}/status`, assignee, 'PATCH', { expectedStatus, status })).status, 200);
+  assert.equal((await client.task.findUniqueOrThrow({ where: { id: task.id } })).status, 'DONE');
   assert.equal((await request(base, `${path}/assignee`, pm, 'PATCH', { assigneeId: member.id })).status, 200);
   assert.equal((await request(base, `${path}/assignee`, pm, 'PATCH', { assigneeId: member.id })).status, 200);
   assert.equal(await client.notification.count({ where: { relatedEntityId: task.id, userId: member.id } }), 1);
@@ -374,3 +378,73 @@ test('notification failure rolls back Task creation and reassignment', async () 
   assert.equal((await client.task.findUniqueOrThrow({ where: { id: task.id } })).assigneeId, null);
   assert.equal(await client.notification.count({ where: { relatedEntityId: task.id } }), 0);
 }));
+
+test('task dates must stay within project timeframe and updating project dates validates against tasks', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [, pm] = users; assert.ok(pm);
+  await client.project.update({ where: { id: projectId }, data: { startDate: new Date('2026-10-10T00:00:00Z'), endDate: new Date('2026-10-20T00:00:00Z') } });
+  const list = `/projects/${projectId}/tasks`;
+
+  assert.equal((await request(base, list, pm, 'POST', { title: 'Before start', startDate: '2026-10-09', dueDate: '2026-10-15' })).status, 400);
+  assert.equal((await request(base, list, pm, 'POST', { title: 'Due before start', dueDate: '2026-10-09' })).status, 400);
+  assert.equal((await request(base, list, pm, 'POST', { title: 'After end', startDate: '2026-10-15', dueDate: '2026-10-21' })).status, 400);
+  assert.equal((await request(base, list, pm, 'POST', { title: 'Start after end', startDate: '2026-10-21' })).status, 400);
+
+  const task = await create(base, projectId, pm, { startDate: '2026-10-12', dueDate: '2026-10-18' });
+  assert.ok(task.id);
+
+  assert.equal((await request(base, `/tasks/${task.id}`, pm, 'PATCH', { startDate: '2026-10-08' })).status, 400);
+  assert.equal((await request(base, `/tasks/${task.id}`, pm, 'PATCH', { dueDate: '2026-10-22' })).status, 400);
+
+  assert.equal((await request(base, `/projects/${projectId}`, pm, 'PATCH', { startDate: '2026-10-15' })).status, 400);
+  assert.equal((await request(base, `/projects/${projectId}`, pm, 'PATCH', { endDate: '2026-10-16' })).status, 400);
+
+  assert.equal((await request(base, `/projects/${projectId}`, pm, 'PATCH', { startDate: '2026-10-11', endDate: '2026-10-19' })).status, 200);
+}));
+
+test('Multiple assignees: creation, assignment, notification, status permissions, and My Tasks query', async () => fixture(async ({ base, client, projectId, users }) => {
+  const [owner, pm, user1, user2] = users; assert.ok(owner && pm && user1 && user2);
+
+  // 1. Create task with multiple assignees [user1, user2]
+  const res = await request(base, `/projects/${projectId}/tasks`, pm, 'POST', {
+    title: 'Multi-assignee task',
+    assigneeIds: [user1.id, user2.id],
+  });
+  assert.equal(res.status, 201);
+  const created = (await res.json() as { task: { id: string; assigneeId: string | null; assigneeIds: string[]; assignees: { id: string }[] } }).task;
+  assert.equal(created.assigneeIds.length, 2);
+  assert.ok(created.assigneeIds.includes(user1.id));
+  assert.ok(created.assigneeIds.includes(user2.id));
+  assert.equal(created.assignees.length, 2);
+  assert.equal(created.assigneeId, user1.id);
+
+  // Notifications sent to both assigned users
+  assert.equal(await client.notification.count({ where: { relatedEntityId: created.id, userId: user1.id } }), 1);
+  assert.equal(await client.notification.count({ where: { relatedEntityId: created.id, userId: user2.id } }), 1);
+
+  // Both users see it in /tasks/mine
+  const mine1 = await (await request(base, '/tasks/mine', user1)).json() as { total: number; tasks: { id: string }[] };
+  const mine2 = await (await request(base, '/tasks/mine', user2)).json() as { total: number; tasks: { id: string }[] };
+  assert.ok(mine1.tasks.some((t) => t.id === created.id));
+  assert.ok(mine2.tasks.some((t) => t.id === created.id));
+
+  // The secondary assignee (user2) can advance status
+  const path = `/tasks/${created.id}`;
+  const statusRes = await request(base, `${path}/status`, user2, 'PATCH', { expectedStatus: 'TODO', status: 'IN_PROGRESS' });
+  assert.equal(statusRes.status, 200);
+
+  // Re-assign to [user2] (removing user1, keeping user2)
+  const assignRes = await request(base, `${path}/assignee`, pm, 'PATCH', { assigneeIds: [user2.id] });
+  assert.equal(assignRes.status, 200);
+  const detail = await (await request(base, path, pm)).json() as { task: { assigneeIds: string[]; assigneeId: string | null } };
+  assert.deepEqual(detail.task.assigneeIds, [user2.id]);
+  assert.equal(detail.task.assigneeId, user2.id);
+
+  // Unassign all
+  const unassignRes = await request(base, `${path}/assignee`, pm, 'PATCH', { assigneeIds: [] });
+  assert.equal(unassignRes.status, 200);
+  const unassignedDetail = await (await request(base, path, pm)).json() as { task: { assigneeId: string | null; assigneeIds: string[] } };
+  assert.equal(unassignedDetail.task.assigneeId, null);
+  assert.equal(unassignedDetail.task.assigneeIds.length, 0);
+}));
+
+

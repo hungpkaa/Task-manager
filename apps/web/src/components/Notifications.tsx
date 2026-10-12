@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError, notificationApi, projectApi, type Notification } from '../api';
+import { ApiError, notificationApi, projectApi, workspaceApi, type Notification } from '../api';
 
 export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { onExpired: () => void; onWorkspace: (id: string) => void; onProject: (workspaceId: string, projectId: string) => void; onTask: (id: string) => void }) {
   const [items, setItems] = useState<Notification[]>([]);
@@ -29,6 +29,22 @@ export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { o
     try { const result = await projectApi.detail(id); onProject(result.project.workspaceId, id); }
     catch (failure) { failed(failure); } finally { setBusy(''); }
   }
+  async function acceptInvite(item: Notification) {
+    setBusy(item.id); setError('');
+    try {
+      const result = await workspaceApi.acceptInvitation(item.relatedEntityId);
+      await notificationApi.read(item.id);
+      onWorkspace(result.workspace.id);
+    } catch (failure) { failed(failure); } finally { setBusy(''); }
+  }
+  async function declineInvite(item: Notification) {
+    setBusy(item.id); setError('');
+    try {
+      await workspaceApi.declineInvitation(item.relatedEntityId);
+      await notificationApi.read(item.id);
+      setAttempt((value) => value + 1);
+    } catch (failure) { failed(failure); } finally { setBusy(''); }
+  }
   return <section className="workspace-panel notifications-panel" aria-label="Lịch sử thông báo" aria-busy={loading}>
     <div className="panel-heading"><div><span className="eyebrow">CẬP NHẬT CỦA BẠN</span><h1>Thông báo</h1></div><button className="refresh-button" disabled={loading || Boolean(busy)} onClick={() => setAttempt((value) => value + 1)}>Làm mới</button></div>
     <p>{unread} thông báo chưa đọc trong toàn bộ lịch sử.</p>
@@ -38,6 +54,10 @@ export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { o
     {loading ? <p role="status">Đang tải thông báo…</p> : <ul className="notification-list">{items.map((item) => <li className={item.readAt ? '' : 'unread'} key={item.id}>
       <div className="notification-heading"><h2>{item.title}</h2><span className={`notification-state ${item.readAt ? 'is-read' : ''}`}>{item.readAt ? 'Đã đọc' : 'Chưa đọc'}</span></div><p>{item.message}</p><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</time>
       <div className="member-actions">{!item.readAt && <button className="refresh-button" disabled={Boolean(busy)} onClick={() => void read(item)}>{busy === item.id ? 'Đang lưu…' : 'Đánh dấu đã đọc'}</button>}
+      {item.relatedEntityType === 'WORKSPACE_INVITATION' && <>
+        <button className="primary-button" disabled={Boolean(busy)} onClick={() => void acceptInvite(item)}>Chấp nhận lời mời</button>
+        <button className="danger-button" disabled={Boolean(busy)} onClick={() => void declineInvite(item)}>Từ chối lời mời</button>
+      </>}
       {item.relatedEntityType === 'WORKSPACE' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onWorkspace(item.relatedEntityId)}>Mở Workspace</button>}
       {item.relatedEntityType === 'PROJECT' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => void openProject(item.relatedEntityId)}>Mở Project</button>}
       {item.relatedEntityType === 'TASK' && <button className="primary-button" disabled={Boolean(busy)} onClick={() => onTask(item.relatedEntityId)}>Mở công việc</button>}</div>

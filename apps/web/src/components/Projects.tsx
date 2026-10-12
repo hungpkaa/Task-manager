@@ -49,15 +49,72 @@ export function Projects({ workspaceId, owner, initialId, onExpired }: { workspa
     {!selected && <><div className="workspace-grid">{projects.map((item) => <button className="workspace-card" key={item.id} onClick={() => { setSelected(item.id); setNotice(''); }}><strong>{item.name}</strong><p>{item.description || 'Chưa có mô tả.'}</p><span>{item.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã đóng'} · {item.memberCount} thành viên</span><p>PM: {item.manager?.displayName ?? 'Chưa phân công'}</p></button>)}</div>{!projects.length && !error && <p>{owner ? 'Workspace chưa có Project.' : 'Bạn chưa được thêm vào Project nào.'}</p>}</>}
     {project && <><p className="project-description">{project.description || 'Chưa có mô tả.'}</p><p>Trạng thái: <strong>{editable ? 'Đang hoạt động' : 'Đã đóng'}</strong> · PM: <strong>{project.manager?.displayName ?? 'Chưa phân công'}</strong></p><p>Thời gian: {project.startDate?.slice(0, 10) ?? 'Chưa đặt'} → {project.endDate?.slice(0, 10) ?? 'Chưa đặt'}</p>{!editable && <p className="form-notice">Project đã đóng và được giữ để xem lại. Không thể sửa thông tin hoặc thành viên.</p>}</>}
     {(!selected && owner || editable && manager) && <form className="account-form workspace-form" onSubmit={save}><h3>{selected ? 'Cập nhật Project' : 'Tạo Project'}</h3><fieldset disabled={busy}><div className="form-field"><label htmlFor="project-name">Tên Project</label><input id="project-name" required maxLength={100} value={input.name} onChange={(event) => setInput({ ...input, name: event.target.value })} /></div><div className="form-field"><label htmlFor="project-description">Mô tả</label><textarea id="project-description" rows={3} maxLength={2000} value={input.description} onChange={(event) => setInput({ ...input, description: event.target.value })} /></div><div className="project-dates"><div className="form-field"><label htmlFor="project-start">Ngày bắt đầu</label><input id="project-start" type="date" value={input.startDate ?? ''} onChange={(event) => setInput({ ...input, startDate: event.target.value || null })} /></div><div className="form-field"><label htmlFor="project-end">Ngày kết thúc</label><input id="project-end" type="date" min={input.startDate ?? undefined} value={input.endDate ?? ''} onChange={(event) => setInput({ ...input, endDate: event.target.value || null })} /></div></div><button className="primary-button">{busy ? 'Đang lưu…' : selected ? 'Lưu Project' : 'Tạo Project'}</button></fieldset></form>}
-    {project?.isWorkspaceOwner && <form className="workspace-form" onSubmit={(event) => { event.preventDefault(); const member = candidates.find((item) => item.userId === candidateId); if (member) setPending({ kind: 'manager', userId: member.userId, name: member.user.displayName }); }}><h3>Phân công Project Manager</h3><p className="field-help">PM được thêm vào Project. PM trước vẫn là thành viên nhưng mất quyền quản lý. Owner có thể chuyển giao PM cả khi Project đã đóng; nội dung vẫn được giữ đóng.</p><label htmlFor="manager-select">Chọn thành viên Workspace</label><div className="inline-fields"><select id="manager-select" required disabled={busy} value={candidateId} onChange={(event) => setCandidateId(event.target.value)}><option value="">Chọn PM</option>{candidates.filter((member) => member.userId !== project.managerUserId).map((member) => <option key={member.userId} value={member.userId}>{member.user.displayName} · {member.user.email}</option>)}</select><button className="primary-button" disabled={busy}>Phân công PM</button></div></form>}
-    {project && <div className="members-panel"><h3>Thành viên Project</h3>{editable && manager && <form onSubmit={(event) => { event.preventDefault(); void mutate(async () => { await projectApi.add(selected, memberId); setNotice('Đã thêm thành viên Project.'); }); }}><label htmlFor="project-member">Thêm thành viên từ Workspace</label><div className="inline-fields"><select id="project-member" value={memberId} onChange={(event) => setMemberId(event.target.value)} required disabled={busy}><option value="">Chọn thành viên</option>{candidates.filter((candidate) => !members.some((member) => member.userId === candidate.userId)).map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.user.displayName} · {candidate.user.email}</option>)}</select><button className="primary-button" disabled={busy}>Thêm vào Project</button></div></form>}<ul className="member-list">{members.map((member) => <li key={member.userId}><div><strong>{member.user.displayName}{member.userId === project.managerUserId ? ' · PM' : ''}</strong><span>{member.user.email}{member.user.status === 'LOCKED' ? ' · Đang bị khóa' : ''}</span></div>{editable && manager && member.userId !== project.managerUserId && <button className="danger-button" disabled={busy} onClick={() => setPending({ kind: 'remove', userId: member.userId, name: member.user.displayName })}>Xóa khỏi Project</button>}</li>)}</ul>{!members.length && <p>Chưa có thành viên. Owner cần phân công PM trước.</p>}</div>}
-    {project && <Tasks key={project.id} projectId={project.id} canCreate={Boolean(editable && manager)} onExpired={onExpired} />}
+    {project?.isWorkspaceOwner && <form className="workspace-form" onSubmit={(event) => {
+      event.preventDefault();
+      const member = candidates.find((item) => item.userId === candidateId);
+      if (!member) return;
+      if (!project.managerUserId) {
+        void mutate(async () => {
+          await projectApi.manager(selected, member.userId, null);
+          setNotice(`Đã phân công ${member.user.displayName} làm Project Manager.`);
+          setCandidateId('');
+        });
+      } else {
+        setPending({ kind: 'manager', userId: member.userId, name: member.user.displayName });
+      }
+    }}>
+      <h3>Phân công Project Manager</h3>
+      <p className="field-help">PM được thêm vào Project. PM trước vẫn là thành viên nhưng mất quyền quản lý. Owner có thể chuyển giao PM cả khi Project đã đóng; nội dung vẫn được giữ đóng.</p>
+      <label htmlFor="manager-select">Chọn thành viên Workspace</label>
+      <div className="inline-fields">
+        <select id="manager-select" required disabled={busy} value={candidateId} onChange={(event) => setCandidateId(event.target.value)}>
+          <option value="">Chọn PM</option>
+          {candidates.filter((member) => member.userId !== project.managerUserId).map((member) => <option key={member.userId} value={member.userId}>{member.user.displayName} · {member.user.email}</option>)}
+        </select>
+        <button className="primary-button" disabled={busy || !candidateId}>{busy && pending?.kind === 'manager' ? 'Đang lưu…' : 'Phân công PM'}</button>
+      </div>
+      {pending?.kind === 'manager' && <div className="confirm-panel" style={{ marginTop: '14px' }} role="group" aria-label="Xác nhận thay đổi PM">
+        <p>Thay thế <strong>{project.manager?.displayName ?? 'PM hiện tại'}</strong> bằng <strong>{pending.name}</strong>? PM cũ sẽ mất quyền quản lý và vẫn là thành viên Project.</p>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button type="button" className="primary-button" disabled={busy} onClick={() => void mutate(async () => {
+            await projectApi.manager(selected, pending.userId!, project.managerUserId);
+            setNotice(`Đã chuyển giao vai trò PM cho ${pending.name}.`);
+            setCandidateId('');
+          })}>{busy ? 'Đang lưu…' : 'Xác nhận thay thế PM'}</button>
+          <button type="button" className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button>
+        </div>
+      </div>}
+    </form>}
+    {project && <div className="members-panel"><h3>Thành viên Project</h3>{editable && manager && <form onSubmit={(event) => { event.preventDefault(); void mutate(async () => { await projectApi.add(selected, memberId); setNotice('Đã thêm thành viên Project.'); setMemberId(''); }); }}><label htmlFor="project-member">Thêm thành viên từ Workspace</label><div className="inline-fields"><select id="project-member" value={memberId} onChange={(event) => setMemberId(event.target.value)} required disabled={busy}><option value="">Chọn thành viên</option>{candidates.filter((candidate) => !members.some((member) => member.userId === candidate.userId)).map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.user.displayName} · {candidate.user.email}</option>)}</select><button className="primary-button" disabled={busy || !memberId}>Thêm vào Project</button></div></form>}<ul className="member-list">{members.map((member) => <li key={member.userId}><div><strong>{member.user.displayName}{member.userId === project.managerUserId ? ' · PM' : ''}</strong><span>{member.user.email}{member.user.status === 'LOCKED' ? ' · Đang bị khóa' : ''}</span></div>{editable && manager && member.userId !== project.managerUserId && <button className="danger-button" disabled={busy} onClick={() => setPending({ kind: 'remove', userId: member.userId, name: member.user.displayName })}>Xóa khỏi Project</button>}</li>)}</ul>{!members.length && <p>Chưa có thành viên. Owner cần phân công PM trước.</p>}
+      {pending?.kind === 'remove' && <div className="confirm-panel" style={{ marginTop: '14px' }} role="group" aria-label="Xác nhận xóa thành viên">
+        <p>Xóa <strong>{pending.name}</strong> khỏi Project? Người này sẽ mất quyền truy cập nếu không có quyền Workspace Owner.</p>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button type="button" className="danger-button" disabled={busy} onClick={() => void mutate(async () => {
+            await projectApi.remove(selected, pending.userId!);
+            setNotice(`Đã xóa ${pending.name} khỏi Project.`);
+          })}>{busy ? 'Đang xóa…' : 'Xác nhận xóa'}</button>
+          <button type="button" className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button>
+        </div>
+      </div>}
+    </div>}
+    {project && <Tasks key={project.id} projectId={project.id} projectDates={{ startDate: project.startDate?.slice(0, 10) ?? null, endDate: project.endDate?.slice(0, 10) ?? null }} canCreate={Boolean(editable && manager)} onExpired={onExpired} />}
     {project && <Sprints key={`sprints-${project.id}`} projectId={project.id} canPlan={Boolean(editable && manager)} onExpired={onExpired} />}
     {project?.isManager && <Workload key={`workload-${project.id}`} projectId={project.id} onExpired={onExpired} />}
     {project && <Calendar key={`calendar-${project.id}`} projectId={project.id} onExpired={onExpired} />}
     {project?.isManager && <Dashboard key={`dashboard-${project.id}`} projectId={project.id} onExpired={onExpired} />}
-    {editable && manager && <button className="danger-button" disabled={busy} onClick={() => setPending({ kind: 'close', name: project.name })}>Đóng Project</button>}
-    {pending && <div className="confirm-panel" role="group" aria-label="Xác nhận thay đổi Project"><p>{pending.kind === 'manager' ? `Phân công ${pending.name} làm PM? ${project?.manager ? `${project.manager.displayName} sẽ mất quyền PM và vẫn là thành viên.` : 'Người được chọn sẽ có quyền quản lý Project.'}` : pending.kind === 'close' ? `Đóng Project “${pending.name}”? Project sẽ chuyển sang chỉ xem và không thể mở lại trong phiên bản này.` : `Xóa ${pending.name} khỏi Project? Người này sẽ mất quyền truy cập nếu không có quyền Workspace Owner.`}</p><button className="primary-button" disabled={busy} onClick={() => void mutate(async () => { if (pending.kind === 'manager') await projectApi.manager(selected, pending.userId!, project!.managerUserId); else if (pending.kind === 'close') await projectApi.close(selected); else await projectApi.remove(selected, pending.userId!); setNotice('Đã cập nhật Project.'); })}>Xác nhận</button> <button className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button></div>}
+    {editable && manager && <div>
+      <button className="danger-button" disabled={busy} onClick={() => setPending({ kind: 'close', name: project.name })}>Đóng Project</button>
+      {pending?.kind === 'close' && <div className="confirm-panel" style={{ marginTop: '14px' }} role="group" aria-label="Xác nhận đóng Project">
+        <p>Đóng Project “<strong>{pending.name}</strong>”? Project sẽ chuyển sang chỉ xem và không thể mở lại trong phiên bản này.</p>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button type="button" className="danger-button" disabled={busy} onClick={() => void mutate(async () => {
+            await projectApi.close(selected);
+            setNotice('Đã đóng Project.');
+          })}>{busy ? 'Đang đóng…' : 'Xác nhận đóng Project'}</button>
+          <button type="button" className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button>
+        </div>
+      </div>}
+    </div>}
     </>}
   </section>;
 }

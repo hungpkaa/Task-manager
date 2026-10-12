@@ -23,7 +23,7 @@ export function createTaskService(repository: TaskRepository, auth: AuthService)
     async detail(token: string | undefined, id: unknown) { const user = await auth.me(token); return repository.detail(validate(idSchema, id), user.id); },
     async create(token: string | undefined, projectId: unknown, input: unknown) { const user = await auth.me(token); return repository.create(validate(idSchema, projectId), user.id, validate(createTaskSchema, input)); },
     async update(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); return repository.update(validate(idSchema, id), user.id, validate(updateTaskSchema, input)); },
-    async assign(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); return repository.assign(validate(idSchema, id), user.id, validate(assignTaskSchema, input).assigneeId); },
+    async assign(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); const data = validate(assignTaskSchema, input); return repository.assign(validate(idSchema, id), user.id, data.assigneeIds !== undefined ? data.assigneeIds : (data.assigneeId ?? null)); },
     async status(token: string | undefined, id: unknown, input: unknown) { const user = await auth.me(token); return repository.status(validate(idSchema, id), user.id, validate(statusTaskSchema, input)); },
     async remove(token: string | undefined, id: unknown) { const user = await auth.me(token); return repository.remove(validate(idSchema, id), user.id); },
   };

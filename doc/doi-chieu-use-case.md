@@ -18,8 +18,8 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC04 | Quên / đặt lại mật khẩu | Đã triển khai: token hash, dùng một lần/30 phút, thu hồi mọi phiên; email hộp thư thử theo lựa chọn nhóm, chưa gửi thật | 8 |
 | UC05 | Cập nhật hồ sơ cá nhân | Cơ bản: đọc hồ sơ, sửa tên của chính mình; chưa sửa email | 3 |
 | UC06 | Tạo Workspace | Đã triển khai: Workspace và membership Owner cùng transaction | 4 |
-| UC07 | Cập nhật Workspace | Đã triển khai: Owner sửa tên/mô tả | 4 |
-| UC08 | Mời thành viên | Đã triển khai: thêm tài khoản ACTIVE đã tồn tại, thông báo transaction; email mời và Owner gửi lại qua hộp thư thử | 4, 8 |
+| UC07 | Cập nhật Workspace | Đã triển khai: Owner sửa tên/mô tả; đóng/lưu trữ (xóa mềm) và mở lại khi không còn Project ACTIVE | 4 |
+| UC08 | Mời thành viên | Đã triển khai: gửi lời mời tới tài khoản ACTIVE (trạng thái PENDING), thông báo và email mời; người được mời có quyền chấp nhận (trở thành Member) hoặc từ chối; Owner quản lý danh sách lời mời chờ phản hồi, gửi lại email mời hoặc hủy lời mời | 4, 8 |
 | UC09 | Xóa thành viên khỏi Workspace | Đã triển khai: giữ Owner cuối cùng, chặn nếu còn PM hoặc Task chưa DONE; xóa membership Project thường, giữ assignee lịch sử DONE | 4, 5, 6 |
 | UC10 | Quản lý vai trò thành viên | Đã triển khai: chỉ Owner, vai trò Owner/Member, kiểm tra Owner cuối cùng | 4 |
 | UC11 | Xem danh sách thành viên | Đã triển khai: chỉ thành viên Workspace, không lộ mật khẩu/phiên | 4 |
@@ -35,7 +35,7 @@ Trước mỗi nhóm chức năng: đọc Use Case, luồng chính/thay thế/ng
 | UC21 | Xóa Task | Đã triển khai: PM, xác nhận UI, chặn Task đang được Task khác phụ thuộc | 6 |
 | UC22 | Gán / thay đổi người phụ trách | Đã triển khai: PM, thành viên Project ACTIVE, cho phép bỏ phân công, thông báo nguyên tử | 6 |
 | UC23 | Cập nhật trạng thái Task | Đã có: PM/assignee, chuyển tuần tự, dependency/BLOCKED; Dashboard/Progress tính lại từ trạng thái hiện tại khi tải | 6, 10 |
-| UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu | 6 |
+| UC24 | Đặt Priority và Deadline | Đã triển khai: LOW/MEDIUM/HIGH/URGENT, ngày hợp lệ, deadline không trước ngày bắt đầu; ngày bắt đầu và deadline của task bắt buộc nằm trong khoảng thời gian của Project (UI giới hạn min/max làm mờ các ngày ngoài khoảng) | 6 |
 | UC25 | Bình luận và @mention | Đã triển khai: bình luận có phân trang, mention thành viên ACTIVE trong Project, thông báo transaction; lựa chọn chi tiết xem bước 8 | 8 |
 | UC26 | Đính kèm tệp vào Task | Đã triển khai: upload/download có quyền theo Task, PostgreSQL BYTEA, giới hạn 10 MiB, xóa bởi người tải lên/PM; lựa chọn chi tiết xem bước 8 | 8 |
 | UC27 | Xem My Tasks | Đã triển khai: công việc của chính mình trong các Project còn membership | 6 |

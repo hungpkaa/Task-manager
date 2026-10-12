@@ -22,6 +22,18 @@ enum WorkspaceRole {
   MEMBER
 }
 
+enum WorkspaceStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum WorkspaceInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+}
+
 enum ProjectStatus {
   ACTIVE
   CLOSED
@@ -69,6 +81,9 @@ model User {
   commentMentions CommentMention[]
   attachments Attachment[]
   capacities MemberCapacity[]
+  sentWorkspaceInvitations WorkspaceInvitation[] @relation("SentWorkspaceInvitations")
+  receivedWorkspaceInvitations WorkspaceInvitation[] @relation("ReceivedWorkspaceInvitations")
+  taskAssignments TaskAssignee[]
 
   @@map("users")
 }
@@ -103,15 +118,36 @@ model Workspace {
   id          String   @id @default(uuid()) @db.Uuid
   name        String
   description String   @default("")
+  status      WorkspaceStatus @default(ACTIVE)
+  closedAt    DateTime? @map("closed_at") @db.Timestamptz(3)
   createdBy   String   @map("created_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   creator     User     @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   members     WorkspaceMember[]
   projects    Project[]
+  invitations WorkspaceInvitation[]
 
   @@index([createdBy])
   @@map("workspaces")
+}
+
+model WorkspaceInvitation {
+  id          String                    @id @default(uuid()) @db.Uuid
+  workspaceId String                    @map("workspace_id") @db.Uuid
+  inviterId   String                    @map("inviter_id") @db.Uuid
+  inviteeId   String                    @map("invitee_id") @db.Uuid
+  role        WorkspaceRole             @default(MEMBER)
+  status      WorkspaceInvitationStatus @default(PENDING)
+  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workspace   Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter     User                      @relation("SentWorkspaceInvitations", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee     User                      @relation("ReceivedWorkspaceInvitations", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([inviteeId, status])
+  @@map("workspace_invitations")
 }
 
 model WorkspaceMember {
@@ -185,6 +221,7 @@ model Task {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee    User? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignees   TaskAssignee[]
   dependencies TaskDependency[] @relation("TaskDependencies")
   dependents   TaskDependency[] @relation("TaskDependents")
   comments Comment[]
@@ -232,6 +269,18 @@ model TaskDependency {
   @@id([taskId, dependsOnTaskId])
   @@index([dependsOnTaskId, projectId])
   @@map("task_dependencies")
+}
+
+model TaskAssignee {
+  taskId     String   @map("task_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
 }
 
 model ProjectMember {
