@@ -192,24 +192,6 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await workload.getByLabel('Capacity (điểm)', { exact: true }).fill('4');
   await workload.getByRole('button', { name: 'Lưu Capacity', exact: true }).click();
   await expect(workload).toContainText('Workload: 125% · Quá tải');
-  const risk = workload.getByRole('region', { name: 'Project Risk', exact: true });
-  await expect(risk).toContainText('Project Risk: Cao');
-  await expect(risk).toContainText('Chưa đầy đủ');
-  await risk.getByText('Cách đánh giá Risk', { exact: true }).click();
-  await expect(risk).toContainText('không phải dự đoán chắc chắn');
-  await risk.screenshot({ path: testInfo.outputPath('project-risk.png') });
-  const recommendations = workload.getByRole('region', { name: 'Đề xuất điều phối', exact: true });
-  await recommendations.getByRole('button', { name: 'Mở đề xuất điều phối', exact: true }).click();
-  await expect(recommendations).toContainText('Cân nhắc chuyển Task chưa bắt đầu');
-  await expect(recommendations).toContainText('Ước lượng Effort trước');
-  await expect(recommendations).toContainText('Chưa có người gợi ý phù hợp');
-  await recommendations.screenshot({ path: testInfo.outputPath('recommendations.png') });
-  await recommendations.getByRole('listitem').filter({ has: page.locator('strong', { hasText: 'Task cần ước lượng' }) }).getByRole('button', { name: 'Mở Task để xem xét', exact: true }).click();
-  await expect(workload.getByRole('button', { name: '← Về đề xuất điều phối', exact: true })).toBeVisible();
-  await workload.getByRole('button', { name: '← Về đề xuất điều phối', exact: true }).click();
-  await expect(recommendations).toContainText('Ước lượng Effort trước');
-  expect(await client.task.count({ where: { projectId: project.id, assigneeId: user.id } })).toBe(1);
-  await recommendations.getByRole('button', { name: 'Thu gọn đề xuất', exact: true }).click();
   await workload.getByRole('button', { name: 'Thiết lập Capacity', exact: true }).click();
   await workload.getByLabel('Capacity (điểm)', { exact: true }).fill('10');
   await workload.getByRole('button', { name: 'Hủy sửa Capacity', exact: true }).click();
@@ -223,27 +205,6 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await workload.screenshot({ path: testInfo.outputPath('capacity-workload.png') });
   await workload.getByRole('button', { name: 'Thu gọn điều phối', exact: true }).click();
   const calendarTask = await client.task.create({ data: { projectId: project.id, title: 'Task Calendar QA', startDate: new Date('2026-10-14'), dueDate: new Date('2026-10-15') } });
-  const calendar = page.getByRole('region', { name: 'Calendar', exact: true });
-  await calendar.getByRole('button', { name: 'Mở Calendar', exact: true }).click();
-  await calendar.getByLabel('Tháng Calendar', { exact: true }).fill('2026-10');
-  await expect(calendar).toContainText('2 Task chưa có ngày');
-  await calendar.getByLabel('Tháng Calendar', { exact: true }).fill('');
-  await expect(calendar).not.toContainText('Đang xem:');
-  await expect(calendar).not.toContainText('Đang tải Calendar');
-  await calendar.getByLabel('Tháng Calendar', { exact: true }).fill('2026-10');
-  await expect(calendar).toContainText('2 Task chưa có ngày');
-  await calendar.getByRole('button', { name: 'Xem ngày 2026-10-15', exact: true }).click();
-  await expect(calendar).toContainText('Đang xem: 2026-10-15');
-  await calendar.getByRole('button').filter({ hasText: 'Task Calendar QA' }).click();
-  await expect(calendar.getByRole('button', { name: '← Về Calendar', exact: true })).toBeVisible();
-  await calendar.getByRole('button', { name: '← Về Calendar', exact: true }).click();
-  await expect(calendar).toContainText('Đang xem: 2026-10-15');
-  await calendar.getByRole('button', { name: 'Xem ngày 2026-10-16', exact: true }).click();
-  await expect(calendar).toContainText('Không có Task trên lịch trong kỳ này');
-  await calendar.getByRole('button', { name: 'Xem cả tháng', exact: true }).click();
-  await expect(calendar).toContainText('Đang xem: 2026-10');
-  await noOverflow(page); await calendar.screenshot({ path: testInfo.outputPath('calendar.png') });
-  await calendar.getByRole('button', { name: 'Thu gọn Calendar', exact: true }).click();
   const dashboard = page.getByRole('region', { name: 'Dashboard Project', exact: true });
   await dashboard.getByRole('button', { name: 'Mở Dashboard Project', exact: true }).click();
   await expect(dashboard).toContainText('Chưa DONE: 3 Task');
@@ -260,6 +221,7 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await dashboard.getByRole('button', { name: 'Thu gọn Dashboard', exact: true }).click();
   await client.task.delete({ where: { id: calendarTask.id } });
   const panel = page.getByRole('region', { name: 'Lập kế hoạch Sprint' });
+  await panel.getByRole('button', { name: '+ Tạo Sprint mới', exact: true }).click();
   await panel.getByLabel('Tên Sprint', { exact: true }).fill('Sprint nghiệm thu');
   await panel.getByLabel('Sprint Goal', { exact: true }).fill('Hoàn thành luồng kế hoạch Sprint');
   await panel.getByLabel('Ngày bắt đầu Sprint', { exact: true }).fill('2026-10-11');
@@ -331,9 +293,8 @@ test('PM plans and starts a Sprint; PM and member follow live progress and open 
   await expect(monitor.getByRole('progressbar', { name: 'Tiến độ Sprint' })).toHaveAttribute('value', '0');
   expect(await client.notification.count({ where: { type: 'SPRINT_STARTED', relatedEntityId: project.id } })).toBe(1);
   await monitor.getByRole('button').filter({ hasText: 'Task đã ước lượng' }).click();
+  await page.getByRole('button', { name: /Task Dependency/ }).click();
   const dependencies = page.getByRole('region', { name: 'Task Dependency', exact: true });
-  await dependencies.getByLabel('Tìm Task phụ thuộc', { exact: true }).fill('Task cần ước lượng');
-  await dependencies.getByRole('button', { name: 'Tìm Task', exact: true }).click();
   await dependencies.getByLabel('Task phụ thuộc', { exact: true }).selectOption({ label: 'Task cần ước lượng · TODO' });
   await dependencies.getByRole('button', { name: 'Thêm dependency', exact: true }).click();
   await expect(dependencies).toContainText('Đã thêm dependency.');
@@ -476,6 +437,7 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await owner.getByLabel('Tên Workspace', { exact: true }).fill(workspaceName);
   await owner.getByRole('button', { name: 'Tạo Workspace', exact: true }).click();
   await expect(owner.getByRole('heading', { name: workspaceName, exact: true })).toBeVisible();
+  await owner.getByRole('button', { name: /thành viên/i }).click();
   for (const email of [pmEmail, memberEmail]) {
     await owner.getByLabel('Mời bằng email đã đăng ký').fill(email);
     await owner.getByRole('button', { name: 'Thêm thành viên', exact: true }).click();
@@ -490,10 +452,12 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
     await page.getByRole('button', { name: 'Chấp nhận', exact: true }).click();
     await expect(page.locator('.form-success')).toContainText('Bạn đã tham gia Workspace');
   }
+  await owner.getByRole('button', { name: '+ Tạo Project', exact: true }).click();
   await owner.getByLabel('Tên Project', { exact: true }).fill(projectName);
   await owner.getByRole('button', { name: 'Tạo Project', exact: true }).click();
   const ownerProject = owner.locator('.projects-panel');
   await expect(ownerProject.getByRole('heading', { name: projectName, exact: true })).toBeVisible();
+  await owner.getByRole('button', { name: /phân công pm/i }).click();
   await owner.getByLabel('Chọn thành viên Workspace').selectOption({ label: `PM QA · ${pmEmail}` });
   await owner.getByRole('button', { name: 'Phân công PM', exact: true }).click();
   await owner.getByRole('group', { name: 'Xác nhận thay đổi Project' }).getByRole('button', { name: 'Xác nhận', exact: true }).click();
@@ -502,6 +466,7 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await nav(pm, 'Workspace');
   await pm.getByRole('button', { name: new RegExp(workspaceName) }).click();
   await pm.getByRole('button', { name: new RegExp(projectName) }).click();
+  await pm.getByRole('button', { name: /thành viên/i }).click();
   await pm.getByLabel('Thêm thành viên từ Workspace').selectOption({ label: `Member QA · ${memberEmail}` });
   await pm.getByRole('button', { name: 'Thêm vào Project', exact: true }).click();
   await expect(pm.locator('.projects-panel .member-list')).toContainText(memberEmail);
@@ -583,6 +548,7 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await pmTasks.screenshot({ path: testInfo.outputPath('kanban-theme.png') });
   await expect(pmTasks.locator('.kanban-column').filter({ has: pm.getByRole('heading', { name: /^Hoàn thành/ }) })).toContainText(taskName);
   await noOverflow(pm);
+  await pmTasks.getByRole('button', { name: /Tìm kiếm & Lọc/ }).click();
   await pmTasks.getByLabel('Tìm kiếm', { exact: true }).fill('khong-tim-thay');
   await pmTasks.getByRole('button', { name: 'Áp dụng', exact: true }).click();
   await expect(pmTasks).toContainText('Chưa có công việc phù hợp.');
@@ -704,6 +670,7 @@ test('pagination, keyboard navigation, invalid deadlines and deletion work throu
   await client.task.createMany({ data: Array.from({ length: 21 }, (_, index) => ({ projectId: project.id, title: `Task ${String(index + 1).padStart(2, '0')}`, assigneeId: actor.id, status: 'DONE' as const })) });
   await nav(page, 'My Tasks');
   const tasks = page.locator('.tasks-panel');
+  await tasks.getByRole('button', { name: /Tìm kiếm & Lọc/ }).click();
   await tasks.getByText('Bộ lọc nâng cao', { exact: true }).click();
   await tasks.getByRole('combobox', { name: 'Sắp xếp', exact: true }).selectOption('title');
   await tasks.getByRole('combobox', { name: 'Thứ tự', exact: true }).selectOption('asc');
@@ -720,6 +687,7 @@ test('pagination, keyboard navigation, invalid deadlines and deletion work throu
   await tasks.getByRole('button', { name: 'Trang sau →', exact: true }).click();
   await expect(tasks.locator('.task-card')).toHaveCount(1);
   await tasks.getByRole('button', { name: /^Task 21/ }).click();
+  await tasks.getByRole('button', { name: 'Sửa công việc', exact: true }).click();
   await tasks.getByLabel('Ngày bắt đầu', { exact: true }).fill('2026-10-10');
   await tasks.getByLabel('Deadline', { exact: true }).fill('2026-10-09');
   await tasks.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();

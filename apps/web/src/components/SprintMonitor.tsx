@@ -6,7 +6,7 @@ import { SprintRetrospective } from './SprintRetrospective';
 import { Tasks, statusLabels } from './Tasks';
 import { SprintWorkload } from './SprintWorkload';
 import { ProjectRisk } from './ProjectRisk';
-export function SprintMonitor({ projectId, sprintId, onExpired }: { projectId: string; sprintId: string; onExpired: () => void }) {
+export function SprintMonitor({ projectId, sprintId, onExpired, userId }: { projectId: string; sprintId: string; onExpired: () => void; userId?: string }) {
   const [data, setData] = useState<SprintMonitorResult | null>(null);
   const [query, setQuery] = useState({ status: '', priority: '', assigneeId: '' });
   const [filters, setFilters] = useState(query);
@@ -38,7 +38,7 @@ export function SprintMonitor({ projectId, sprintId, onExpired }: { projectId: s
       {data.workload && <SprintWorkload key={sprintId} data={data.workload} />}
       {data.risk && <ProjectRisk data={data.risk} />}
       {data.sprint.completion && <details><summary>Kết quả khi kết thúc Sprint</summary><p>DONE {data.sprint.completion.doneCount} · Chuyển tiếp {data.sprint.completion.incompleteCount}</p><p>Kết thúc: {data.sprint.completedAt ? new Date(data.sprint.completedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : ''} (Việt Nam)</p><ul>{data.sprint.completion.tasks.map((task) => <li key={task.id}>{task.title} · {task.status} · {task.status === 'DONE' ? 'Giữ trong Sprint' : task.destinationSprintId ? `Chuyển Sprint ${task.destinationSprintId}` : 'Về Product Backlog'}</li>)}</ul><p>Đây là lịch sử tại thời điểm kết thúc; số liệu hiện tại có thể khác.</p></details>}
-      <DailyUpdates key={sprintId} projectId={projectId} sprintId={sprintId} onExpired={onExpired} />
+      <DailyUpdates key={sprintId} projectId={projectId} sprintId={sprintId} onExpired={onExpired} userId={userId} tasks={data.items} />
       <SprintReview key={`review-${sprintId}`} projectId={projectId} sprintId={sprintId} onExpired={onExpired} />
       <SprintRetrospective key={`retro-${sprintId}`} projectId={projectId} sprintId={sprintId} onExpired={onExpired} />
       <form className="task-filters" onSubmit={apply}><label>Trạng thái Sprint Task<select aria-label="Trạng thái Sprint Task" value={query.status} onChange={(event) => setQuery({ ...query, status: event.target.value })}><option value="">Tất cả</option>{taskStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label><label>Ưu tiên Sprint Task<select aria-label="Ưu tiên Sprint Task" value={query.priority} onChange={(event) => setQuery({ ...query, priority: event.target.value })}><option value="">Tất cả</option>{taskPriorities.map((priority) => <option key={priority}>{priority}</option>)}</select></label><label>Người phụ trách Sprint Task<select aria-label="Người phụ trách Sprint Task" value={query.assigneeId} onChange={(event) => setQuery({ ...query, assigneeId: event.target.value })}><option value="">Tất cả</option><option value="unassigned">Chưa phân công</option>{data.assignees.map((user) => <option key={user.id} value={user.id}>{user.displayName}</option>)}</select></label><button className="primary-button">Lọc Sprint Task</button></form>

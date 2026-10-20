@@ -59,6 +59,9 @@ summary:focus-visible { outline: 3px solid #89b89e; outline-offset: 4px; border-
 .task-table { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: white; }
 .task-table-head, .task-card.task-row { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, .7fr) minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, .8fr); align-items: center; gap: 12px; padding: 16px 18px; }
 .task-table-head { font-size: 11px; color: var(--muted); background: #f2f6f3; border-bottom: 1px solid var(--border); }
+.task-table-head .table-head-btn { background: transparent; border: 0; padding: 0; margin: 0; font: inherit; font-size: 11px; font-weight: 600; color: var(--muted); text-align: left; cursor: pointer; user-select: none; transition: color 0.15s ease; }
+.task-table-head .table-head-btn:hover { color: #1e3a2b; }
+.task-table-head .table-head-btn.active { color: #1e3a2b; font-weight: 700; }
 .task-table .task-list { gap: 0; }
 .task-card.task-row { border: 0; border-bottom: 1px solid var(--border); box-shadow: none; border-radius: 0; }
 .task-row:last-child { border-bottom: 0; }.task-card.task-row:hover { background: #f5faf6; box-shadow: none; }
