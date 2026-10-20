@@ -3,7 +3,9 @@ import { ApiError, projectApi, type CalendarPage } from '../api';
 import { Tasks, statusLabels } from './Tasks';
 
 export function Calendar({ projectId, onExpired }: { projectId: string; onExpired: () => void }) {
-  const [open, setOpen] = useState(false); const [month, setMonth] = useState(() => new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7));
+  const open = true; const [month, setMonth] = useState(() => new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7));
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(() => String(new Date(Date.now() + 7 * 3600000).getUTCFullYear()));
   const [day, setDay] = useState(''); const [page, setPage] = useState(1); const [sprintPage, setSprintPage] = useState(1); const [revision, setRevision] = useState(0);
   const [data, setData] = useState<CalendarPage | null>(null); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const [taskId, setTaskId] = useState('');
   useEffect(() => {
@@ -16,22 +18,39 @@ export function Calendar({ projectId, onExpired }: { projectId: string; onExpire
     return () => { active = false; };
   }, [projectId, open, month, day, page, sprintPage, revision, taskId]);
   function selectDay(value: string) { setDay(value); setPage(1); setSprintPage(1); }
+  function selectMonth(value: string) { setMonth(value); selectDay(''); setMonthPickerOpen(false); }
+  function shiftMonth(delta: number) {
+    const current = new Date(`${month}-01T00:00:00Z`); current.setUTCMonth(current.getUTCMonth() + delta);
+    selectMonth(current.toISOString().slice(0, 7));
+  }
   function back() { setTaskId(''); setRevision((value) => value + 1); }
   if (taskId) return <section aria-label="Calendar"><button className="refresh-button" onClick={back}>← Về Calendar</button><Tasks key={taskId} initialId={taskId} onExpired={onExpired} onBack={back} /></section>;
   const first = new Date(`${month}-01T00:00:00Z`); const offset = (first.getUTCDay() + 6) % 7; const last = new Date(first); last.setUTCMonth(last.getUTCMonth() + 1, 0); const days = last.getUTCDate();
   const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
-  return <section className="sprints-panel" aria-label="Calendar" aria-busy={loading}>
-    <div className="panel-heading"><h3>Calendar</h3><button className="refresh-button" onClick={() => setOpen(!open)}>{open ? 'Thu gọn Calendar' : 'Mở Calendar'}</button></div>
+  const validPickerYear = /^\d{4}$/.test(pickerYear) && Number(pickerYear) >= 2000 && Number(pickerYear) <= 2100;
+  return <section className="sprints-panel calendar-panel" aria-label="Calendar" aria-busy={loading}>
+    <div className="panel-heading"><h3>Calendar</h3></div>
     {open && <>
-      <label>Tháng Calendar<input aria-label="Tháng Calendar" type="month" required value={month} onChange={(event) => { setMonth(event.target.value); selectDay(''); }} /></label>
-      <p>Lịch theo ngày Việt Nam. Chọn ngày để xem Task/Sprint có khoảng ngày giao với ngày đó; chọn cả tháng để xem toàn kỳ.</p>
-      <p>Task thiếu một ngày được xem là chưa giới hạn đầu/cuối; thiếu cả hai ngày không nằm trên lịch. Lịch gồm cả Task DONE và Sprint COMPLETED.</p>
+      <div className="calendar-month-picker">
+        <span className="calendar-month-label">Tháng trên lịch</span>
+        <div className="calendar-month-toolbar">
+          <button type="button" className="calendar-month-step" aria-label="Tháng trước" onClick={() => shiftMonth(-1)}>‹</button>
+          <button type="button" className="calendar-month-display" aria-expanded={monthPickerOpen} aria-haspopup="dialog" onClick={() => { setPickerYear(month.slice(0, 4)); setMonthPickerOpen((value) => !value); }}>{new Date(`${month}-01T00:00:00Z`).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</button>
+          <button type="button" className="calendar-month-step" aria-label="Tháng sau" onClick={() => shiftMonth(1)}>›</button>
+        </div>
+        {monthPickerOpen && <div className="calendar-month-popover" role="dialog" aria-label="Chọn tháng và năm">
+          <div className="calendar-month-popover-heading"><label htmlFor="calendar-picker-year">Năm<input id="calendar-picker-year" type="text" inputMode="numeric" maxLength={4} value={pickerYear} onChange={(event) => { if (/^\d{0,4}$/.test(event.target.value)) setPickerYear(event.target.value); }} /></label><button type="button" className="calendar-current-month" onClick={() => selectMonth(new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7))}>Tháng này</button></div>
+          <div className="calendar-month-options">{Array.from({ length: 12 }, (_, index) => { const value = `${pickerYear}-${String(index + 1).padStart(2, '0')}`; return <button type="button" key={value} disabled={!validPickerYear} aria-pressed={value === month} onClick={() => selectMonth(value)}>Thg {index + 1}</button>; })}</div>
+        </div>}
+      </div>
+      <div className="calendar-guidance"><p>Lịch theo ngày Việt Nam. Chọn ngày để xem Task/Sprint có khoảng ngày giao với ngày đó; chọn cả tháng để xem toàn kỳ.</p>
+      <p>Task thiếu một ngày được xem là chưa giới hạn đầu/cuối; thiếu cả hai ngày không nằm trên lịch. Lịch gồm cả Task DONE và Sprint COMPLETED.</p></div>
       <div className="calendar-grid" aria-label="Chọn ngày Calendar">
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((label) => <strong key={label}>{label}</strong>)}
         {month && Array.from({ length: offset }, (_, index) => <span key={`empty-${index}`} />)}
         {month && Array.from({ length: days }, (_, index) => { const date = `${month}-${String(index + 1).padStart(2, '0')}`; return <button key={date} aria-label={`Xem ngày ${date}`} aria-pressed={date === day} aria-current={date === today ? 'date' : undefined} onClick={() => selectDay(date)}>{index + 1}</button>; })}
       </div>
-      <div className="inline-fields"><button className="refresh-button" onClick={() => selectDay('')}>Xem cả tháng</button><button className="refresh-button" disabled={loading || !month} onClick={() => setRevision((value) => value + 1)}>Tải lại Calendar</button></div>
+      <div className="inline-fields calendar-actions"><button className="refresh-button" onClick={() => selectDay('')}>Xem cả tháng</button><button className="refresh-button" disabled={loading || !month} onClick={() => setRevision((value) => value + 1)}>Tải lại Calendar</button></div>
       {error && <p className="form-error" role="alert">{error}</p>}{loading && <p role="status">Đang tải Calendar…</p>}
       {data && <>
         <p>Đang xem: {data.day ?? data.month} · {data.undatedCount} Task chưa có ngày.</p>

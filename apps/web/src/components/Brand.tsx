@@ -1,3 +1,3 @@
 export function Brand() {
-  return <a className="brand" href="/" aria-label="Task Manager, trang chủ"><span className="brand-icon" aria-hidden="true">✓</span><span>task<span className="brand-light">manager</span></span></a>;
+  return <a className="brand" href="/" aria-label="Task Manager, trang chủ"><svg className="brand-icon" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#388bff" /><stop offset="1" stopColor="#0c66e4" /></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#brand-gradient)" /><path d="M11 12h13M11 19h9M11 26h7" stroke="white" strokeWidth="2.5" strokeLinecap="round" /><path d="m23 25 3 3 6-7" fill="none" stroke="#b3f5d5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg><span className="brand-wordmark"><span className="brand-name">Task</span><span className="brand-light">Manager</span></span></a>;
 }

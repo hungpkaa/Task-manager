@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, projectApi, taskApi, type CommentPage, type ProjectMember } from '../api';
+import { StyledSelect } from './StyledSelect';
 
 export function Comments({ taskId, projectId, onExpired }: { taskId: string; projectId: string; onExpired: () => void }) {
   const [data, setData] = useState<CommentPage | null>(null);
@@ -120,7 +121,7 @@ export function Comments({ taskId, projectId, onExpired }: { taskId: string; pro
 
                 <div className="form-field">
                   <label htmlFor={`mention-${taskId}`}>Nhắc thành viên (@mention)</label>
-                  <select
+                  <StyledSelect
                     id={`mention-${taskId}`}
                     value=""
                     onChange={(event) => {
@@ -133,7 +134,7 @@ export function Comments({ taskId, projectId, onExpired }: { taskId: string; pro
                         {member.user.displayName} · {member.user.email}
                       </option>
                     ))}
-                  </select>
+                  </StyledSelect>
 
                   {activeMembers.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>

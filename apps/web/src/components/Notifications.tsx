@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError, notificationApi, projectApi, workspaceApi, type Notification } from '../api';
+import { StyledSelect } from './StyledSelect';
 
 export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { onExpired: () => void; onWorkspace: (id: string) => void; onProject: (workspaceId: string, projectId: string) => void; onTask: (id: string) => void }) {
   const [items, setItems] = useState<Notification[]>([]);
@@ -48,7 +49,7 @@ export function Notifications({ onExpired, onWorkspace, onProject, onTask }: { o
   return <section className="workspace-panel notifications-panel" aria-label="Lịch sử thông báo" aria-busy={loading}>
     <div className="panel-heading"><div><span className="eyebrow">CẬP NHẬT CỦA BẠN</span><h1>Thông báo</h1></div><button className="refresh-button" disabled={loading || Boolean(busy)} onClick={() => setAttempt((value) => value + 1)}>Làm mới</button></div>
     <p>{unread} thông báo chưa đọc trong toàn bộ lịch sử.</p>
-    <div className="notification-toolbar"><label>Lọc thông báo<select aria-label="Lọc thông báo" disabled={loading || Boolean(busy)} value={filter} onChange={(event) => { setFilter(event.target.value as 'all' | 'unread'); setPage(1); }}><option value="all">Tất cả</option><option value="unread">Chưa đọc</option></select></label>
+    <div className="notification-toolbar"><label>Lọc thông báo<StyledSelect aria-label="Lọc thông báo" disabled={loading || Boolean(busy)} value={filter} onChange={(event) => { setFilter(event.target.value as 'all' | 'unread'); setPage(1); }}><option value="all">Tất cả</option><option value="unread">Chưa đọc</option></StyledSelect></label>
     {!loading && !error && <div className="notification-pagination"><p role="status">{total} thông báo trong bộ lọc · Trang {page}/{Math.max(1, Math.ceil(total / 50))}</p><div className="member-actions"><button className="refresh-button" disabled={Boolean(busy) || page <= 1} onClick={() => setPage(page - 1)}>Thông báo trước</button><button className="refresh-button" disabled={Boolean(busy) || page * 50 >= total} onClick={() => setPage(page + 1)}>Thông báo sau</button></div></div>}</div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {loading ? <p role="status">Đang tải thông báo…</p> : <ul className="notification-list">{items.map((item) => <li className={item.readAt ? '' : 'unread'} key={item.id}>

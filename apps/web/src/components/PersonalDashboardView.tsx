@@ -1,30 +1,118 @@
-import type { CSSProperties } from 'react';
-import { taskStatuses, type DashboardResult } from '../api';
+import { useEffect, useState } from 'react';
+import { taskApi, taskStatuses, type DashboardResult, type Task, type TaskPriority, type TaskStatus } from '../api';
 import { statusLabels } from './Tasks';
 import { Icon } from './Icon';
 
-export function PersonalDashboardView({ data, onTask, onWorkspace }: { data: DashboardResult; onTask: (id: string) => void; onWorkspace?: () => void }) {
-  const colors = ['#c8d3cd', '#6498be', '#e5bc55', '#327b57'];
+type AttentionTask = DashboardResult['attention'][number];
+type TaskFilter = { status?: TaskStatus; sort?: 'updatedAt' | 'dueDate'; direction?: 'asc' | 'desc' };
+const statusColors: Record<TaskStatus, string> = { TODO: '#8996a8', IN_PROGRESS: '#2f78d5', REVIEW: '#d08a31', DONE: '#25845a' };
+const priorityLabels: Record<TaskPriority, string> = { LOW: 'Thấp', MEDIUM: 'Trung bình', HIGH: 'Cao', URGENT: 'Khẩn cấp' };
+
+function formatDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-');
+  return `${day}/${month}/${year}`;
+}
+function dateDelta(dueDate: string, today: string) {
+  const due = Date.parse(`${dueDate.slice(0, 10)}T00:00:00Z`);
+  const base = Date.parse(`${today.slice(0, 10)}T00:00:00Z`);
+  return Math.round((due - base) / 86_400_000);
+}
+function dueLabel(dueDate: string | null, today: string) {
+  if (!dueDate) return { text: 'Chưa đặt hạn', tone: 'is-muted' };
+  const delta = dateDelta(dueDate, today);
+  if (delta === 0) return { text: 'Hôm nay', tone: 'is-today' };
+  if (delta < 0) return { text: `Quá hạn ${Math.abs(delta)} ngày`, tone: 'is-overdue' };
+  return { text: `Còn ${delta} ngày`, tone: delta <= 3 ? 'is-soon' : 'is-upcoming' };
+}
+
+function StatCard({ label, value, note, icon, tone, onClick }: { label: string; value: number; note: string; icon: 'task' | 'clock' | 'notification' | 'check'; tone: string; onClick: () => void }) {
+  return <button type="button" className={`overview-metric metric-${tone}`} aria-label={`${label}: ${value}. ${note}`} onClick={onClick}>
+    <span className="stat-card-label">{label}<span className="metric-icon"><Icon name={icon} /></span></span>
+    <strong>{value}</strong><small>{note}</small>
+  </button>;
+}
+
+function StatusBadge({ status }: { status: TaskStatus }) {
+  return <span className={`task-badge status-${status.toLowerCase()}`}><i aria-hidden="true" />{statusLabels[status]}</span>;
+}
+function PriorityBadge({ priority }: { priority: TaskPriority }) {
+  return <span className={`task-badge priority-${priority.toLowerCase()}`}>{priorityLabels[priority]}</span>;
+}
+
+function TaskItem({ item, detail, today, onClick }: { item: AttentionTask; detail?: Task; today: string; onClick: () => void }) {
+  const due = dueLabel(item.dueDate, today);
+  const blocked = item.dependencies.length > 0 || Boolean(detail?.blocked);
+  return <button type="button" className="attention-card" onClick={onClick}>
+    <span className={`attention-marker status-${item.status.toLowerCase()}`}><Icon name={item.status === 'DONE' ? 'check' : 'task'} /></span>
+    <span className="attention-content"><strong>{item.title}</strong><small className="attention-description">{detail?.description?.trim() || 'Chưa có mô tả.'}</small>
+      <span className="attention-meta"><span className="attention-project">{item.project.name}</span><span className="task-badges"><StatusBadge status={item.status} />{detail && <PriorityBadge priority={detail.priority} />}{blocked && <span className="task-badge priority-urgent">Bị chặn</span>}</span></span>
+    </span>
+    <span className={`attention-due ${due.tone}`}><span>{item.dueDate ? formatDate(item.dueDate) : '—'}</span><strong>{due.text}</strong><Icon name="arrow" /></span>
+  </button>;
+}
+
+function DonutChart({ data }: { data: DashboardResult }) {
+  const circumference = 2 * Math.PI * 51;
   let offset = 0;
-  const stops = taskStatuses.map((status, index) => { const start = offset; offset += data.total ? data.counts[status] / data.total * 100 : 0; return `${colors[index]} ${start}% ${offset}%`; }).join(', ');
+  const labels = taskStatuses.map((status) => {
+    const count = data.counts[status];
+    const percent = data.total ? count / data.total * 100 : 0;
+    const length = data.total ? circumference * percent / 100 : circumference / taskStatuses.length;
+    const result = { status, count, percent, length, offset, color: statusColors[status] };
+    offset += length;
+    return result;
+  });
+  const description = labels.map(({ status, count, percent }) => `${statusLabels[status]}: ${count} (${Math.round(percent)}%)`).join(', ');
+  return <div className="status-donut-wrap">
+    <svg className="status-donut" viewBox="0 0 128 128" role="img" aria-label={`Phân bố trạng thái công việc. ${description}. ${data.total ? `Quá hạn: ${data.overdueCount}` : 'Chưa có công việc.'}`}>
+      <circle className="donut-track" cx="64" cy="64" r="51" />
+      {labels.map(({ status, count, percent, length, offset: segmentOffset, color }) => <circle key={status} className="donut-segment" cx="64" cy="64" r="51" stroke={color} strokeDasharray={`${Math.max(0, length - 2)} ${circumference - Math.max(0, length - 2)}`} strokeDashoffset={-segmentOffset}>
+        <title>{`${statusLabels[status]}: ${count} (${Math.round(percent)}%)`}</title>
+      </circle>)}
+      <text className="donut-center-value" x="64" y="61" textAnchor="middle">{data.total ? `${data.progressPercent ?? 0}%` : '0'}</text>
+      <text className="donut-center-label" x="64" y="78" textAnchor="middle">{data.total ? 'Hoàn thành' : 'Task'}</text>
+    </svg>
+    {data.total > 0 && <span className="donut-overdue-note">{data.overdueCount} Task quá hạn</span>}
+  </div>;
+}
+
+function EmptyState({ hasTasks, onCreateTask }: { hasTasks: boolean; onCreateTask?: () => void }) {
+  return <div className="dashboard-empty"><span className="empty-icon"><Icon name="check" /></span><h4>{hasTasks ? 'Tuyệt vời! Không có Task nào cần chú ý' : 'Chưa có công việc được giao'}</h4><p>{hasTasks ? 'Các công việc của bạn đang trong tầm kiểm soát.' : 'Chọn một Workspace và Project để bắt đầu công việc.'}</p>{onCreateTask && <button className="primary-button" onClick={onCreateTask}>{hasTasks ? 'Tạo Task mới' : 'Mở Workspace'}</button>}</div>;
+}
+
+export function PersonalDashboardView({ data, onTask, onWorkspace, onTasksFilter }: { data: DashboardResult; onTask: (id: string) => void; onWorkspace?: () => void; onTasksFilter?: (filter: TaskFilter) => void }) {
+  const [details, setDetails] = useState<Record<string, Task>>({});
+  useEffect(() => {
+    let active = true;
+    setDetails({});
+    Promise.all(data.attention.map(async (task) => {
+      try { return [task.id, (await taskApi.detail(task.id)).task] as const; }
+      catch { return null; }
+    })).then((results) => { if (active) setDetails(Object.fromEntries(results.filter((result): result is NonNullable<typeof result> => result !== null))); });
+    return () => { active = false; };
+  }, [data.attention]);
+
   return <>
-    <div className="overview-metrics">{[
-      { label: 'Tổng Task', value: data.total, icon: 'task' as const, caption: 'Công việc được giao', tone: 'neutral' },
-      { label: 'Đang làm', value: data.counts.IN_PROGRESS, icon: 'clock' as const, caption: 'Đang triển khai', tone: 'blue' },
-      { label: 'Task quá hạn', value: data.overdueCount, icon: 'notification' as const, caption: 'Cần ưu tiên xử lý', tone: 'gold' },
-      { label: 'Hoàn thành', value: data.counts.DONE, icon: 'check' as const, caption: 'Công việc đã DONE', tone: 'green' },
-    ].map((metric) => <article className={`overview-metric metric-${metric.tone}`} key={metric.label}><div><span>{metric.label}</span><span className="metric-icon"><Icon name={metric.icon} /></span></div><strong>{metric.value}</strong><small>{metric.caption}</small></article>)}</div>
+    <div className="overview-metrics" aria-label="Tóm tắt công việc">
+      <StatCard label="Tổng Task" value={data.total} icon="task" note="Công việc được giao" tone="neutral" onClick={() => onTasksFilter?.({})} />
+      <StatCard label="Đang làm" value={data.counts.IN_PROGRESS} icon="clock" note="Đang triển khai" tone="blue" onClick={() => onTasksFilter?.({ status: 'IN_PROGRESS' })} />
+      <StatCard label="Task quá hạn" value={data.overdueCount} icon="notification" note="Cần ưu tiên xử lý" tone={data.overdueCount ? 'red' : 'gold'} onClick={() => onTasksFilter?.({ sort: 'dueDate', direction: 'asc' })} />
+      <StatCard label="Hoàn thành" value={data.counts.DONE} icon="check" note="Công việc đã hoàn tất" tone="green" onClick={() => onTasksFilter?.({ status: 'DONE' })} />
+    </div>
     <div className="overview-columns">
-      <section className="attention-panel"><div className="panel-heading"><div><span className="eyebrow">ƯU TIÊN HÔM NAY</span><h3>Task cần chú ý</h3></div><span className="count-pill">{data.attention.length} mục</span></div><p className="panel-description">Công việc bị chặn hoặc đến hạn trong 7 ngày tới, gồm quá hạn. Tối đa 10 mục, ưu tiên hạn sớm.</p>
-        <div className="attention-list">{data.attention.map((task) => <button className="attention-card" key={task.id} onClick={() => onTask(task.id)}><span className={`attention-marker status-${task.status.toLowerCase()}`}><Icon name={task.status === 'DONE' ? 'check' : 'task'} /></span><span className="attention-content"><strong>{task.title}</strong><small>{task.project.name}</small><span className="task-badges"><span className={`task-badge status-${task.status.toLowerCase()}`}>{statusLabels[task.status]}</span>{task.dependencies.length > 0 && <span className="task-badge priority-urgent">BLOCKED</span>}{task.dueDate && task.dueDate.slice(0, 10) < data.today && <span className="task-badge priority-high">Quá hạn</span>}</span></span><span className="attention-due"><Icon name="clock" />{task.dueDate?.slice(0, 10) ?? 'Chưa đặt hạn'}<Icon name="arrow" /></span></button>)}</div>
-        {!data.attention.length && <div className="dashboard-empty"><span className="empty-icon"><Icon name="check" /></span><h4>{data.total ? 'Bạn đang theo sát công việc' : 'Bắt đầu cùng nhóm của bạn'}</h4><p>{data.total ? 'Không có Task cần chú ý theo các tiêu chí này.' : 'Chưa có Task được giao. Mở Workspace để tham gia dự án và bắt đầu công việc.'}</p>{!data.total && onWorkspace && <button className="primary-button" onClick={onWorkspace}>Mở Workspace</button>}</div>}
+      <section className="attention-panel"><div className="panel-heading"><div><span className="eyebrow">ƯU TIÊN HÔM NAY</span><h3>Task cần chú ý</h3></div><span className="count-pill">{data.attention.length} mục</span></div>
+        <p className="panel-description">Task đến hạn hoặc bị chặn trong 7 ngày tới</p>
+        <div className="attention-list">{data.attention.map((task) => <TaskItem key={task.id} item={task} detail={details[task.id]} today={data.today} onClick={() => onTask(task.id)} />)}</div>
+        {!data.attention.length && <EmptyState hasTasks={data.total > 0} onCreateTask={onWorkspace} />}
       </section>
       <section className="distribution-panel"><span className="eyebrow">NHỊP ĐỘ CÔNG VIỆC</span><h3>Phân bố trạng thái</h3>
-        {data.total ? <div className="status-donut" role="img" aria-label={`Tiến độ hoàn thành ${data.progressPercent}%. ${taskStatuses.map((status) => `${statusLabels[status]}: ${data.counts[status]}`).join(', ')}`} style={{ '--donut-fill': `conic-gradient(${stops})` } as CSSProperties}><div><strong>{data.progressPercent}%</strong><span>Hoàn thành</span></div></div> : <div className="chart-empty"><Icon name="board" /><p>Chưa có dữ liệu tiến độ</p></div>}
-        <ul className="distribution-legend">{taskStatuses.map((status, index) => <li key={status}><span className="legend-dot" style={{ background: colors[index] }} /><span>{statusLabels[status]}</span><strong>{data.counts[status]}</strong></li>)}</ul>
-        <div className="distribution-footer"><strong>{data.dueSoonCount}</strong> đến hạn trong 7 ngày tới <span>·</span> <strong>{data.blockedCount}</strong> BLOCKED</div>
+        <DonutChart data={data} />
+        <ul className="distribution-legend" aria-label="Chú giải trạng thái">{taskStatuses.map((status) => <li key={status}><span className="legend-dot" style={{ background: statusColors[status] }} /><span>{statusLabels[status]}</span><strong>{data.counts[status]}</strong><small>{data.total ? `${Math.round(data.counts[status] / data.total * 100)}%` : '0%'}</small></li>)}</ul>
+        <div className="distribution-footer"><strong>{data.dueSoonCount}</strong> sắp đến hạn <span>·</span> <strong>{data.blockedCount}</strong> bị chặn <span>·</span> <strong>{data.overdueCount}</strong> quá hạn</div>
       </section>
     </div>
-    <details className="dashboard-details"><summary>Chi tiết số liệu</summary><p>Ngày đánh giá: {data.today} (Việt Nam). Chỉ tổng hợp Task giao cho bạn trong các Project bạn còn là thành viên, kể cả Project đã đóng.</p><p>Tiến độ = số Task DONE / tổng Task; không tính theo Effort. Chưa DONE: {data.activeCount} Task · {data.activeKnownEffort} Effort đã biết.</p><p>{data.missingEffortCount} Task chưa DONE thiếu Effort · {data.missingDeadlineCount} thiếu hạn · {data.unassignedCount} chưa phân công. BLOCKED và quá hạn có thể cùng một Task.</p></details>
+    <details className="dashboard-details"><summary>Chi tiết số liệu</summary><p>Ngày đánh giá: {formatDate(data.today)}. Chỉ tổng hợp Task được giao trong các Project bạn còn là thành viên, kể cả Project đã đóng.</p><p>Tiến độ tính theo số Task hoàn thành trên tổng Task. Chưa hoàn thành: {data.activeCount} Task · {data.activeKnownEffort} Effort đã biết.</p><p>{data.missingEffortCount} Task chưa hoàn thành thiếu Effort · {data.missingDeadlineCount} thiếu hạn · {data.unassignedCount} chưa phân công.</p></details>
   </>;
 }
+
+export type { TaskFilter };
