@@ -42,6 +42,9 @@ main { flex: 1; min-width: 0; }
 .topbar { min-height: 78px; padding: 20px 48px; border-bottom: 1px solid #e2e6dd; display: flex; justify-content: space-between; align-items: center; gap: 15px; font-size: 11px; color: #7b887e; }
 .topbar strong { color: #3c4d40; font-weight: 500; }
 .slash { margin: 0 12px; color: #b1b9b0; }
+.breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+.breadcrumb-link { background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; opacity: 0.75; transition: opacity 0.15s, text-decoration 0.15s; text-decoration: none; }
+.breadcrumb-link:hover { opacity: 1; text-decoration: underline; text-decoration-color: #7b887e; }
 .phase-tag { font-size: 10px; padding: 8px 12px; background: #eaf0e2; color: #516344; border-radius: 5px; }
 .content { max-width: 1260px; padding: 48px; margin: 0 auto; }
 .eyebrow { font-size: 9px; letter-spacing: 1.5px; font-weight: 600; color: #728169; }
@@ -144,6 +147,24 @@ button:disabled { opacity: .55; cursor: default; }textarea:focus, .invite-form i
 @media (max-width: 760px) { .auth-shell { grid-template-columns: 1fr; }.auth-story { padding: 22px 24px; }.auth-story-content, .auth-story-footer { display: none; }.auth-main { padding: 35px 24px; align-items: start; }.auth-title { font-size: 26px; }.auth-tabs { margin-bottom: 30px; }.account-nav { display: flex; margin-top: 18px; }.account-nav button { padding: 9px 13px; font-size: 11px; }.sidebar .account-nav .nav-active { display: flex; }.account-actions { gap: 8px; }.profile-link { max-width: 100px; font-size: 10px; }.topbar { flex-wrap: wrap; }.profile-panel { padding: 22px; }.session-screen { padding: 24px; }.session-card h1 { font-size: 23px; } }
 @media (max-width: 760px) { .sidebar { position: static; height: auto; overflow: visible; }.account-nav { flex-wrap: wrap; margin-bottom: 0; gap: 4px; }.account-nav button { min-height: 44px; }.primary-button, .refresh-button, .danger-button { min-height: 44px; }.next-panel { gap: 14px; }.tasks-panel .panel-heading > div { width: 100%; }.project-dates { grid-template-columns: minmax(0, 1fr); }.workspace-grid { grid-template-columns: minmax(0, 1fr); } }
 .comments-panel { margin-top: 32px; border-top: 1px solid #dae1d3; padding-top: 24px; }
+.comments-panel .workspace-form { max-width: 960px; }
+.comment-form-layout { display: flex; gap: 16px; align-items: start; margin-bottom: 12px; }
+.comment-input-field { flex: 1 1 60%; min-width: 0; margin-bottom: 0; }
+.comment-input-field textarea { width: 100%; min-height: 125px; box-sizing: border-box; }
+.comment-mention-field { flex: 0 0 280px; min-width: 230px; max-width: 320px; margin-bottom: 0; display: flex; flex-direction: column; }
+.comment-mention-header { font-size: 12px; font-weight: 500; color: #3c4d40; margin-bottom: 8px; display: block; }
+.comment-mention-list { max-height: 125px; overflow-y: auto; border: 1px solid #d8e0d0; border-radius: 7px; background: #f8faf5; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.comment-mention-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 5px; font-size: 12px; line-height: 1.2; cursor: pointer; user-select: none; transition: background 0.15s, border-color 0.15s; border: 1px solid transparent; }
+.comment-mention-item:hover { background: #eaf0e3; }
+.comment-mention-item.selected { background: #e8f2ea; border: 1px solid #7ea886; }
+.comment-mention-item input[type=checkbox] { width: 12px; height: 12px; margin: 0; cursor: pointer; accent-color: #263c35; flex-shrink: 0; }
+.comment-mention-item .mention-name { font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comment-mention-item.selected .mention-name { font-weight: 600; }
+.comment-mention-item .mention-email { color: #637367; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  .comment-form-layout { flex-direction: column; }
+  .comment-mention-field { flex: 1 1 auto; max-width: 100%; width: 100%; }
+}
 .comment-list { display: grid; gap: 12px; margin-bottom: 16px; }
 .comment-card { border: 1px solid #dae1d3; border-radius: 12px; padding: 18px; background: white; min-width: 0; overflow-wrap: anywhere; }
 .comment-card time { display: block; font-size: 12px; margin-top: 6px; }

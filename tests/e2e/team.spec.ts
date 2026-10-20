@@ -485,6 +485,11 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await owner.locator('.member-list').first().getByRole('listitem').filter({ hasText: pmEmail }).getByRole('button', { name: 'Gửi lại email mời', exact: true }).click();
   await expect(owner.getByRole('status').filter({ hasText: 'Email mời đã được tạo trong hộp thư thử.' })).toBeVisible();
   await expect.poll(() => invitationCount(pmEmail)).toBe(2);
+  for (const page of [pm, member]) {
+    await nav(page, 'Workspace');
+    await page.getByRole('button', { name: 'Chấp nhận', exact: true }).click();
+    await expect(page.locator('.form-success')).toContainText('Bạn đã tham gia Workspace');
+  }
   await owner.getByLabel('Tên Project', { exact: true }).fill(projectName);
   await owner.getByRole('button', { name: 'Tạo Project', exact: true }).click();
   const ownerProject = owner.locator('.projects-panel');
@@ -524,7 +529,7 @@ test('three users complete Workspace → Project → Task → My Tasks → DONE 
   await expect(member.getByRole('button', { name: 'Lưu thay đổi', exact: true })).toHaveCount(0);
   const comments = member.getByRole('region', { name: 'Bình luận Task', exact: true });
   await comments.getByLabel('Nội dung bình luận', { exact: true }).fill('Nhờ PM kiểm tra <script>alert(1)</script>');
-  await comments.getByRole('combobox', { name: 'Nhắc thành viên (@mention)', exact: true }).selectOption({ label: `PM QA · ${pmEmail}` });
+  await comments.getByLabel(new RegExp(pmEmail)).check();
   await comments.getByRole('button', { name: 'Gửi bình luận', exact: true }).click();
   await expect(comments.locator('.comment-card')).toContainText('Nhờ PM kiểm tra <script>alert(1)</script>');
   const attachments = member.getByRole('region', { name: 'Tệp đính kèm Task', exact: true });

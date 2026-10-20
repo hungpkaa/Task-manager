@@ -34,11 +34,15 @@ export function App() {
   const [workspaceId, setWorkspaceId] = useState<string>();
   const [projectId, setProjectId] = useState<string>();
   const [sectionRevision, setSectionRevision] = useState(0);
+  const [workspaceCrumb, setWorkspaceCrumb] = useState<{ id: string; name: string } | null>(null);
+  const [projectCrumb, setProjectCrumb] = useState<{ id: string; name: string } | null>(null);
+  const [taskCrumb, setTaskCrumb] = useState<string | null>(null);
   function navigate(target: typeof screen) {
     if (target === 'workspaces' || target === 'tasks') {
       setWorkspaceId(undefined); setProjectId(undefined); setTaskId(undefined);
       setSectionRevision((value) => value + 1);
     }
+    setWorkspaceCrumb(null); setProjectCrumb(null); setTaskCrumb(null);
     setScreen(target);
   }
   const screenLabels = { overview: 'Tổng quan', profile: 'Hồ sơ cá nhân', workspaces: 'Workspace', notifications: 'Thông báo', tasks: 'My Tasks', admin: 'Quản trị hệ thống' };
@@ -102,10 +106,43 @@ export function App() {
       </aside>
 
       <main>
-        <header className="topbar"><span>Không gian làm việc <span className="slash">/</span> <strong>{screenLabels[screen]}</strong></span><div className="account-actions"><button className="profile-link" onClick={() => setScreen('profile')}>{user.displayName}</button><button className="refresh-button" onClick={logout} disabled={loggingOut}>{loggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></div></header>
+        <header className="topbar">
+          <nav className="breadcrumb" aria-label="Vị trí hiện tại">
+            {screen === 'workspaces' ? (
+              <>
+                <button className="breadcrumb-link" onClick={() => navigate('workspaces')}>Workspace</button>
+                {workspaceCrumb && (
+                  <><span className="slash">/</span>
+                  {projectCrumb ? (
+                    <button className="breadcrumb-link" onClick={() => { setProjectId(undefined); setProjectCrumb(null); setTaskCrumb(null); setSectionRevision((v) => v + 1); }}>Workspace: {workspaceCrumb.name}</button>
+                  ) : (
+                    <strong>Workspace: {workspaceCrumb.name}</strong>
+                  )}</>
+                )}
+                {projectCrumb && (
+                  <><span className="slash">/</span>
+                  {taskCrumb ? (
+                    <button className="breadcrumb-link" onClick={() => { setTaskCrumb(null); setSectionRevision((v) => v + 1); }}>Dự Án: {projectCrumb.name}</button>
+                  ) : (
+                    <strong>Dự Án: {projectCrumb.name}</strong>
+                  )}</>
+                )}
+                {taskCrumb && <><span className="slash">/</span><strong>Công việc: {taskCrumb}</strong></>}
+              </>
+            ) : screen === 'tasks' ? (
+              <>
+                <button className="breadcrumb-link" onClick={() => navigate('tasks')}>My Tasks</button>
+                {taskCrumb && <><span className="slash">/</span><strong>Công việc: {taskCrumb}</strong></>}
+              </>
+            ) : (
+              <strong>{screenLabels[screen]}</strong>
+            )}
+          </nav>
+          <div className="account-actions"><button className="profile-link" onClick={() => setScreen('profile')}>{user.displayName}</button><button className="refresh-button" onClick={logout} disabled={loggingOut}>{loggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></div>
+        </header>
         <div className="content">
           {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
-          {screen === 'admin' && user.systemRole === 'SYSTEM_ADMIN' ? <Admin userId={user.id} onExpired={expired} /> : screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}-${projectId ?? ''}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
+          {screen === 'admin' && user.systemRole === 'SYSTEM_ADMIN' ? <Admin userId={user.id} onExpired={expired} /> : screen === 'profile' ? <Profile user={user} onUpdated={setUser} onExpired={expired} /> : screen === 'workspaces' ? <Workspaces key={`${sectionRevision}-${workspaceId ?? 'list'}`} userId={user.id} initialId={workspaceId} initialProjectId={projectId} onExpired={expired} projectOpen={!!projectCrumb} taskOpen={!!taskCrumb} onWorkspaceChange={(data) => { setWorkspaceCrumb(data); if (data) setWorkspaceId(data.id); else { setWorkspaceId(undefined); setProjectId(undefined); } }} onProjectChange={(data) => { setProjectCrumb(data); if (data) setProjectId(data.id); else { setProjectId(undefined); setTaskCrumb(null); } }} onTaskChange={setTaskCrumb} /> : screen === 'tasks' ? <Tasks key={`${sectionRevision}-${taskId ?? 'mine'}`} initialId={taskId} onExpired={expired} onTaskChange={setTaskCrumb} userId={user.id} /> : screen === 'notifications' ? <Notifications onExpired={expired} onWorkspace={(id) => { setWorkspaceId(id); setProjectId(undefined); setScreen('workspaces'); }} onProject={(workspace, project) => { setWorkspaceId(workspace); setProjectId(project); setScreen('workspaces'); }} onTask={(id) => { setTaskId(id); setScreen('tasks'); }} /> : <>
           <div className="overview-heading"><div><span className="eyebrow">KHÔNG GIAN CỦA BẠN</span><h1>Chào {user.displayName}.</h1><p>{new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })} · Cùng đưa công việc đến đích.</p></div><div className="member-actions"><button className="refresh-button" onClick={() => navigate('workspaces')}><Icon name="workspace" />Mở Workspace</button><button className="primary-button" onClick={() => navigate('tasks')}><Icon name="task" />Mở My Tasks</button></div></div>
           <Dashboard key={user.id} onExpired={expired} onWorkspace={() => navigate('workspaces')} />
           <details className="connection-panel connection-details"><summary>Trạng thái kết nối</summary><section aria-labelledby="connection-title">

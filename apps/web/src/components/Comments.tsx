@@ -1,9 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ApiError, projectApi, taskApi, type CommentPage, type ProjectMember } from '../api';
+import { ApiError, accountApi, projectApi, taskApi, type Account, type CommentPage, type ProjectMember } from '../api';
 
-export function Comments({ taskId, projectId, onExpired }: { taskId: string; projectId: string; onExpired: () => void }) {
+export function Comments({
+  taskId,
+  projectId,
+  onExpired,
+  currentUserId,
+  currentUserEmail,
+}: {
+  taskId: string;
+  projectId: string;
+  onExpired: () => void;
+  currentUserId?: string;
+  currentUserEmail?: string;
+}) {
   const [data, setData] = useState<CommentPage | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [currentUser, setCurrentUser] = useState<Account | null>(null);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [body, setBody] = useState('');
@@ -24,9 +37,13 @@ export function Comments({ taskId, projectId, onExpired }: { taskId: string; pro
     setData(null);
     setMembers([]);
     void (async () => {
-      const result = await taskApi.comments(taskId, page);
+      const [result, accountRes] = await Promise.all([
+        taskApi.comments(taskId, page),
+        currentUser ? Promise.resolve(null) : accountApi.me().catch(() => null),
+      ]);
       const membership = result.canPost ? await projectApi.members(projectId) : { members: [] };
       if (active) {
+        if (accountRes) setCurrentUser(accountRes.user);
         setData(result);
         setMembers(membership.members);
       }
@@ -66,14 +83,37 @@ export function Comments({ taskId, projectId, onExpired }: { taskId: string; pro
     }
   }
 
-  function insertMention(email: string) {
+  const myId = currentUserId || currentUser?.id;
+  const myEmail = currentUserEmail || currentUser?.email;
+
+
+  function toggleMention(email: string) {
+    if (myEmail && email.toLowerCase() === myEmail.toLowerCase()) {
+      setNotice('Bạn không thể tự nhắc chính mình.');
+      return;
+    }
+    const tag = `@{${email}}`;
     setBody((prev) => {
+      if (prev.includes(tag)) {
+        return prev.split(tag).join('').replace(/ {2,}/g, ' ').trim();
+      }
+      const currentMentions = activeMembers.filter((m) => prev.includes(`@{${m.user.email}}`)).length;
+      if (currentMentions >= 20) {
+        setNotice('Tối đa 20 người được nhắc trong một bình luận.');
+        return prev;
+      }
       const trimmed = prev.trimEnd();
-      return `${trimmed}${trimmed ? ' ' : ''}@{${email}} `;
+      return `${trimmed}${trimmed ? ' ' : ''}${tag} `;
     });
   }
 
-  const activeMembers = members.filter((member) => member.user.status === 'ACTIVE');
+  const activeMembers = members.filter((member) => {
+    if (member.user.status !== 'ACTIVE') return false;
+    if (myId && member.userId === myId) return false;
+    if (myEmail && member.user.email.toLowerCase() === myEmail.toLowerCase()) return false;
+    return true;
+  });
+  const selectedMentionCount = activeMembers.filter((m) => body.includes(`@{${m.user.email}}`)).length;
 
   return (
     <section className="comments-panel" aria-label="Bình luận Task" aria-busy={loading || busy}>
@@ -99,69 +139,60 @@ export function Comments({ taskId, projectId, onExpired }: { taskId: string; pro
           {data.canPost ? (
             <form className="workspace-form" onSubmit={(event) => void submit(event)}>
               <fieldset disabled={busy}>
-                <div className="form-field">
-                  <label htmlFor={`comment-${taskId}`}>Nội dung bình luận</label>
-                  <textarea
-                    id={`comment-${taskId}`}
-                    rows={4}
-                    required
-                    maxLength={5000}
-                    placeholder="Nhập nội dung bình luận... (Nhấn Ctrl+Enter để gửi nhanh)"
-                    value={body}
-                    onChange={(event) => setBody(event.target.value)}
-                    onKeyDown={(event) => {
-                      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                        event.preventDefault();
-                        void submit();
-                      }
-                    }}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor={`mention-${taskId}`}>Nhắc thành viên (@mention)</label>
-                  <select
-                    id={`mention-${taskId}`}
-                    value=""
-                    onChange={(event) => {
-                      if (event.target.value) insertMention(event.target.value);
-                    }}
-                  >
-                    <option value="">Chọn người để thêm vào bình luận</option>
-                    {activeMembers.map((member) => (
-                      <option key={member.userId} value={member.user.email}>
-                        {member.user.displayName} · {member.user.email}
-                      </option>
-                    ))}
-                  </select>
+                <div className="comment-form-layout">
+                  <div className="form-field comment-input-field">
+                    <label htmlFor={`comment-${taskId}`}>Nội dung bình luận</label>
+                    <textarea
+                      id={`comment-${taskId}`}
+                      rows={5}
+                      required
+                      maxLength={5000}
+                      placeholder="Nhập nội dung bình luận... (Nhấn Ctrl+Enter để gửi nhanh)"
+                      value={body}
+                      onChange={(event) => setBody(event.target.value)}
+                      onKeyDown={(event) => {
+                        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                          event.preventDefault();
+                          void submit();
+                        }
+                      }}
+                    />
+                  </div>
 
                   {activeMembers.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                      <span style={{ fontSize: '12px', color: '#637367', alignSelf: 'center' }}>Nhắc nhanh:</span>
-                      {activeMembers.slice(0, 8).map((member) => (
-                        <button
-                          key={member.userId}
-                          type="button"
-                          className="refresh-button"
-                          style={{
-                            padding: '3px 8px',
-                            fontSize: '11px',
-                            borderRadius: '12px',
-                            minHeight: 'unset',
-                            height: 'auto',
-                            lineHeight: 1.4,
-                          }}
-                          onClick={() => insertMention(member.user.email)}
-                          title={`Thêm @{${member.user.email}}`}
-                        >
-                          @{member.user.displayName}
-                        </button>
-                      ))}
+                    <div className="form-field comment-mention-field">
+                      <span className="comment-mention-header">
+                        Nhắc thành viên ({selectedMentionCount} đã chọn):
+                      </span>
+                      <div className="comment-mention-list">
+                        {activeMembers.map((member) => {
+                          const isChecked = body.includes(`@{${member.user.email}}`);
+                          return (
+                            <label
+                              key={member.userId}
+                              className={`comment-mention-item ${isChecked ? 'selected' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                disabled={busy}
+                                onChange={() => toggleMention(member.user.email)}
+                              />
+                              <span className="mention-name" title={member.user.displayName}>
+                                {member.user.displayName}
+                              </span>
+                              <small className="mention-email" title={member.user.email}>
+                                ({member.user.email})
+                              </small>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <p style={{ fontSize: '12px', color: '#637367' }}>
+                <p style={{ fontSize: '12px', color: '#637367', margin: '4px 0 12px' }}>
                   Mỗi bình luận tối đa 5.000 ký tự và tối đa 20 người được nhắc (@mention).
                 </p>
 

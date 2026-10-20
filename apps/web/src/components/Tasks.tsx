@@ -20,7 +20,7 @@ function maxDate(a: string | null | undefined, b: string | null | undefined) {
   return a ?? b ?? undefined;
 }
 
-export function Tasks({ projectId, canCreate = false, initialId, projectDates, onExpired, onBack }: { projectId?: string; canCreate?: boolean; initialId?: string; projectDates?: { startDate: string | null; endDate: string | null }; onExpired: () => void; onBack?: () => void }) {
+export function Tasks({ projectId, canCreate = false, initialId, projectDates, onExpired, onBack, onTaskChange, userId }: { projectId?: string; canCreate?: boolean; initialId?: string; projectDates?: { startDate: string | null; endDate: string | null }; onExpired: () => void; onBack?: () => void; onTaskChange?: (name: string | null) => void; userId?: string }) {
   const [selected, setSelected] = useState(initialId ?? '');
   const [creating, setCreating] = useState(false);
   const [pageData, setPageData] = useState<TaskPage>({ tasks: [], total: 0, page: 1, pageSize: 20 });
@@ -44,7 +44,9 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
   const effectiveProjectEnd = projectDates?.endDate ?? (task?.project?.endDate ? task.project.endDate.slice(0, 10) : null);
   function failed(failure: unknown) { if (failure instanceof ApiError && failure.status === 401) onExpired(); else setError(failure instanceof Error ? failure.message : 'Không thể xử lý công việc.'); }
   useEffect(() => {
-    let active = true; setLoading(true); setError(''); setTask(null); setPending(null);
+    let active = true; setError(''); setPending(null);
+    if (!selected && !creating) setTask(null);
+    if (!task) setLoading(true);
     async function load() {
       if (selected) {
         const result = await taskApi.detail(selected);
@@ -59,11 +61,14 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
               ? result.task.assignees.map((a) => a.id)
               : (result.task.assigneeId ? [result.task.assigneeId] : []);
           setAssigneeIds(currentAssigneeIds);
+          onTaskChange?.(result.task.title);
         }
       } else if (creating && projectId) {
+        setLoading(true);
         const result = await projectApi.members(projectId);
         if (active) { setMembers(result.members); setInput(empty); setAssigneeIds([]); setSprintId(''); }
       } else {
+        setLoading(true);
         if (active) setPageData({ tasks: [], total: 0, page, pageSize: 20 });
         const params = new URLSearchParams({ page: String(page), pageSize: '20' });
         for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
@@ -81,11 +86,31 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
     catch (failure) { failed(failure); if (failure instanceof ApiError && failure.status === 403) { setTask(null); setMembers([]); setPending(null); } }
     finally { setBusy(false); }
   }
-  function open(id: string) { setSelected(id); setCreating(false); setNotice(''); }
-  function back() { if (onBack) { onBack(); return; } setSelected(''); setTask(null); setCreating(false); setNotice(''); }
+  function open(id: string) { setSelected(id); setTask(null); setCreating(false); setNotice(''); }
+  function back() { if (onBack) { onBack(); return; } if (selected) onTaskChange?.(null); setSelected(''); setTask(null); setCreating(false); setNotice(''); }
   function save(event: FormEvent) { event.preventDefault(); void mutate(async () => {
-    if (selected) { await taskApi.update(selected, input); setNotice('Đã lưu công việc.'); }
-    else if (projectId) { const result = await taskApi.create(projectId, { ...input, assigneeIds, sprintId: sprintId || null }); setCreating(false); setSelected(result.task.id); setNotice('Đã tạo công việc.'); }
+    if (selected) {
+      const result = await taskApi.update(selected, input);
+      setTask(result.task);
+      setInput({
+        title: result.task.title,
+        description: result.task.description,
+        priority: result.task.priority,
+        startDate: result.task.startDate?.slice(0, 10) ?? null,
+        dueDate: result.task.dueDate?.slice(0, 10) ?? null,
+        effort: result.task.effort,
+      });
+      onTaskChange?.(result.task.title);
+      setNotice('Đã lưu công việc.');
+    }
+    else if (projectId) {
+      const result = await taskApi.create(projectId, { ...input, assigneeIds, sprintId: sprintId || null });
+      setCreating(false);
+      setSelected(result.task.id);
+      setTask(result.task);
+      onTaskChange?.(result.task.title);
+      setNotice('Đã tạo công việc.');
+    }
   }); }
   const currentIndex = task ? taskStatuses.indexOf(task.status) : -1;
   const nextStatus = task && currentIndex < taskStatuses.length - 1 ? taskStatuses[currentIndex + 1] : undefined;
@@ -96,6 +121,7 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
       const toLabel = statusLabels[nextStatus];
       void mutate(async () => {
         const result = await taskApi.status(task.id, nextStatus, task.status, acknowledgeBlocked);
+        setTask(result.task);
         const message = `Đã chuyển trạng thái từ “${fromLabel}” sang “${toLabel}”.`;
         setNotice(result.warning ? `${message} (${result.warning})` : message);
       });
@@ -107,6 +133,7 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
       const toLabel = statusLabels[prevStatus];
       void mutate(async () => {
         const result = await taskApi.status(task.id, prevStatus, task.status, false);
+        setTask(result.task);
         const message = `Đã lùi trạng thái từ “${fromLabel}” về “${toLabel}”.`;
         setNotice(result.warning ? `${message} (${result.warning})` : message);
       });
@@ -115,7 +142,7 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
   return <section className="tasks-panel" aria-busy={loading || busy}>
     <div className="panel-heading"><div><span className="eyebrow">{projectId ? 'CÔNG VIỆC DỰ ÁN' : 'CÔNG VIỆC CỦA BẠN'}</span><h2>{selected ? task?.title ?? 'Chi tiết Task' : creating ? 'Tạo công việc' : projectId ? 'Task' : 'My Tasks'}</h2></div><div className="member-actions">{selected || creating ? <button className="refresh-button" disabled={busy} onClick={back}>← Danh sách</button> : canCreate && <button className="primary-button" disabled={busy} onClick={() => { setCreating(true); setNotice(''); }}>+ Tạo Task</button>}<button className="refresh-button" disabled={busy || loading} onClick={() => setAttempt((value) => value + 1)}>Tải lại</button></div></div>
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-success" role="status">{notice}</p>}
-    {loading ? <p role="status">Đang tải công việc…</p> : <>
+    {loading && !task ? <p role="status">Đang tải công việc…</p> : <>
     {!selected && !creating && <><form className="task-filters" onSubmit={(event) => { event.preventDefault(); setFilters({ ...query }); setPage(1); }}>
       <label>Tìm kiếm<input value={query.q} maxLength={200} placeholder="Tiêu đề hoặc mô tả" onChange={(event) => setQuery({ ...query, q: event.target.value })} /></label>
       <label>Trạng thái<select value={query.status} onChange={(event) => setQuery({ ...query, status: event.target.value })}><option value="">Tất cả</option>{taskStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
@@ -136,7 +163,11 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
         <div className="form-field"><label htmlFor="task-due">Deadline</label><input id="task-due" type="date" min={maxDate(input.startDate, effectiveProjectStart)} max={effectiveProjectEnd ?? undefined} value={input.dueDate ?? ''} onChange={(event) => setInput({ ...input, dueDate: event.target.value || null })} /></div>
       </div>
       {(effectiveProjectStart || effectiveProjectEnd) && <p className="field-help">Thời gian công việc phải nằm trong thời gian của Project ({effectiveProjectStart ?? 'Không giới hạn'} → {effectiveProjectEnd ?? 'Không giới hạn'}). Ngày ngoài khoảng này sẽ bị làm mờ và không thể chọn.</p>}
-      <div className="task-filters"><label>Ưu tiên<select value={input.priority} onChange={(event) => setInput({ ...input, priority: event.target.value as TaskPriority })}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label><label>Effort<select value={input.effort ?? ''} onChange={(event) => setInput({ ...input, effort: event.target.value ? Number(event.target.value) : null })}><option value="">Chưa đặt</option>{[1, 2, 3, 5, 8].map((effort) => <option key={effort}>{effort}</option>)}</select></label></div>
+      <div className="task-filters">
+        <label>Ưu tiên<select aria-label="Ưu tiên" value={input.priority} onChange={(event) => setInput({ ...input, priority: event.target.value as TaskPriority })}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label>
+        <label>Effort<select aria-label="Effort" value={input.effort ?? ''} onChange={(event) => setInput({ ...input, effort: event.target.value ? Number(event.target.value) : null })}><option value="">Chưa đặt</option>{[1, 2, 3, 5, 8].map((effort) => <option key={effort}>{effort}</option>)}</select></label>
+        <label>Người phụ trách<select aria-label="Người phụ trách" value={assigneeIds[0] ?? ''} onChange={(event) => setAssigneeIds(event.target.value ? [event.target.value] : [])}><option value="">Chưa phân công</option>{members.filter((member) => member.user.status === 'ACTIVE').map((member) => <option key={member.userId} value={member.userId}>{member.user.displayName} · {member.user.email}</option>)}</select></label>
+      </div>
       <AssigneePicker members={members} selectedIds={assigneeIds} onChange={setAssigneeIds} disabled={busy} />
       {projectId && <TaskSprintPicker key={projectId} projectId={projectId} value={sprintId} onChange={setSprintId} disabled={busy} onExpired={onExpired} />}
       <button className="primary-button">{busy ? 'Đang lưu…' : 'Tạo Task'}</button>
@@ -158,14 +189,14 @@ export function Tasks({ projectId, canCreate = false, initialId, projectDates, o
           <div className="form-field"><label htmlFor="task-due">Deadline</label><input id="task-due" type="date" min={maxDate(input.startDate, effectiveProjectStart)} max={effectiveProjectEnd ?? undefined} value={input.dueDate ?? ''} onChange={(event) => setInput({ ...input, dueDate: event.target.value || null })} /></div>
         </div>
         {(effectiveProjectStart || effectiveProjectEnd) && <p className="field-help">Thời gian công việc phải nằm trong thời gian của Project ({effectiveProjectStart ?? 'Không giới hạn'} → {effectiveProjectEnd ?? 'Không giới hạn'}). Ngày ngoài khoảng này sẽ bị làm mờ và không thể chọn.</p>}
-        <div className="task-filters"><label>Ưu tiên<select value={input.priority} onChange={(event) => setInput({ ...input, priority: event.target.value as TaskPriority })}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label><label>Effort<select value={input.effort ?? ''} onChange={(event) => setInput({ ...input, effort: event.target.value ? Number(event.target.value) : null })}><option value="">Chưa đặt</option>{[1, 2, 3, 5, 8].map((effort) => <option key={effort}>{effort}</option>)}</select></label></div>
+        <div className="task-filters"><label>Ưu tiên<select aria-label="Ưu tiên" value={input.priority} onChange={(event) => setInput({ ...input, priority: event.target.value as TaskPriority })}>{taskPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label><label>Effort<select aria-label="Effort" value={input.effort ?? ''} onChange={(event) => setInput({ ...input, effort: event.target.value ? Number(event.target.value) : null })}><option value="">Chưa đặt</option>{[1, 2, 3, 5, 8].map((effort) => <option key={effort}>{effort}</option>)}</select></label></div>
         <button className="primary-button">{busy ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
       </fieldset></form>}
-      {task.canEdit && <><form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void mutate(async () => { await taskApi.assign(task.id, assigneeIds); setNotice('Đã cập nhật người phụ trách.'); }); }}><h3>Phân công công việc</h3><AssigneePicker members={members} selectedIds={assigneeIds} onChange={setAssigneeIds} disabled={busy} historicalAssignees={task.assignees ?? (task.assignee ? [task.assignee] : [])} /><button className="primary-button" disabled={busy}>Lưu phân công</button></form><button className="danger-button" disabled={busy} onClick={() => setPending('delete')}>Xóa Task</button></>}
+      {task.canEdit && <><form className="workspace-form" onSubmit={(event) => { event.preventDefault(); void mutate(async () => { const result = await taskApi.assign(task.id, assigneeIds); setTask(result.task); setNotice('Đã cập nhật người phụ trách.'); }); }}><h3>Phân công công việc</h3><AssigneePicker members={members} selectedIds={assigneeIds} onChange={setAssigneeIds} disabled={busy} historicalAssignees={task.assignees ?? (task.assignee ? [task.assignee] : [])} /><button className="primary-button" disabled={busy}>Lưu phân công</button></form><button className="danger-button" disabled={busy} onClick={() => setPending('delete')}>Xóa Task</button></>}
       {pending && <div className="confirm-panel" role="group" aria-label="Xác nhận thay đổi công việc"><p>{pending === 'delete' ? `Xóa công việc “${task.title}”? Thao tác này xóa dữ liệu công việc.` : 'Còn dependency chưa DONE. Bạn đã xem cảnh báo và vẫn muốn chuyển trạng thái?'}</p><button className="primary-button" disabled={busy} onClick={() => pending === 'blocked' ? advance(true) : void mutate(async () => { await taskApi.remove(task.id); setSelected(''); setTask(null); setPage(1); setNotice('Đã xóa công việc.'); })}>Xác nhận</button> <button className="refresh-button" disabled={busy} onClick={() => setPending(null)}>Hủy</button></div>}
-      <Comments key={task.id} taskId={task.id} projectId={task.projectId} onExpired={onExpired} />
+      <Comments key={`comments-${task.id}`} taskId={task.id} projectId={task.projectId} onExpired={onExpired} currentUserId={userId} />
       <TaskDependencies key={`dependencies-${task.id}`} taskId={task.id} projectId={task.projectId} onExpired={onExpired} onChanged={() => { void taskApi.detail(task.id).then((result) => setTask(result.task)).catch(failed); }} />
-      <Attachments key={task.id} taskId={task.id} onExpired={onExpired} />
+      <Attachments key={`attachments-${task.id}`} taskId={task.id} onExpired={onExpired} />
     </>}
     </>}
   </section>;

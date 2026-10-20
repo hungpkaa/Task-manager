@@ -5,7 +5,7 @@ function emailNotice(delivery: WorkspaceMember['emailDelivery']) {
   return delivery === 'LOCAL' ? 'Email mời đã được tạo trong hộp thư thử.' : delivery === 'SENT' ? 'Email mời đã gửi đến dịch vụ email.' : delivery === 'FAILED' ? 'Chưa gửi được email mời. Bạn có thể gửi lại từ danh sách lời mời đang chờ.' : 'Gửi email chưa được cấu hình.';
 }
 
-export function Workspaces({ userId, initialId, initialProjectId, onExpired }: { userId: string; initialId?: string; initialProjectId?: string; onExpired: () => void }) {
+export function Workspaces({ userId, initialId, initialProjectId, onExpired, onWorkspaceChange, onProjectChange, onTaskChange, projectOpen, taskOpen }: { userId: string; initialId?: string; initialProjectId?: string; onExpired: () => void; onWorkspaceChange?: (data: { id: string; name: string } | null) => void; onProjectChange?: (data: { id: string; name: string } | null) => void; onTaskChange?: (name: string | null) => void; projectOpen?: boolean; taskOpen?: boolean }) {
   const [selected, setSelected] = useState(initialId ?? '');
   const [items, setItems] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -29,7 +29,9 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
   }
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setWorkspace(null); setMembers([]); setPendingInvites([]); setPending(null);
+    if (!workspace) setLoading(true);
+    setError(''); setPending(null);
+    if (!selected) { setWorkspace(null); setMembers([]); setPendingInvites([]); }
     const load = selected
       ? Promise.all([
           workspaceApi.detail(selected),
@@ -42,6 +44,7 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
             setPendingInvites(inviteResult.invitations);
             setName(detail.workspace.name);
             setDescription(detail.workspace.description);
+            onWorkspaceChange?.({ id: selected, name: detail.workspace.name });
           }
         })
       : Promise.all([workspaceApi.list(), workspaceApi.myInvitations().catch(() => ({ invitations: [] }))]).then(([wsResult, invResult]) => {
@@ -80,7 +83,8 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
   const displayedItems = items.filter((item) => statusFilter === 'ALL' || item.status === statusFilter);
 
   return <section className="workspace-panel" aria-busy={loading || busy}>
-    <div className="panel-heading"><div><span className="eyebrow">KHÔNG GIAN CỦA NHÓM</span><h1>{selected ? workspace?.name ?? 'Workspace' : 'Workspace của bạn'}</h1></div>{selected && <button className="refresh-button" disabled={busy} onClick={() => { setSelected(''); setNotice(''); }}>← Danh sách</button>}</div>
+    {!projectOpen && <>
+    <div className="panel-heading"><div><span className="eyebrow">KHÔNG GIAN CỦA NHÓM</span><h1>{selected ? workspace?.name ?? 'Workspace' : 'Workspace của bạn'}</h1></div>{selected && <button className="refresh-button" disabled={busy} onClick={() => { setSelected(''); setNotice(''); onWorkspaceChange?.(null); onProjectChange?.(null); onTaskChange?.(null); }}>← Danh sách</button>}</div>
     {error && <div role="alert" className="form-error"><p>{error}</p><button className="refresh-button" onClick={() => setAttempt((value) => value + 1)} disabled={busy}>Thử lại</button></div>}
     {notice && <p className="form-success" role="status">{notice}</p>}
     {loading ? <p role="status">Đang tải Workspace…</p> : <>
@@ -120,7 +124,7 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
           <button type="button" className={statusFilter === 'ALL' ? 'primary-button' : 'refresh-button'} aria-pressed={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')}>Tất cả ({items.length})</button>
         </div>
         <div className="workspace-grid">{displayedItems.map((item) => <button className="workspace-card" key={item.id} onClick={() => { setSelected(item.id); setNotice(''); }}><strong>{item.name}</strong><p>{item.description || 'Chưa có mô tả.'}</p><span>{item.status === 'CLOSED' ? 'Đã đóng · ' : ''}{item.myRole === 'OWNER' ? 'Owner' : 'Member'} · {item.memberCount} thành viên</span></button>)}</div>
-        {displayedItems.length === 0 && !error && <p>{statusFilter === 'CLOSED' ? 'Chưa có Workspace nào đã đóng.' : statusFilter === 'ACTIVE' ? 'Bạn không có Workspace nào đang hoạt động.' : 'Bạn chưa tham gia Workspace nào.'}</p>}
+        {displayedItems.length === 0 && !error && <p>{items.length === 0 ? 'Bạn chưa tham gia Workspace nào.' : statusFilter === 'CLOSED' ? 'Chưa có Workspace nào đã đóng.' : 'Bạn không có Workspace nào đang hoạt động.'}</p>}
       </>}
       {workspace && <>
         <p className="intro">{workspace.description || 'Chưa có mô tả.'}</p>
@@ -149,7 +153,7 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
             <label htmlFor="invite-email">Mời bằng email đã đăng ký</label>
             <div className="inline-fields">
               <input id="invite-email" type="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy} placeholder="nhap.email@example.com" />
-              <button className="primary-button" disabled={busy}>Gửi lời mời</button>
+              <button className="primary-button" disabled={busy} aria-label="Thêm thành viên">Gửi lời mời</button>
             </div>
             <p className="field-help">Người nhận sẽ nhận được thông báo/email và có thể chọn Chấp nhận hoặc Từ chối trước khi chính thức vào Workspace.</p>
           </form>
@@ -208,7 +212,9 @@ export function Workspaces({ userId, initialId, initialProjectId, onExpired }: {
         ) : null}
       </div>}
       </div>}
-      {workspace && <Projects key={workspace.id} workspaceId={workspace.id} owner={owner && !isClosed} initialId={workspace.id === initialId ? initialProjectId : undefined} onExpired={onExpired} />}
     </>}
+    </>}
+    {projectOpen && loading && !workspace && <p role="status">Đang tải Workspace…</p>}
+    {workspace && <Projects key={workspace.id} workspaceId={workspace.id} owner={owner && !isClosed} initialId={workspace.id === initialId ? initialProjectId : undefined} onExpired={onExpired} onProjectChange={onProjectChange} onTaskChange={onTaskChange} taskOpen={taskOpen} userId={userId} />}
   </section>;
 }
